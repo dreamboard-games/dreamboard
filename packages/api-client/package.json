@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard/api-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Public Dreamboard API client and event types",
   "type": "module",
   "main": "./dist/index.js",
@@ -81,11 +81,14 @@
     "dist"
   ],
   "dependencies": {
-    "@tanstack/react-query": "^5.90.16",
-    "zod": "^4.3.6"
+    "@tanstack/react-query": "^5.90.16"
   },
   "devDependencies": {
     "@dreamboard/typescript-config": "workspace:*",
-    "@hey-api/openapi-ts": "^0.90.2"
+    "@hey-api/openapi-ts": "^0.90.2",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "zod": "4.4.3"
   }
 }

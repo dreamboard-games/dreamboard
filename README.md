@@ -206,7 +206,7 @@ dreamboard run --screenshot --output ./shot.png --delay 1500 --width 1440 --heig
 - Install the public skill directly with `skills.sh`:
 
 ```bash
-npx skills add https://github.com/dreamboard-games/dreamboard-cli --skill dreamboard
+npx skills add https://github.com/dreamboard-games/dreamboard --skill dreamboard
 ```
 
 ## Publish Prep
@@ -226,7 +226,7 @@ Optional public metadata env vars for staging:
 export DREAMBOARD_PUBLIC_REPOSITORY_URL="https://github.com/<org>/<repo>.git"
 export DREAMBOARD_PUBLIC_HOMEPAGE="https://github.com/<org>/<repo>"
 export DREAMBOARD_PUBLIC_BUGS_URL="https://github.com/<org>/<repo>/issues"
-export DREAMBOARD_PUBLIC_LICENSE="MIT"
+export DREAMBOARD_PUBLIC_LICENSE="SEE LICENSE IN LICENSE"
 ```
 
 If the source package already defines `repository`, `homepage`, `bugs`, or `license`, `stage:publish` will reuse those fields automatically.

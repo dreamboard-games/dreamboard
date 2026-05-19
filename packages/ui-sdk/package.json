@@ -1,85 +1,78 @@
 {
   "name": "@dreamboard/ui-sdk",
-  "version": "0.0.40",
+  "version": "0.0.42",
   "private": false,
   "description": "UI SDK for dreamboard plugin development",
   "type": "module",
-  "//": "NOTE: main/types/exports point to SOURCE files (./src) NOT built files (./dist)",
-  "//2": "This enables fast HMR during development. CI builds work because turbo builds dependencies first.",
-  "//3": "DO NOT change these to ./dist/* - it breaks dev workflow requiring manual compilation on every change.",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./reducer": {
-      "types": "./src/reducer.ts",
-      "import": "./src/reducer.ts"
+      "bun": "./src/reducer.ts",
+      "types": "./dist/reducer.d.ts",
+      "import": "./dist/reducer.js"
     },
-    "./internal/runtime-context": {
-      "types": "./src/context/RuntimeContext.tsx",
-      "import": "./src/context/RuntimeContext.tsx"
+    "./components": {
+      "bun": "./src/components/index.ts",
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
     },
-    "./internal/usePluginRuntime": {
-      "types": "./src/hooks/usePluginRuntime.ts",
-      "import": "./src/hooks/usePluginRuntime.ts"
+    "./defaults": {
+      "bun": "./src/defaults/index.ts",
+      "types": "./dist/defaults/index.d.ts",
+      "import": "./dist/defaults/index.js"
     },
-    "./internal/createPluginRuntimeAPI": {
-      "types": "./src/runtime/createPluginRuntimeAPI.ts",
-      "import": "./src/runtime/createPluginRuntimeAPI.ts"
+    "./primitives": {
+      "bun": "./src/primitives/index.ts",
+      "types": "./dist/primitives/index.d.ts",
+      "import": "./dist/primitives/index.js"
     },
-    "./internal/useHandLayout": {
-      "types": "./src/hooks/useHandLayout.ts",
-      "import": "./src/hooks/useHandLayout.ts"
-    },
-    "./internal/usePanZoom": {
-      "types": "./src/hooks/usePanZoom.ts",
-      "import": "./src/hooks/usePanZoom.ts"
-    },
-    "./internal/useIsMobile": {
-      "types": "./src/hooks/useIsMobile.ts",
-      "import": "./src/hooks/useIsMobile.ts"
-    },
-    "./internal/player-state": {
-      "types": "./src/types/player-state.ts",
-      "import": "./src/types/player-state.ts"
-    },
-    "./internal/tiled-board": {
-      "types": "./src/types/tiled-board.ts",
-      "import": "./src/types/tiled-board.ts"
-    },
-    "./internal/plugin-state": {
-      "types": "./src/types/plugin-state.ts",
-      "import": "./src/types/plugin-state.ts"
+    "./internal": {
+      "bun": "./src/internal.ts",
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js"
     },
     "./types/runtime-api": {
-      "types": "./src/types/runtime-api.ts",
-      "import": "./src/types/runtime-api.ts"
+      "bun": "./src/types/runtime-api.ts",
+      "types": "./dist/types/runtime-api.d.ts",
+      "import": "./dist/types/runtime-api.js"
     },
-    "./plugin-styles.css": "./src/plugin-styles.css",
+    "./plugin-styles.css": "./dist/plugin-styles.css",
     "./package.json": "./package.json"
   },
   "files": [
-    "src",
-    "dist"
+    "dist",
+    "src"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -b && rollup -c rollup.config.js",
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -b && cp src/plugin-styles.css dist/plugin-styles.css && rollup -c rollup.config.js",
     "postbuild": "echo '✅ Generated ui-sdk.d.ts'",
+    "typecheck": "tsc -b --pretty false",
     "dev": "cosmos",
     "cosmos": "cosmos",
     "cosmos:export": "cosmos-export",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "test": "bun test",
+    "test:unit": "bun test",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@dreamboard/sdk-types": "workspace:*",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-label": "^2.1.6",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@use-gesture/react": "^10.3.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",
@@ -87,7 +80,7 @@
     "react": "^19.2.0",
     "tailwindcss": "^4.1.5",
     "vaul": "^1.1.2",
-    "zod": "^4.0.0"
+    "zustand": "^5.0.4"
   },
   "devDependencies": {
     "@dreamboard/eslint-config": "workspace:*",
@@ -104,10 +97,12 @@
     "react-dom": "^19.2.0",
     "rollup": "^4.28.1",
     "rollup-plugin-dts": "^6.1.1",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "zod": "4.4.3"
   },
   "peerDependencies": {
     "framer-motion": "^11.0.0",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "zod": "4.4.3"
   }
 }

@@ -21,6 +21,104 @@ data class ContinuationToken(
 )
 
 @Serializable
+data class ReducerSetupSelection(
+    @SerialName("profileId")
+    val profileId: String,
+    @SerialName("optionValues")
+    val optionValues: Map<String, String?>,
+)
+
+@Serializable
+data class RngState(
+    @SerialName("seed")
+    val seed: Long?,
+    @SerialName("cursor")
+    val cursor: Int,
+    @SerialName("trace")
+    val trace: List<String>,
+)
+
+@Serializable
+data class ReducerFlowState(
+    @SerialName("currentPhase")
+    val currentPhase: String,
+    @SerialName("turn")
+    val turn: Int,
+    @SerialName("round")
+    val round: Int,
+    @SerialName("activePlayers")
+    val activePlayers: List<String>,
+)
+
+@Serializable
+data class RuntimeSimultaneousSubmission(
+    @SerialName("interactionId")
+    val interactionId: String,
+    @SerialName("params")
+    val params: JsonElement,
+)
+
+@Serializable
+data class RuntimeSimultaneousCurrent(
+    @SerialName("phaseName")
+    val phaseName: String,
+    @SerialName("actors")
+    val actors: List<String>,
+    @SerialName("submissions")
+    val submissions: Map<String, RuntimeSimultaneousSubmission>,
+)
+
+@Serializable
+data class RuntimeSimultaneousState(
+    @SerialName("current")
+    val current: RuntimeSimultaneousCurrent?,
+)
+
+@Serializable
+data class TransitionRecord(
+    @SerialName("from")
+    val from: String,
+    @SerialName("to")
+    val to: String,
+)
+
+@Serializable
+data class ReducerRuntimeState(
+    @SerialName("rng")
+    val rng: RngState,
+    @SerialName("setup")
+    val setup: ReducerSetupSelection?,
+    @SerialName("simultaneous")
+    val simultaneous: RuntimeSimultaneousState,
+    @SerialName("lastTransition")
+    val lastTransition: TransitionRecord?,
+)
+
+@Serializable
+data class ReducerDomainState(
+    @SerialName("table")
+    val table: JsonElement,
+    @SerialName("publicState")
+    val publicState: JsonElement,
+    @SerialName("privateState")
+    val privateState: Map<String, JsonElement>,
+    @SerialName("hiddenState")
+    val hiddenState: JsonElement,
+    @SerialName("flow")
+    val flow: ReducerFlowState,
+    @SerialName("phase")
+    val phase: JsonElement,
+)
+
+@Serializable
+data class ReducerSessionState(
+    @SerialName("domain")
+    val domain: ReducerDomainState,
+    @SerialName("runtime")
+    val runtime: ReducerRuntimeState,
+)
+
+@Serializable
 @JsonClassDiscriminator("kind")
 sealed interface GameInput {
     @Serializable
@@ -64,6 +162,17 @@ sealed interface Effect {
         @SerialName("zoneId")
         val zoneId: String,
     ) : Effect
+
+    @Serializable
+    @SerialName("shufflePlayerZone")
+    data class ShufflePlayerZone(
+        @SerialName("effectId")
+        val effectId: String,
+        @SerialName("zoneId")
+        val zoneId: String,
+        @SerialName("playerId")
+        val playerId: String,
+    ) : Effect
 }
 
 @Serializable
@@ -83,15 +192,15 @@ data class InitializeRequest(
     @SerialName("playerIds")
     val playerIds: List<String>,
     @SerialName("rngSeed")
-    val rngSeed: JsonElement? = null,
+    val rngSeed: Long? = null,
     @SerialName("setup")
-    val setup: JsonElement? = null,
+    val setup: ReducerSetupSelection? = null,
 )
 
 @Serializable
 data class InitializePhaseRequest(
     @SerialName("state")
-    val state: JsonElement,
+    val state: ReducerSessionState,
     @SerialName("to")
     val to: String,
 )
@@ -99,7 +208,7 @@ data class InitializePhaseRequest(
 @Serializable
 data class ValidateInputRequest(
     @SerialName("state")
-    val state: JsonElement,
+    val state: ReducerSessionState,
     @SerialName("input")
     val input: GameInput,
 )
@@ -107,7 +216,7 @@ data class ValidateInputRequest(
 @Serializable
 data class ReduceRequest(
     @SerialName("state")
-    val state: JsonElement,
+    val state: ReducerSessionState,
     @SerialName("input")
     val input: GameInput,
 )
@@ -115,7 +224,7 @@ data class ReduceRequest(
 @Serializable
 data class DispatchRequest(
     @SerialName("state")
-    val state: JsonElement,
+    val state: ReducerSessionState,
     @SerialName("input")
     val input: GameInput,
 )
@@ -136,7 +245,7 @@ sealed interface ReduceResult {
     @SerialName("accept")
     data class Accept(
         @SerialName("state")
-        val state: JsonElement,
+        val state: ReducerSessionState,
         @SerialName("effects")
         val effects: List<Effect>,
         @SerialName("continuations")
@@ -189,10 +298,54 @@ sealed interface DispatchResult {
     @SerialName("accept")
     data class Accept(
         @SerialName("state")
-        val state: JsonElement,
+        val state: ReducerSessionState,
         @SerialName("trace")
         val trace: List<DispatchTrace>,
     ) : DispatchResult
+}
+
+@Serializable
+@JsonClassDiscriminator("kind")
+sealed interface ReducerRuntimeLogEntry {
+    @Serializable
+    @SerialName("acceptedClientInput")
+    data class AcceptedClientInput(
+        @SerialName("version")
+        val version: Int,
+        @SerialName("input")
+        val input: GameInput,
+    ) : ReducerRuntimeLogEntry
+
+    @Serializable
+    @SerialName("appliedEffect")
+    data class AppliedEffect(
+        @SerialName("version")
+        val version: Int,
+        @SerialName("effect")
+        val effect: Effect,
+        @SerialName("continuation")
+        val continuation: ContinuationToken?,
+    ) : ReducerRuntimeLogEntry
+
+    @Serializable
+    @SerialName("rngConsumption")
+    data class RngConsumption(
+        @SerialName("version")
+        val version: Int,
+        @SerialName("operation")
+        val operation: String,
+        @SerialName("traceEntry")
+        val traceEntry: String,
+    ) : ReducerRuntimeLogEntry
+
+    @Serializable
+    @SerialName("stateCommit")
+    data class StateCommit(
+        @SerialName("version")
+        val version: Int,
+        @SerialName("state")
+        val state: ReducerSessionState,
+    ) : ReducerRuntimeLogEntry
 }
 
 @Serializable
@@ -206,11 +359,27 @@ data class SeatProjection(
 )
 
 @Serializable
+data class SimultaneousPhaseProjection(
+    @SerialName("phaseName")
+    val phaseName: String,
+    @SerialName("interactionId")
+    val interactionId: String,
+    @SerialName("actorIds")
+    val actorIds: List<String>,
+    @SerialName("sealedPlayerIds")
+    val sealedPlayerIds: List<String>,
+    @SerialName("pendingPlayerIds")
+    val pendingPlayerIds: List<String>,
+)
+
+@Serializable
 data class SeatProjectionBundle(
     @SerialName("currentStage")
-    val currentStage: JsonElement? = null,
+    val currentStage: String? = null,
     @SerialName("stageSeats")
     val stageSeats: List<String> = emptyList(),
+    @SerialName("simultaneousPhase")
+    val simultaneousPhase: SimultaneousPhaseProjection? = null,
     @SerialName("seats")
     val seats: Map<String, SeatProjection>,
 )
@@ -218,7 +387,7 @@ data class SeatProjectionBundle(
 @Serializable
 data class ProjectSeatsDynamicRequest(
     @SerialName("state")
-    val state: JsonElement,
+    val state: ReducerSessionState,
     @SerialName("playerIds")
     val playerIds: List<String>,
     @SerialName("viewId")
@@ -327,4 +496,4 @@ object ReducerBundleOperations {
  * Wire-protocol version implemented by this generated code. Must match
  * the JS bundle's REDUCER_CONTRACT_VERSION at load time.
  */
-public const val REDUCER_CONTRACT_VERSION: String = "6.0.0"
+public const val REDUCER_CONTRACT_VERSION: String = "7.0.1"

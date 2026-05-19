@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard/workspace-codegen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Internal Dreamboard workspace source generator",
   "type": "module",
   "main": "./dist/index.js",

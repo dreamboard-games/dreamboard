@@ -1,4 +1,12 @@
-import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPublishedPackageFiles } from "../src/publish/stage-publish-layout.js";
@@ -12,7 +20,17 @@ const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+const repoRoot = path.resolve(packageRoot, "..", "..");
 const stageRoot = path.join(packageRoot, ".publish", "package");
+const publishedSdkPackageNames: Record<string, string> = {
+  "@dreamboard/api-client": "@dreamboard-games/api-client",
+  "@dreamboard/app-sdk": "@dreamboard-games/app-sdk",
+  "@dreamboard/reducer-contract": "@dreamboard-games/reducer-contract",
+  "@dreamboard/sdk-types": "@dreamboard-games/sdk-types",
+  "@dreamboard/testing": "@dreamboard-games/testing",
+  "@dreamboard/ui-sdk": "@dreamboard-games/ui-sdk",
+  "@dreamboard/workspace-codegen": "@dreamboard-games/workspace-codegen",
+};
 const sourcePackage = JSON.parse(
   await readFile(path.join(packageRoot, "package.json"), "utf8"),
 ) as {
@@ -31,6 +49,17 @@ const sdkDependencyRanges = Object.fromEntries(
   await Promise.all(
     [
       [
+        "@dreamboard/api-client",
+        path.join(
+          packageRoot,
+          "..",
+          "..",
+          "packages",
+          "api-client",
+          "package.json",
+        ),
+      ],
+      [
         "@dreamboard/app-sdk",
         path.join(
           packageRoot,
@@ -38,6 +67,17 @@ const sdkDependencyRanges = Object.fromEntries(
           "..",
           "packages",
           "app-sdk",
+          "package.json",
+        ),
+      ],
+      [
+        "@dreamboard/reducer-contract",
+        path.join(
+          packageRoot,
+          "..",
+          "..",
+          "packages",
+          "reducer-contract",
           "package.json",
         ),
       ],
@@ -74,11 +114,25 @@ const sdkDependencyRanges = Object.fromEntries(
           "package.json",
         ),
       ],
+      [
+        "@dreamboard/workspace-codegen",
+        path.join(
+          packageRoot,
+          "..",
+          "..",
+          "packages",
+          "workspace-codegen",
+          "package.json",
+        ),
+      ],
     ].map(async ([packageName, packageJsonPath]) => {
       const packageJson = JSON.parse(
         await readFile(packageJsonPath, "utf8"),
       ) as { version?: string };
-      return [packageName, `^${packageJson.version?.trim() ?? ""}`];
+      const version = packageJson.version?.trim() ?? "";
+      const publishedPackageName =
+        publishedSdkPackageNames[packageName] ?? packageName;
+      return [packageName, `npm:${publishedPackageName}@^${version}`];
     }),
   ),
 );
@@ -87,6 +141,11 @@ const packagedDependencies = Object.fromEntries(
     ([packageName]) => !packageName.startsWith("@dreamboard/"),
   ),
 );
+for (const [packageName, packageRange] of Object.entries(
+  sdkDependencyRanges,
+)) {
+  packagedDependencies[packageName] = packageRange;
+}
 if (sourcePackage.devDependencies?.playwright) {
   packagedDependencies.playwright = sourcePackage.devDependencies.playwright;
 }
@@ -146,9 +205,9 @@ const packageJson: Record<string, unknown> = {
     : {}),
   dreamboardSdkDependencyRanges: sdkDependencyRanges,
   license:
-    sourcePackage.license ??
     process.env.DREAMBOARD_PUBLIC_LICENSE ??
-    "UNLICENSED",
+    sourcePackage.license ??
+    "SEE LICENSE IN LICENSE",
 };
 
 if (repositoryUrl) {
@@ -183,6 +242,16 @@ async function pruneTransientSkillArtifacts(rootDir: string) {
   }
 }
 
+async function copyIfPresent(sourcePath: string, targetPath: string) {
+  const exists = await stat(sourcePath).then(
+    () => true,
+    () => false,
+  );
+  if (exists) {
+    await cp(sourcePath, targetPath, { force: true });
+  }
+}
+
 await rm(stageRoot, { recursive: true, force: true });
 await mkdir(stageRoot, { recursive: true });
 await cp(path.join(packageRoot, "dist"), path.join(stageRoot, "dist"), {
@@ -193,6 +262,14 @@ await cp(
   path.join(packageRoot, "README.md"),
   path.join(stageRoot, "README.md"),
   { force: true },
+);
+await copyIfPresent(
+  path.join(repoRoot, "LICENSE"),
+  path.join(stageRoot, "LICENSE"),
+);
+await copyIfPresent(
+  path.join(repoRoot, "NOTICE"),
+  path.join(stageRoot, "NOTICE"),
 );
 if (publicSkillRoot) {
   await mkdir(path.join(stageRoot, "skills"), { recursive: true });

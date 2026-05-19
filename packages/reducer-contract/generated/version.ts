@@ -6,4 +6,4 @@
  * any breaking change to schema/reducer-runtime.schema.json. At bundle load
  * time the Kotlin adapter refuses bundles whose major version differs.
  */
-export const REDUCER_CONTRACT_VERSION = "6.0.0" as const;
+export const REDUCER_CONTRACT_VERSION = "7.0.1" as const;
