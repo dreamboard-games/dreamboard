@@ -1,6 +1,6 @@
 {
   "name": "dreamboard-cli",
-  "version": "0.1.30-alpha.2",
+  "version": "0.1.30-alpha.3",
   "description": "Design board games with AI and turn ideas into playable digital prototypes.",
   "repository": {
     "type": "git",
@@ -31,8 +31,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "pnpm run typecheck && tsup && pnpm run copy:dev-host-assets",
     "build:published": "DREAMBOARD_BUILD_CHANNEL=published tsup && pnpm run copy:dev-host-assets",
+    "build:agent-verifier": "tsup --config tsup.agent-verifier.config.ts",
     "copy:dev-host-assets": "tsx scripts/copy-dev-host-assets.ts",
-    "stage:publish": "pnpm run build:published && tsx scripts/stage-publish.ts",
+    "stage:publish": "pnpm run build:published && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts",
     "stage:install-smoke-package": "tsx scripts/stage-install-smoke-package.ts",
     "pack:publish": "pnpm run stage:publish && npm pack --dry-run .publish/package"
   },
