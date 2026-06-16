@@ -1,6 +1,6 @@
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { loadProjectConfig, updateProjectState } from "./project-config.js";
 
@@ -21,7 +21,12 @@ describe("project config normalization", () => {
     tempDirs.push(rootDir);
 
     await updateProjectState(rootDir, {
+      schemaVersion: 2,
+      projectId: "project-1",
       gameId: "game-1",
+      deploymentId: "deployment-1",
+      ownerScopeId: "owner-scope-1",
+      bindingKey: "deployment-1:owner-scope-1",
       slug: "sample-game",
       authoring: {
         authoringStateId: "authoring-1",
@@ -52,7 +57,12 @@ describe("project config normalization", () => {
     tempDirs.push(rootDir);
 
     await updateProjectState(rootDir, {
+      schemaVersion: 2,
+      projectId: "project-1",
       gameId: "game-1",
+      deploymentId: "deployment-1",
+      ownerScopeId: "owner-scope-1",
+      bindingKey: "deployment-1:owner-scope-1",
       slug: "sample-game",
       authoring: {
         authoringStateId: "authoring-1",
@@ -73,26 +83,63 @@ describe("project config normalization", () => {
     expect(loaded.compile?.latestSuccessful).toBeUndefined();
   });
 
-  test("upgrades legacy flat fields into nested authoring and compile state", async () => {
+  test("loads v2 manifest with environment binding state", async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), "dreamboard-config-"));
     tempDirs.push(rootDir);
+    const configDir = path.join(rootDir, ".dreamboard");
+    await mkdir(configDir, { recursive: true });
 
-    await updateProjectState(rootDir, {
-      gameId: "game-1",
-      slug: "legacy-game",
-      ruleId: "rule-legacy",
-      manifestId: "manifest-legacy",
-      manifestContentHash: "manifest-hash-legacy",
-      resultId: "result-legacy",
-      sourceRevisionId: "source-legacy",
-      sourceTreeHash: "tree-legacy",
-    });
+    await writeFile(
+      path.join(configDir, "project.json"),
+      `${JSON.stringify(
+        {
+          schemaVersion: 2,
+          projectId: "project-1",
+          slug: "bound-game",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(configDir, "state.json"),
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          bindings: {
+            "deployment-1:owner-scope-1": {
+              deploymentId: "deployment-1",
+              ownerScopeId: "owner-scope-1",
+              gameId: "game-1",
+              remoteHeadDigest: "revision-digest-1",
+              authoring: {
+                revisionDigest: "revision-digest-1",
+                ruleId: "rule-1",
+                manifestId: "manifest-1",
+              },
+              compile: {
+                latestSuccessful: {
+                  resultId: "result-1",
+                  authoringStateId: "revision-digest-1",
+                  revisionDigest: "revision-digest-1",
+                },
+              },
+            },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
 
     const loaded = await loadProjectConfig(rootDir);
-    expect(loaded.authoring?.ruleId).toBe("rule-legacy");
-    expect(loaded.authoring?.manifestId).toBe("manifest-legacy");
-    expect(loaded.authoring?.sourceRevisionId).toBe("source-legacy");
-    expect(loaded.compile?.latestAttempt?.resultId).toBe("result-legacy");
-    expect(loaded.compile?.latestSuccessful?.resultId).toBe("result-legacy");
+    expect(loaded.projectId).toBe("project-1");
+    expect(loaded.gameId).toBe("game-1");
+    expect(loaded.bindingKey).toBe("deployment-1:owner-scope-1");
+    expect(loaded.remoteHeadDigest).toBe("revision-digest-1");
+    expect(loaded.authoring?.ruleId).toBe("rule-1");
+    expect(loaded.compile?.latestSuccessful?.resultId).toBe("result-1");
   });
 });

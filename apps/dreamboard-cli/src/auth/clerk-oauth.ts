@@ -82,8 +82,9 @@ function assertConfigured(config: ClerkOAuthConfig): {
     throw new Error(
       [
         "Clerk OAuth CLI is not configured for this environment.",
-        "Set DREAMBOARD_CLERK_OAUTH_ISSUER and DREAMBOARD_CLERK_OAUTH_CLIENT_ID",
-        "or the environment-specific DREAMBOARD_<ENV>_CLERK_OAUTH_* variables.",
+        "The CLI expects first-party environments to be configured in its built-in registry.",
+        "If this environment has no registered public Clerk OAuth client, create one and release a CLI with its client id.",
+        "For emergency overrides, set the environment-specific DREAMBOARD_<ENV>_CLERK_OAUTH_* variables or DREAMBOARD_CLERK_OAUTH_*.",
         "For local harness auth, use `pnpm auth:local` or the auto-bootstrapped local harness flows instead.",
       ].join(" "),
     );

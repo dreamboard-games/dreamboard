@@ -4,41 +4,30 @@ export const DEFAULT_API_BASE_URL = "https://api.dreamboard.games";
 export const DEFAULT_WEB_BASE_URL = "https://dreamboard.games";
 
 export const PROJECT_DIR_NAME = ".dreamboard";
+export const DEFAULT_CLERK_OAUTH_SCOPE =
+  "openid profile email offline_access";
 
-// Predefined environment configurations
+// Predefined environment configurations. These are intentionally static:
+// process/env overrides are applied in config resolution so the CLI does not
+// depend on a shell-sourced env file just to know first-party environments.
 export const ENVIRONMENT_CONFIGS: Record<string, EnvironmentConfig> = {
   local: {
     apiBaseUrl: "http://localhost:8080",
     webBaseUrl: "http://localhost:5173",
-    clerkOAuthIssuer: process.env.DREAMBOARD_LOCAL_CLERK_OAUTH_ISSUER,
-    clerkOAuthClientId: process.env.DREAMBOARD_LOCAL_CLERK_OAUTH_CLIENT_ID,
-    clerkOAuthScope: process.env.DREAMBOARD_LOCAL_CLERK_OAUTH_SCOPE,
+    clerkOAuthScope: DEFAULT_CLERK_OAUTH_SCOPE,
   },
   staging: {
     apiBaseUrl: "https://api-staging.dreamboard.games",
     webBaseUrl: "https://staging.dreamboard.games",
-    clerkOAuthIssuer:
-      process.env.DREAMBOARD_STAGING_CLERK_OAUTH_ISSUER ??
-      process.env.DREAMBOARD_CLERK_OAUTH_ISSUER,
-    clerkOAuthClientId:
-      process.env.DREAMBOARD_STAGING_CLERK_OAUTH_CLIENT_ID ??
-      process.env.DREAMBOARD_CLERK_OAUTH_CLIENT_ID,
-    clerkOAuthScope:
-      process.env.DREAMBOARD_STAGING_CLERK_OAUTH_SCOPE ??
-      process.env.DREAMBOARD_CLERK_OAUTH_SCOPE,
+    clerkOAuthIssuer: "https://happy-caribou-19.clerk.accounts.dev",
+    clerkOAuthTokenUrl:
+      "https://happy-caribou-19.clerk.accounts.dev/oauth/token",
+    clerkOAuthScope: DEFAULT_CLERK_OAUTH_SCOPE,
   },
   prod: {
     apiBaseUrl: "https://api.dreamboard.games",
     webBaseUrl: "https://dreamboard.games",
-    clerkOAuthIssuer:
-      process.env.DREAMBOARD_PROD_CLERK_OAUTH_ISSUER ??
-      process.env.DREAMBOARD_CLERK_OAUTH_ISSUER,
-    clerkOAuthClientId:
-      process.env.DREAMBOARD_PROD_CLERK_OAUTH_CLIENT_ID ??
-      process.env.DREAMBOARD_CLERK_OAUTH_CLIENT_ID,
-    clerkOAuthScope:
-      process.env.DREAMBOARD_PROD_CLERK_OAUTH_SCOPE ??
-      process.env.DREAMBOARD_CLERK_OAUTH_SCOPE,
+    clerkOAuthScope: DEFAULT_CLERK_OAUTH_SCOPE,
   },
 };
 export const PROJECT_CONFIG_FILE = "project.json";

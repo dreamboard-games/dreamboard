@@ -21,6 +21,7 @@ test("compile success updates latest attempt and latest successful state", async
     added: [],
     deleted: [],
   };
+  state.findCompiledResultsForAuthoringStateResult = [];
   state.createCompiledResultResult = {
     id: "result-2",
     authoringStateId: "authoring-1",
@@ -36,20 +37,22 @@ test("compile success updates latest attempt and latest successful state", async
 
   expect(state.calls.queueCompiledResultJobSdk).toEqual([
     {
-      gameId: "game-1",
-      authoringStateId: "authoring-1",
+      projectId: "project-1",
+      revisionDigest: "revision-digest-1",
     },
   ]);
   expect(state.projectConfig.compile?.latestAttempt).toEqual({
     resultId: "result-2",
     jobId: "compile-job-1",
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
     status: "successful",
     diagnosticsSummary: undefined,
   });
   expect(state.projectConfig.compile?.latestSuccessful).toEqual({
     resultId: "result-2",
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
   });
 });
 
@@ -60,6 +63,7 @@ test("compile failure persists the failed attempt without changing authored sync
     added: [],
     deleted: [],
   };
+  state.findCompiledResultsForAuthoringStateResult = [];
   state.createCompiledResultResult = {
     id: "result-failed",
     authoringStateId: "authoring-1",
@@ -89,12 +93,14 @@ test("compile failure persists the failed attempt without changing authored sync
     resultId: "result-failed",
     jobId: "compile-job-1",
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
     status: "failed",
     diagnosticsSummary: "Broken import",
   });
   expect(state.projectConfig.compile?.latestSuccessful).toEqual({
     resultId: "result-1",
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
   });
 });
 
@@ -105,6 +111,7 @@ test("compile persists a failed attempt when the queued job errors before produc
     added: [],
     deleted: [],
   };
+  state.findCompiledResultsForAuthoringStateResult = [];
   state.waitForCompiledResultJobError = new Error(
     "Failed to get job (HTTP 500)",
   );
@@ -123,11 +130,13 @@ test("compile persists a failed attempt when the queued job errors before produc
     resultId: undefined,
     jobId: "compile-job-1",
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
     status: "failed",
     diagnosticsSummary: "Failed to get job (HTTP 500)",
   });
   expect(state.projectConfig.compile?.latestSuccessful).toEqual({
     resultId: "result-1",
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
   });
 });

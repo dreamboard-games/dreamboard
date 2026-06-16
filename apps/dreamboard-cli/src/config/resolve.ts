@@ -1,6 +1,7 @@
 import { client } from "@dreamboard-games/api-client/client.gen";
 import type {
   Environment,
+  EnvironmentConfig,
   GlobalConfig,
   ProjectConfig,
   ResolvedConfig,
@@ -103,6 +104,7 @@ export function resolveConfig(
     valueOrUndefined(process.env.DREAMBOARD_WEB_BASE_URL) ?? resolvedWebBaseUrl;
 
   const snapshot = buildCredentialSnapshot(flags, credentials, environment);
+  const oauthConfig = resolveEnvironmentOAuthConfig(environment, envConfig);
 
   return {
     environment,
@@ -111,15 +113,51 @@ export function resolveConfig(
     authToken: snapshot.accessToken,
     refreshToken: snapshot.refreshToken,
     tokenExpiresAt: snapshot.tokenExpiresAt,
-    clerkOAuthIssuer: snapshot.clerkOAuthIssuer ?? envConfig?.clerkOAuthIssuer,
+    clerkOAuthIssuer: snapshot.clerkOAuthIssuer ?? oauthConfig.issuer,
     clerkOAuthClientId:
-      snapshot.clerkOAuthClientId ?? envConfig?.clerkOAuthClientId,
-    clerkOAuthTokenUrl:
-      snapshot.clerkOAuthTokenUrl ??
-      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_TOKEN_URL),
-    clerkOAuthScope: envConfig?.clerkOAuthScope,
+      snapshot.clerkOAuthClientId ?? oauthConfig.clientId,
+    clerkOAuthTokenUrl: snapshot.clerkOAuthTokenUrl ?? oauthConfig.tokenUrl,
+    clerkOAuthScope: oauthConfig.scope,
     authTokenSource: snapshot.authTokenSource,
     refreshTokenSource: snapshot.refreshTokenSource,
+  };
+}
+
+function resolveEnvironmentOAuthConfig(
+  environment: Environment,
+  envConfig?: EnvironmentConfig,
+): {
+  issuer?: string;
+  clientId?: string;
+  tokenUrl?: string;
+  scope?: string;
+} {
+  const prefix = environment.toUpperCase();
+  return {
+    issuer:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_ISSUER`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_ISSUER) ??
+      envConfig?.clerkOAuthIssuer,
+    clientId:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_CLIENT_ID`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_CLIENT_ID) ??
+      envConfig?.clerkOAuthClientId,
+    tokenUrl:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_TOKEN_URL`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_TOKEN_URL) ??
+      envConfig?.clerkOAuthTokenUrl,
+    scope:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_SCOPE`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_SCOPE) ??
+      envConfig?.clerkOAuthScope,
   };
 }
 

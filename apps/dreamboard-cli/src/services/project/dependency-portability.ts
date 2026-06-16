@@ -28,6 +28,11 @@ type DependencyProblem = {
   specifier: string;
 };
 
+type LegacyDependencyProblem = {
+  location: string;
+  packageName: string;
+};
+
 const DEPENDENCY_FIELDS = [
   "dependencies",
   "devDependencies",
@@ -59,6 +64,11 @@ export async function assertCompilerPortableDependencies(options: {
   projectConfig?: ProjectConfig;
 }): Promise<SourceDependencyProfile> {
   const packageJson = await readProjectPackageJson(options.projectRoot);
+  const legacyProblems = collectLegacyDreamboardSpecifiers(packageJson);
+  if (legacyProblems.length > 0) {
+    throwLegacyDreamboardPackageError(legacyProblems);
+  }
+
   const problems = collectUnportableDreamboardSpecifiers(packageJson);
   if (problems.length > 0) {
     const details = problems
@@ -71,7 +81,7 @@ export async function assertCompilerPortableDependencies(options: {
       [
         "Compiler-bound workspaces must install Dreamboard packages from a registry.",
         `Found unportable Dreamboard dependency specifier(s): ${details}.`,
-        "Run `dreamboard sync` from a workspace that uses registry-pinned @dreamboard/* and dreamboard versions before compiling.",
+        "Run `dreamboard sync` from a workspace that uses registry-pinned @dreamboard-games/* and dreamboard versions before compiling.",
       ].join(" "),
     );
   }
@@ -94,6 +104,12 @@ export async function assertReleaseEnvironmentPortableDependencies(options: {
   projectConfig?: ProjectConfig;
   environment: string;
 }): Promise<SourceDependencyProfile> {
+  const packageJson = await readProjectPackageJson(options.projectRoot);
+  const legacyProblems = collectLegacyDreamboardSpecifiers(packageJson);
+  if (legacyProblems.length > 0) {
+    throwLegacyDreamboardPackageError(legacyProblems);
+  }
+
   const profile = await buildSourceDependencyProfile(options);
   if (!isReleaseEnvironment(options.environment)) {
     return profile;
@@ -145,7 +161,7 @@ function collectDreamboardPackageSpecifiers(
     const dependencies = packageJson[field];
     if (!dependencies) continue;
     for (const [packageName, specifier] of Object.entries(dependencies)) {
-      if (isDreamboardPackage(packageName)) {
+      if (isPortableDreamboardPackage(packageName)) {
         packages[packageName] = specifier;
       }
     }
@@ -155,7 +171,7 @@ function collectDreamboardPackageSpecifiers(
   if (overrides) {
     for (const [packageName, specifier] of Object.entries(overrides)) {
       if (
-        isDreamboardPackage(packageName) &&
+        isPortableDreamboardPackage(packageName) &&
         typeof specifier === "string" &&
         packages[packageName] === undefined
       ) {
@@ -175,7 +191,7 @@ function collectUnportableDreamboardSpecifiers(
     if (!dependencies) continue;
     for (const [packageName, specifier] of Object.entries(dependencies)) {
       if (
-        isDreamboardPackage(packageName) &&
+        isPortableDreamboardPackage(packageName) &&
         UNPORTABLE_SPECIFIER_PATTERN.test(specifier)
       ) {
         problems.push({ location: field, packageName, specifier });
@@ -187,7 +203,7 @@ function collectUnportableDreamboardSpecifiers(
   if (overrides) {
     for (const [packageName, specifier] of Object.entries(overrides)) {
       if (
-        isDreamboardPackage(packageName) &&
+        isPortableDreamboardPackage(packageName) &&
         typeof specifier === "string" &&
         UNPORTABLE_SPECIFIER_PATTERN.test(specifier)
       ) {
@@ -202,12 +218,55 @@ function collectUnportableDreamboardSpecifiers(
   return problems;
 }
 
-function isDreamboardPackage(packageName: string): boolean {
+function collectLegacyDreamboardSpecifiers(
+  packageJson: PackageJsonWithDeps,
+): LegacyDependencyProblem[] {
+  const problems: LegacyDependencyProblem[] = [];
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = packageJson[field];
+    if (!dependencies) continue;
+    for (const packageName of Object.keys(dependencies)) {
+      if (isLegacyDreamboardPackage(packageName)) {
+        problems.push({ location: field, packageName });
+      }
+    }
+  }
+
+  const overrides = packageJson.pnpm?.overrides;
+  if (overrides) {
+    for (const packageName of Object.keys(overrides)) {
+      if (isLegacyDreamboardPackage(packageName)) {
+        problems.push({ location: "pnpm.overrides", packageName });
+      }
+    }
+  }
+  return problems;
+}
+
+function throwLegacyDreamboardPackageError(
+  problems: LegacyDependencyProblem[],
+): never {
+  const details = problems
+    .map((problem) => `${problem.location} ${problem.packageName}`)
+    .join("; ");
+  throw new Error(
+    [
+      "Legacy @dreamboard/* package dependencies are no longer supported in compiler-bound workspaces.",
+      `Found ${details}.`,
+      "Repin to the public @dreamboard-games/* packages and rerun the command.",
+    ].join(" "),
+  );
+}
+
+function isPortableDreamboardPackage(packageName: string): boolean {
   return (
     packageName === "dreamboard" ||
-    packageName.startsWith("@dreamboard/") ||
     packageName.startsWith("@dreamboard-games/")
   );
+}
+
+function isLegacyDreamboardPackage(packageName: string): boolean {
+  return packageName.startsWith("@dreamboard/");
 }
 
 function isReleaseEnvironment(environment: string): boolean {

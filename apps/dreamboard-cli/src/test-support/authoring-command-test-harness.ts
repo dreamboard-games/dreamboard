@@ -7,6 +7,12 @@ import type {
   ResolvedConfig,
 } from "../types.js";
 
+const actualFs = await import("../utils/fs.js");
+const actualSourceRevisions = await import(
+  "@dreamboard-games/api-client/source-revisions"
+);
+const actualLocalFiles = await import("../services/project/local-files.js");
+
 type HttpResponse = {
   status: number;
 };
@@ -118,12 +124,20 @@ type HarnessCalls = {
   }>;
   runLocalTypecheck: string[];
   waitForCompiledResultJobSdk: Array<{
-    gameId: string;
+    projectId: string;
     jobId: string;
   }>;
   createSourceRevisionSdk: Array<{
     gameId: string;
     request: Record<string, unknown>;
+  }>;
+  createGameRevisionSdk: Array<{
+    projectId: string;
+    request: Record<string, unknown>;
+  }>;
+  uploadProjectSourceBlobsSdk: Array<{
+    projectId: string;
+    blobs: unknown[];
   }>;
   fetchLatestRemoteSources: string[];
   findLatestSuccessfulCompiledResult: string[];
@@ -226,6 +240,7 @@ export type AuthoringCommandTestState = {
   projectConfig: ProjectConfig;
   projectRoot: string;
   readTextFiles: Record<string, string | null>;
+  remoteProjectRevisionDigest: string | null;
   reconcileRemoteChangesIntoWorkspaceResult: RemoteReconcileResult;
   requireAuthError: Error | null;
   saveManifestSdkResult: {
@@ -257,6 +272,8 @@ function createDefaultState(): AuthoringCommandTestState {
       runLocalTypecheck: [],
       waitForCompiledResultJobSdk: [],
       createSourceRevisionSdk: [],
+      createGameRevisionSdk: [],
+      uploadProjectSourceBlobsSdk: [],
       fetchLatestRemoteSources: [],
       findLatestSuccessfulCompiledResult: [],
       getLatestManifestIdSdk: [],
@@ -279,9 +296,12 @@ function createDefaultState(): AuthoringCommandTestState {
     },
     completionLights: null,
     config: {
+      environment: "local",
       apiBaseUrl: "https://api.example.com",
       webBaseUrl: "https://web.example.com",
       authToken: "token",
+      authTokenSource: "global",
+      refreshTokenSource: "none",
     },
     consoleCalls: [],
     createAuthoringStateResult: {
@@ -361,7 +381,6 @@ function createDefaultState(): AuthoringCommandTestState {
       contentHash: "content-hash-1",
     },
     globalConfig: {
-      authToken: "token",
       environment: "local",
     },
     isManifestDifferentFromServerResult: false,
@@ -384,10 +403,17 @@ function createDefaultState(): AuthoringCommandTestState {
     loadRuleResult: "rule text",
     modifiedStaticSdkFiles: [],
     projectConfig: {
+      schemaVersion: 2,
+      projectId: "project-1",
       gameId: "game-1",
+      deploymentId: "deployment-1",
+      ownerScopeId: "owner-scope-1",
+      bindingKey: "deployment-1:owner-scope-1",
       slug: "test-game",
+      remoteHeadDigest: "revision-digest-1",
       authoring: {
         authoringStateId: "authoring-1",
+        revisionDigest: "revision-digest-1",
         ruleId: "rule-1",
         manifestId: "manifest-1",
         manifestContentHash: "content-hash-1",
@@ -398,16 +424,19 @@ function createDefaultState(): AuthoringCommandTestState {
         latestAttempt: {
           resultId: "result-1",
           authoringStateId: "authoring-1",
+          revisionDigest: "revision-digest-1",
           status: "successful",
         },
         latestSuccessful: {
           resultId: "result-1",
           authoringStateId: "authoring-1",
+          revisionDigest: "revision-digest-1",
         },
       },
     },
     projectRoot: "/tmp/dreamboard-project",
     readTextFiles: {},
+    remoteProjectRevisionDigest: "revision-digest-1",
     reconcileRemoteChangesIntoWorkspaceResult: {
       latest: {
         authoringStateId: "authoring-2",
@@ -475,7 +504,7 @@ mock.module("consola", () => ({
   },
 }));
 
-mock.module("@dreamboard/api-client", () => ({
+mock.module("@dreamboard-games/api-client", () => ({
   getGame: async () => {
     const state = authoringCommandTestHarness.current;
     return {
@@ -506,7 +535,8 @@ mock.module("@dreamboard/api-client", () => ({
   },
 }));
 
-mock.module("@dreamboard/api-client/source-revisions", () => ({
+mock.module("@dreamboard-games/api-client/source-revisions", () => ({
+  ...actualSourceRevisions,
   planSourceRevisionTransport: (request: {
     changes: Array<{ kind: string }>;
   }) => ({
@@ -565,6 +595,21 @@ mock.module("../flags.js", () => ({
 }));
 
 mock.module("../services/api/index.js", () => ({
+  ensureProjectSdk: async () => ({
+    projectId: "project-1",
+    slug: "test-game",
+    head: authoringCommandTestHarness.current.remoteProjectRevisionDigest
+      ? {
+          revisionDigest:
+            authoringCommandTestHarness.current.remoteProjectRevisionDigest,
+        }
+      : null,
+  }),
+  loadRemoteProjectIdentity: async () => ({
+    deploymentId: "deployment-1",
+    ownerScopeId: "owner-scope-1",
+    bindingKey: "deployment-1:owner-scope-1",
+  }),
   createAuthoringStateSdk: async (
     gameId: string,
     request: Record<string, unknown>,
@@ -587,6 +632,22 @@ mock.module("../services/api/index.js", () => ({
     }
     return structuredClone(state.createCompileJobResult);
   },
+  queueProjectRevisionCompileSdk: async (options: {
+    projectId: string;
+    revisionDigest: string;
+  }) => {
+    const state = authoringCommandTestHarness.current;
+    state.calls.queueCompiledResultJobSdk.push(structuredClone(options as any));
+    if (state.queueCompiledResultJobError) {
+      throw state.queueCompiledResultJobError;
+    }
+    return structuredClone(state.createCompileJobResult);
+  },
+  findProjectCompiledResultsForRevision: async () =>
+    structuredClone(
+      authoringCommandTestHarness.current
+        .findCompiledResultsForAuthoringStateResult,
+    ),
   findCompiledResultsForAuthoringState: async (options: {
     gameId: string;
     authoringStateId: string;
@@ -610,6 +671,25 @@ mock.module("../services/api/index.js", () => ({
       throw state.createSourceRevisionError;
     }
     return structuredClone(state.createSourceRevisionResult);
+  },
+  uploadProjectSourceBlobsSdk: async (projectId: string, blobs: unknown[]) => {
+    authoringCommandTestHarness.current.calls.uploadProjectSourceBlobsSdk.push({
+      projectId,
+      blobs: structuredClone(blobs),
+    });
+  },
+  createGameRevisionSdk: async (options: {
+    projectId: string;
+    request: Record<string, unknown>;
+  }) => {
+    authoringCommandTestHarness.current.calls.createGameRevisionSdk.push(
+      structuredClone(options),
+    );
+    return {
+      revisionDigest: "revision-digest-2",
+      sourceTreeHash: "tree-hash-2",
+      manifestContentHash: "content-hash-2",
+    };
   },
   findLatestSuccessfulCompiledResult: async (gameId: string) => {
     const state = authoringCommandTestHarness.current;
@@ -666,7 +746,8 @@ mock.module("../services/api/index.js", () => ({
     return structuredClone(state.saveRuleSdkResult);
   },
   waitForCompiledResultJobSdk: async (options: {
-    gameId: string;
+    projectId?: string;
+    gameId?: string;
     jobId: string;
     onProgress?: (job: {
       status: string;
@@ -677,7 +758,7 @@ mock.module("../services/api/index.js", () => ({
   }) => {
     const state = authoringCommandTestHarness.current;
     state.calls.waitForCompiledResultJobSdk.push({
-      gameId: options.gameId,
+      projectId: options.projectId ?? options.gameId ?? "project-1",
       jobId: options.jobId,
     });
     options.onProgress?.({
@@ -698,7 +779,7 @@ mock.module("../services/api/index.js", () => ({
       job: {
         id: options.jobId,
         jobId: options.jobId,
-        gameId: options.gameId,
+        gameId: options.gameId ?? options.projectId ?? "project-1",
         status: state.createCompiledResultResult.success
           ? "COMPLETED"
           : "FAILED",
@@ -715,6 +796,7 @@ mock.module("../services/project/dynamic-scaffold-response.js", () => ({
 }));
 
 mock.module("../services/project/local-files.js", () => ({
+  ...actualLocalFiles,
   collectLocalFiles: async () =>
     structuredClone(
       authoringCommandTestHarness.current.collectLocalFilesResult,
@@ -792,6 +874,14 @@ mock.module("../services/project/static-scaffold.js", () => ({
   },
 }));
 
+mock.module("../services/project/workspace-codegen.js", () => ({
+  applyWorkspaceCodegen: async () => undefined,
+}));
+
+mock.module("../services/project/reducer-contract-preflight.js", () => ({
+  assertReducerContractPreflight: async () => undefined,
+}));
+
 mock.module("../services/project/local-typecheck.js", () => ({
   runLocalTypecheck: async (projectRoot: string) => {
     const state = authoringCommandTestHarness.current;
@@ -848,12 +938,19 @@ mock.module("../utils/errors.js", () => ({
 }));
 
 mock.module("../utils/fs.js", () => ({
+  ...actualFs,
   ensureDir: async () => undefined,
   readTextFileIfExists: async (filePath: string) => {
     const state = authoringCommandTestHarness.current;
     state.calls.readTextFileIfExists.push(filePath);
     return state.readTextFiles[filePath] ?? null;
   },
+  readJsonFile: async () => ({
+    dependencies: {
+      dreamboard: "0.1.30-alpha.2",
+      "@dreamboard-games/sdk": "0.4.0-alpha.0",
+    },
+  }),
   writeTextFile: async () => undefined,
 }));
 

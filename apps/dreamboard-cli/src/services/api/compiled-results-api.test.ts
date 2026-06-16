@@ -15,11 +15,30 @@ const mockState: {
   }>;
   latestCompiledResultResponse: MockApiResponse<{ id: string }>;
   listCompiledResultsResponse: MockApiResponse<{
-    results: Array<{ id: string; authoringStateId: string; success: boolean }>;
+    results: Array<{
+      id: string;
+      authoringStateId: string;
+      revisionDigest?: string;
+      success: boolean;
+      createdAt?: string;
+    }>;
+  }>;
+  listProjectCompiledResultsResponse: MockApiResponse<{
+    results: Array<{
+      id: string;
+      authoringStateId: string;
+      revisionDigest?: string;
+      success: boolean;
+      createdAt?: string;
+    }>;
   }>;
   listCompiledResultsCalls: Array<{
     path: { gameId: string };
     query?: { limit?: number; authoringStateId?: string };
+  }>;
+  listProjectCompiledResultsCalls: Array<{
+    path: { projectId: string };
+    query?: { limit?: number };
   }>;
   jobResponses: Array<
     MockApiResponse<{
@@ -64,12 +83,21 @@ const mockState: {
     error: null,
     response: { status: 200 },
   },
+  listProjectCompiledResultsResponse: {
+    data: {
+      results: [],
+    },
+    error: null,
+    response: { status: 200 },
+  },
   listCompiledResultsCalls: [],
+  listProjectCompiledResultsCalls: [],
   jobResponses: [],
 };
 
-mock.module("@dreamboard/api-client", () => ({
+mock.module("@dreamboard-games/api-client", () => ({
   getCompiledResult: async () => mockState.compiledResultResponse,
+  getProjectCompiledResult: async () => mockState.compiledResultResponse,
   getJob: async () => {
     const nextResponse = mockState.jobResponses.shift();
     if (!nextResponse) {
@@ -78,6 +106,11 @@ mock.module("@dreamboard/api-client", () => ({
     return nextResponse;
   },
   getLatestCompiledResult: async () => mockState.latestCompiledResultResponse,
+  queueProjectRevisionCompile: async () => ({
+    data: { jobId: "compile-job-1" },
+    error: null,
+    response: { status: 200 },
+  }),
   listCompiledResults: async (options: {
     path: { gameId: string };
     query?: { limit?: number; authoringStateId?: string };
@@ -85,10 +118,20 @@ mock.module("@dreamboard/api-client", () => ({
     mockState.listCompiledResultsCalls.push(options);
     return mockState.listCompiledResultsResponse;
   },
+  listProjectCompiledResults: async (options: {
+    path: { projectId: string };
+    query?: { limit?: number };
+  }) => {
+    mockState.listProjectCompiledResultsCalls.push(options);
+    return mockState.listProjectCompiledResultsResponse;
+  },
 }));
 
-const { findCompiledResultsForAuthoringState, waitForCompiledResultJobSdk } =
-  await import("./compiled-results-api.ts");
+const {
+  findCompiledResultsForAuthoringState,
+  findProjectCompiledResultsForRevision,
+  waitForCompiledResultJobSdk,
+} = await import("./compiled-results-api.ts");
 
 beforeEach(() => {
   mockState.compiledResultResponse = {
@@ -113,7 +156,15 @@ beforeEach(() => {
     error: null,
     response: { status: 200 },
   };
+  mockState.listProjectCompiledResultsResponse = {
+    data: {
+      results: [],
+    },
+    error: null,
+    response: { status: 200 },
+  };
   mockState.listCompiledResultsCalls = [];
+  mockState.listProjectCompiledResultsCalls = [];
   mockState.jobResponses = [];
 });
 
@@ -151,6 +202,48 @@ test("findCompiledResultsForAuthoringState delegates filtering to the backend", 
         limit: 100,
         authoringStateId: "authoring-state-2",
       },
+    },
+  ]);
+});
+
+test("findProjectCompiledResultsForRevision filters project results by revision digest", async () => {
+  mockState.listProjectCompiledResultsResponse = {
+    data: {
+      results: [
+        {
+          id: "compiled-result-1",
+          authoringStateId: "revision-digest-1",
+          success: true,
+        },
+        {
+          id: "compiled-result-2",
+          authoringStateId: "other",
+          revisionDigest: "revision-digest-2",
+          success: false,
+        },
+      ],
+    },
+    error: null,
+    response: { status: 200 },
+  };
+
+  const results = await findProjectCompiledResultsForRevision({
+    projectId: "project-1",
+    revisionDigest: "revision-digest-2",
+  });
+
+  expect(results).toEqual([
+    {
+      id: "compiled-result-2",
+      authoringStateId: "other",
+      revisionDigest: "revision-digest-2",
+      success: false,
+    },
+  ]);
+  expect(mockState.listProjectCompiledResultsCalls).toEqual([
+    {
+      path: { projectId: "project-1" },
+      query: { limit: 100 },
     },
   ]);
 });

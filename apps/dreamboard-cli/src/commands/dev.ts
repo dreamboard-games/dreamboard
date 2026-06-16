@@ -808,18 +808,25 @@ async function readWorkspacePackageJson(projectRoot: string): Promise<unknown> {
     return {
       dependencies: Object.fromEntries(
         Object.entries(parsed.dependencies ?? {}).filter(([name]) =>
-          name.startsWith("@dreamboard/"),
+          isDreamboardPublicPackage(name),
         ),
       ),
       devDependencies: Object.fromEntries(
         Object.entries(parsed.devDependencies ?? {}).filter(([name]) =>
-          name.startsWith("@dreamboard/"),
+          isDreamboardPublicPackage(name),
         ),
       ),
     };
   } catch {
     return null;
   }
+}
+
+function isDreamboardPublicPackage(packageName: string): boolean {
+  return (
+    packageName === "dreamboard" ||
+    packageName.startsWith("@dreamboard-games/")
+  );
 }
 
 function stableJson(value: unknown): string {

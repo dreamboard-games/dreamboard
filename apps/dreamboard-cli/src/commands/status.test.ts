@@ -43,7 +43,7 @@ test("status reports authored sync and failed compile separately", async () => {
   });
 
   expect(consoleMessages("info")).toContain(
-    "Authored state: in_sync (local=authoring-1, remote=authoring-1)",
+    "Project revision: in_sync (local=revision-digest-1, remote=revision-digest-1)",
   );
   expect(consoleMessages("info")).toContain("Compile state: failed");
   expect(consoleMessages("warn")).toContain(
@@ -59,11 +59,9 @@ test("status warns when remote authored state is ahead", async () => {
   state.projectConfig.authoring = {
     ...state.projectConfig.authoring,
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
   };
-  state.getAuthoringHeadSdkResult = {
-    ...state.getAuthoringHeadSdkResult!,
-    authoringStateId: "authoring-2",
-  };
+  state.remoteProjectRevisionDigest = "revision-digest-2";
   state.findCompiledResultsForAuthoringStateResult = [
     {
       id: "result-2",
@@ -80,7 +78,7 @@ test("status warns when remote authored state is ahead", async () => {
   });
 
   expect(consoleMessages("info")).toContain(
-    "Authored state: behind (local=authoring-1, remote=authoring-2)",
+    "Project revision: behind (local=revision-digest-1, remote=revision-digest-2)",
   );
   expect(consoleMessages("warn")).toContain(
     "Remote authored changes are available. Run 'dreamboard pull' to reconcile them into this workspace.",
@@ -122,17 +120,16 @@ test("status reports stale successful compile when authoring moved", async () =>
   state.projectConfig.authoring = {
     ...state.projectConfig.authoring,
     authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-1",
   };
   state.projectConfig.compile = {
     latestSuccessful: {
       resultId: "result-1",
       authoringStateId: "authoring-1",
+      revisionDigest: "revision-digest-1",
     },
   };
-  state.getAuthoringHeadSdkResult = {
-    ...state.getAuthoringHeadSdkResult!,
-    authoringStateId: "authoring-2",
-  };
+  state.remoteProjectRevisionDigest = "revision-digest-2";
   state.findCompiledResultsForAuthoringStateResult = [];
 
   await statusCommand.run({
@@ -148,6 +145,7 @@ test("status reports that remote state is unavailable when there is no auth toke
   const state = currentState();
   state.config = {
     ...state.config,
+    environment: "prod",
     authToken: undefined,
   };
 

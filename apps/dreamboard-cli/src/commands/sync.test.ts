@@ -54,35 +54,46 @@ test("sync uploads authored changes and advances authoring state without compili
     },
   });
 
-  expect(state.calls.createSourceRevisionSdk).toHaveLength(1);
-  expect(state.calls.createAuthoringStateSdk).toEqual([
-    {
-      gameId: "game-1",
-      request: {
-        baseAuthoringStateId: "authoring-1",
-        sourceRevisionId: "source-revision-2",
-        sourceTreeHash: "tree-hash-2",
-        manifestId: "manifest-1",
-        manifestContentHash: "content-hash-1",
-        ruleId: "rule-1",
+  expect(state.calls.uploadProjectSourceBlobsSdk).toHaveLength(1);
+  expect(state.calls.uploadProjectSourceBlobsSdk[0]?.projectId).toBe(
+    "project-1",
+  );
+  expect(state.calls.createGameRevisionSdk).toHaveLength(1);
+  expect(state.calls.createGameRevisionSdk[0]).toMatchObject({
+    projectId: "project-1",
+    request: {
+      baseRevisionDigest: "revision-digest-1",
+      source: {
+        files: [
+          {
+            path: "app/phases/setup.ts",
+          },
+        ],
       },
+      ruleText: "rule text",
     },
-  ]);
+  });
+  expect(state.calls.createSourceRevisionSdk).toHaveLength(0);
+  expect(state.calls.createAuthoringStateSdk).toHaveLength(0);
   expect(state.calls.queueCompiledResultJobSdk).toHaveLength(0);
-  expect(state.projectConfig.authoring).toEqual({
-    authoringStateId: "authoring-2",
-    sourceRevisionId: "source-revision-2",
+  expect(state.projectConfig.authoring).toMatchObject({
+    authoringStateId: "authoring-1",
+    revisionDigest: "revision-digest-2",
+    sourceRevisionId: "source-revision-1",
     sourceTreeHash: "tree-hash-2",
     manifestId: "manifest-1",
-    manifestContentHash: "content-hash-1",
+    manifestContentHash: "content-hash-2",
     ruleId: "rule-1",
   });
+  expect(state.projectConfig.remoteHeadDigest).toBe("revision-digest-2");
 });
 
 test("sync creates the first authored state even when a new workspace has no local diff yet", async () => {
   const state = currentState();
   state.projectConfig.authoring = {};
   state.projectConfig.compile = {};
+  state.projectConfig.remoteHeadDigest = undefined;
+  state.remoteProjectRevisionDigest = null;
   state.getAuthoringHeadSdkResult = null;
   state.getLocalDiffResult = {
     modified: [],
@@ -109,33 +120,26 @@ test("sync creates the first authored state even when a new workspace has no loc
     },
   });
 
-  expect(state.calls.createSourceRevisionSdk).toEqual([
-    {
-      gameId: "game-1",
-      request: {
-        mode: "replace",
-        changes: [
+  expect(state.calls.uploadProjectSourceBlobsSdk).toHaveLength(1);
+  expect(state.calls.createGameRevisionSdk).toHaveLength(1);
+  expect(state.calls.createGameRevisionSdk[0]).toMatchObject({
+    projectId: "project-1",
+    request: {
+      source: {
+        files: [
           {
-            kind: "upsert",
             path: "app/phases/setup.ts",
-            content: "export const phase = {}\n",
           },
         ],
       },
+      ruleText: "rule text",
     },
-  ]);
-  expect(state.calls.createAuthoringStateSdk).toEqual([
-    {
-      gameId: "game-1",
-      request: {
-        sourceRevisionId: "source-revision-2",
-        sourceTreeHash: "tree-hash-2",
-        manifestId: "manifest-2",
-        manifestContentHash: "content-hash-2",
-        ruleId: "rule-1",
-      },
-    },
-  ]);
+  });
+  expect(
+    state.calls.createGameRevisionSdk[0]?.request,
+  ).not.toHaveProperty("baseRevisionDigest");
+  expect(state.calls.createSourceRevisionSdk).toHaveLength(0);
+  expect(state.calls.createAuthoringStateSdk).toHaveLength(0);
   expect(
     state.consoleCalls.some(
       (call) =>
@@ -143,12 +147,10 @@ test("sync creates the first authored state even when a new workspace has no loc
         call.args.includes("No local authored changes to sync."),
     ),
   ).toBe(false);
-  expect(state.projectConfig.authoring).toEqual({
-    authoringStateId: "authoring-1",
-    sourceRevisionId: "source-revision-2",
+  expect(state.projectConfig.authoring).toMatchObject({
+    revisionDigest: "revision-digest-2",
     sourceTreeHash: "tree-hash-2",
-    manifestId: "manifest-2",
     manifestContentHash: "content-hash-2",
-    ruleId: "rule-1",
   });
+  expect(state.projectConfig.remoteHeadDigest).toBe("revision-digest-2");
 });

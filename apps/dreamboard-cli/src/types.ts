@@ -5,6 +5,7 @@ export type EnvironmentConfig = {
   webBaseUrl: string;
   clerkOAuthIssuer?: string;
   clerkOAuthClientId?: string;
+  clerkOAuthTokenUrl?: string;
   clerkOAuthScope?: string;
 };
 
