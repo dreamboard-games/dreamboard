@@ -625,6 +625,12 @@ async function ensureDevCompiledResult(options: {
   const existingLocalMaintainerRegistry = getProjectLocalMaintainerRegistry(
     options.projectConfig,
   );
+  if (!localMaintainerEnabled && existingLocalMaintainerRegistry) {
+    await updateProjectState(
+      options.projectRoot,
+      updateProjectLocalMaintainerRegistry(options.projectConfig, undefined),
+    );
+  }
   const refreshedLocalMaintainerRegistry = localMaintainerEnabled
     ? await runLoggedStep("Checking local SDK snapshot...", () =>
         ensureLocalMaintainerSnapshot(options.config.apiBaseUrl),

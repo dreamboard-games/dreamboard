@@ -48,13 +48,19 @@ export async function buildSourceDependencyProfile(options: {
 }): Promise<SourceDependencyProfile> {
   const packageJson = await readProjectPackageJson(options.projectRoot);
   const packages = collectDreamboardPackageSpecifiers(packageJson);
+  const hasLocalSnapshotPackage = Object.values(packages).some((value) =>
+    value.includes("-local."),
+  );
+  const localMaintainerRegistry = hasLocalSnapshotPackage
+    ? options.projectConfig?.localMaintainerRegistry
+    : undefined;
   return {
     kind: "npm-registry",
     packageManager: packageJson.packageManager,
     dreamboardRegistryUrl:
       (await readDreamboardRegistryFromNpmrc(options.projectRoot)) ??
-      options.projectConfig?.localMaintainerRegistry?.registryUrl,
-    localSnapshotId: options.projectConfig?.localMaintainerRegistry?.snapshotId,
+      localMaintainerRegistry?.registryUrl,
+    localSnapshotId: localMaintainerRegistry?.snapshotId,
     packages,
   };
 }

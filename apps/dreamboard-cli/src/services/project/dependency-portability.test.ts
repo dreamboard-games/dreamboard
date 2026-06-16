@@ -62,6 +62,35 @@ test("release portability rejects legacy @dreamboard package dependencies before
   ).rejects.toThrow("Repin to the public @dreamboard-games/* packages");
 });
 
+test("release portability ignores stale local snapshot state when packages are public", async () => {
+  const projectRoot = await createProject({
+    dependencies: {
+      "@dreamboard-games/sdk": "0.4.0-alpha.0",
+    },
+  });
+
+  const profile = await assertReleaseEnvironmentPortableDependencies({
+    projectRoot,
+    environment: "staging",
+    projectConfig: {
+      schemaVersion: 1,
+      localMaintainerRegistry: {
+        registryUrl: "http://127.0.0.1:4873",
+        snapshotId: "stale",
+        fingerprint: "stale",
+        publishedAt: "",
+        packages: {
+          "@dreamboard-games/sdk":
+            "0.3.0-alpha.1-local.20260614T104617Z.7984c37368ec",
+        },
+      },
+    },
+  });
+
+  expect(profile.dreamboardRegistryUrl).toBeUndefined();
+  expect(profile.localSnapshotId).toBeUndefined();
+});
+
 async function createProject(packageJson: unknown): Promise<string> {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "dreamboard-cli-"));
   tempDirs.push(projectRoot);

@@ -140,6 +140,12 @@ export default defineCommand({
     );
     const existingLocalMaintainerRegistry =
       getProjectLocalMaintainerRegistry(projectConfig);
+    if (!localMaintainerEnabled && existingLocalMaintainerRegistry) {
+      nextProjectConfig = updateProjectLocalMaintainerRegistry(
+        nextProjectConfig,
+        undefined,
+      );
+    }
     const refreshedLocalMaintainerRegistry = localMaintainerEnabled
       ? await runLoggedStep("Checking local SDK snapshot...", () =>
           ensureLocalMaintainerSnapshot(config.apiBaseUrl),
