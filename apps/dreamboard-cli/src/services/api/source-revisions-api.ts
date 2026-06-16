@@ -13,6 +13,8 @@ import {
 } from "@dreamboard-games/api-client/source-revisions";
 import { toDreamboardApiError } from "../../utils/errors.js";
 
+const SOURCE_BLOB_UPLOAD_BATCH_SIZE = 20;
+
 export async function createSourceRevisionSdk(
   gameId: string,
   request: CreateSourceRevisionRequest,
@@ -38,7 +40,9 @@ export async function uploadSourceBlobsSdk(
   blobs: SourceBlobUploadInput[],
 ): Promise<void> {
   try {
-    await uploadGameSourceBlobs({ gameId, blobs });
+    for (const batch of chunkSourceBlobs(blobs)) {
+      await uploadGameSourceBlobs({ gameId, blobs: batch });
+    }
   } catch (error) {
     if (error instanceof SourceBlobSessionRequestError) {
       throw toDreamboardApiError(
@@ -56,7 +60,9 @@ export async function uploadProjectSourceBlobsSdk(
   blobs: SourceBlobUploadInput[],
 ): Promise<void> {
   try {
-    await uploadProjectSourceBlobs({ projectId, blobs });
+    for (const batch of chunkSourceBlobs(blobs)) {
+      await uploadProjectSourceBlobs({ projectId, blobs: batch });
+    }
   } catch (error) {
     if (error instanceof SourceBlobSessionRequestError) {
       throw toDreamboardApiError(
@@ -67,6 +73,16 @@ export async function uploadProjectSourceBlobsSdk(
     }
     throw error;
   }
+}
+
+function chunkSourceBlobs(
+  blobs: SourceBlobUploadInput[],
+): SourceBlobUploadInput[][] {
+  const chunks: SourceBlobUploadInput[][] = [];
+  for (let index = 0; index < blobs.length; index += SOURCE_BLOB_UPLOAD_BATCH_SIZE) {
+    chunks.push(blobs.slice(index, index + SOURCE_BLOB_UPLOAD_BATCH_SIZE));
+  }
+  return chunks;
 }
 
 export async function queueCompiledResultJobSdk(options: {
