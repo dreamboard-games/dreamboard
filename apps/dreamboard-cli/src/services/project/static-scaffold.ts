@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { readdir, readFile, rm, rmdir, unlink } from "node:fs/promises";
+import { readdir, readFile, rmdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
@@ -11,17 +11,20 @@ import {
   PROJECT_DIR_NAME,
 } from "../../constants.js";
 import type { LocalMaintainerRegistryConfig } from "../../types.js";
-import {
-  ensureDir,
-  exists,
-  readJsonFile,
-  readTextFile,
-  readTextFileIfExists,
-  writeTextFile,
-} from "../../utils/fs.js";
+import { ensureDir } from "../../utils/fs.js";
 import { resolveCliRepoRoot } from "../../utils/repo-root.js";
 import { materializeManifest } from "./manifest-authoring.js";
 import { isDynamicSeedPath } from "./scaffold-ownership.js";
+import {
+  normalizeOwnedProjectPath,
+  readWorkspaceTextFile,
+  readWorkspaceTextFileIfExists,
+  removeWorkspacePath,
+  resolveWorkspacePath,
+  unlinkWorkspaceFile,
+  workspacePathExists,
+  writeWorkspaceTextFile,
+} from "./workspace-path.js";
 import {
   FRAMEWORK_PNPM_OVERRIDES,
   FRAMEWORK_REACT_DEPENDENCIES,
@@ -148,56 +151,43 @@ export async function scaffoldStaticWorkspace(
 ): Promise<void> {
   await writeFrameworkStaticFiles(projectRoot, mode, options);
   await ensureDreamboardGitignore(projectRoot);
-  await writeManifestTypecheckTsconfig(
-    path.join(projectRoot, MANIFEST_TYPECHECK_CONFIG_FILE),
-  );
+  await writeManifestTypecheckTsconfig(projectRoot);
   await removeLegacyVendoredSdkPaths(projectRoot);
   await removeLegacyDreamboardComponentPath(projectRoot);
 
-  const testDir = path.join(projectRoot, "test");
-  const basesDir = path.join(testDir, "bases");
-  const scenariosDir = path.join(testDir, "scenarios");
-  const generatedDir = path.join(testDir, "generated");
+  await ensureDir(resolveWorkspacePath(projectRoot, "test/bases"));
+  await ensureDir(resolveWorkspacePath(projectRoot, "test/scenarios"));
+  await ensureDir(resolveWorkspacePath(projectRoot, "test/generated"));
 
-  await ensureDir(basesDir);
-  await ensureDir(scenariosDir);
-  await ensureDir(generatedDir);
-
-  await writeTestReadme(path.join(testDir, "README.md"));
-  await writeGeneratedTestingStubs(generatedDir, mode);
+  await writeTestReadme(projectRoot);
+  await writeGeneratedTestingStubs(projectRoot, mode);
   const initialTestPlayerCount = await inferInitialTestPlayerCount(projectRoot);
-  await writeInitialBase(
-    path.join(basesDir, "initial-turn.base.ts"),
-    mode,
-    initialTestPlayerCount,
-  );
-  await writeInitialScenario(
-    path.join(scenariosDir, "smoke-initial-turn.scenario.ts"),
-    mode,
-  );
-  await writeTestingTypes(path.join(testDir, "testing-types.ts"), mode);
-  await writeTestTsconfig(path.join(testDir, "tsconfig.json"));
+  await writeInitialBase(projectRoot, mode, initialTestPlayerCount);
+  await writeInitialScenario(projectRoot, mode);
+  await writeTestingTypes(projectRoot, mode);
+  await writeTestTsconfig(projectRoot);
 
-  const staleDtsPath = path.join(testDir, "testing-types.d.ts");
-  if (await exists(staleDtsPath)) {
-    await unlink(staleDtsPath);
+  if (await workspacePathExists(projectRoot, "test/testing-types.d.ts")) {
+    await unlinkWorkspaceFile(projectRoot, "test/testing-types.d.ts");
   }
-  const staleBaseScenariosPath = path.join(testDir, "base-scenarios.json");
-  if (await exists(staleBaseScenariosPath)) {
-    await unlink(staleBaseScenariosPath);
+  if (await workspacePathExists(projectRoot, "test/base-scenarios.json")) {
+    await unlinkWorkspaceFile(projectRoot, "test/base-scenarios.json");
   }
 
   await migrateLegacyScenarioImports(projectRoot);
 }
 
 async function ensureDreamboardGitignore(projectRoot: string): Promise<void> {
-  const gitignorePath = path.join(projectRoot, ".gitignore");
-  const existing = await readTextFileIfExists(gitignorePath);
+  const existing = await readWorkspaceTextFileIfExists(
+    projectRoot,
+    ".gitignore",
+  );
   if (existing?.includes(".dreamboard/state.json")) {
     return;
   }
-  await writeTextFile(
-    gitignorePath,
+  await writeWorkspaceTextFile(
+    projectRoot,
+    ".gitignore",
     `${existing ? `${existing.trimEnd()}\n\n` : ""}${DREAMBOARD_GITIGNORE_BLOCK}`,
   );
 }
@@ -210,8 +200,10 @@ export async function assertCliStaticScaffoldComplete(
   const missingOrBlankPaths: string[] = [];
 
   for (const entry of expectedEntries) {
-    const fullPath = path.join(projectRoot, entry.targetPath);
-    const content = await readTextFileIfExists(fullPath);
+    const content = await readWorkspaceTextFileIfExists(
+      projectRoot,
+      entry.targetPath,
+    );
 
     if (content === null || content.trim().length === 0) {
       missingOrBlankPaths.push(entry.targetPath);
@@ -220,8 +212,11 @@ export async function assertCliStaticScaffoldComplete(
 
   const staticPaths = new Set(expectedEntries.map((entry) => entry.targetPath));
   const deletedStaticPaths = deletedPaths
-    .map(normalizeProjectPath)
-    .filter((filePath) => staticPaths.has(filePath))
+    .map(normalizeOwnedProjectPath)
+    .filter(
+      (filePath): filePath is string =>
+        filePath !== null && staticPaths.has(filePath),
+    )
     .sort();
 
   if (missingOrBlankPaths.length === 0 && deletedStaticPaths.length === 0) {
@@ -251,16 +246,18 @@ async function writeFrameworkStaticFiles(
   const assetEntries = await getStaticAssetEntries();
 
   for (const entry of assetEntries) {
-    const fullPath = path.join(projectRoot, entry.targetPath);
     // Dynamic seed files are user-customizable: only write them on first
     // scaffold; preserve existing content on subsequent updates.
     if (mode === "update" && isDynamicSeedPath(entry.targetPath)) {
-      const existing = await readTextFileIfExists(fullPath);
+      const existing = await readWorkspaceTextFileIfExists(
+        projectRoot,
+        entry.targetPath,
+      );
       if (existing !== null && existing.trim().length > 0) {
         continue;
       }
     }
-    await writeTextFile(fullPath, entry.content);
+    await writeWorkspaceTextFile(projectRoot, entry.targetPath, entry.content);
   }
 
   for (const entry of await getDynamicStaticEntries(
@@ -268,25 +265,22 @@ async function writeFrameworkStaticFiles(
     mode,
     options,
   )) {
-    await writeTextFile(
-      path.join(projectRoot, entry.targetPath),
-      entry.content,
-    );
+    await writeWorkspaceTextFile(projectRoot, entry.targetPath, entry.content);
   }
 
   if (!options.localMaintainerRegistry) {
-    await rm(path.join(projectRoot, ".npmrc"), { force: true });
+    await removeWorkspacePath(projectRoot, ".npmrc", { force: true });
   }
 }
 
 async function removeLegacyVendoredSdkPaths(
   projectRoot: string,
 ): Promise<void> {
-  await rm(path.join(projectRoot, "app", "sdk"), {
+  await removeWorkspacePath(projectRoot, "app/sdk", {
     recursive: true,
     force: true,
   });
-  await rm(path.join(projectRoot, "ui", "sdk"), {
+  await removeWorkspacePath(projectRoot, "ui/sdk", {
     recursive: true,
     force: true,
   });
@@ -295,14 +289,15 @@ async function removeLegacyVendoredSdkPaths(
 async function removeLegacyDreamboardComponentPath(
   projectRoot: string,
 ): Promise<void> {
-  const legacyDirPath = path.join(
+  const legacyIndexProjectPath = "ui/components/dreamboard/index.ts";
+  const legacyDirPath = resolveWorkspacePath(
     projectRoot,
-    "ui",
-    "components",
-    "dreamboard",
+    "ui/components/dreamboard",
   );
-  const legacyIndexPath = path.join(legacyDirPath, "index.ts");
-  const existing = await readTextFileIfExists(legacyIndexPath);
+  const existing = await readWorkspaceTextFileIfExists(
+    projectRoot,
+    legacyIndexProjectPath,
+  );
 
   const removableLegacyContents = new Set([
     LEGACY_DREAMBOARD_COMPONENT_INDEX_CONTENT.trim(),
@@ -314,22 +309,23 @@ async function removeLegacyDreamboardComponentPath(
     return;
   }
 
-  await unlink(legacyIndexPath);
+  await unlinkWorkspaceFile(projectRoot, legacyIndexProjectPath);
   const remainingEntries = await readdir(legacyDirPath).catch(() => []);
   if (remainingEntries.length === 0) {
     await rmdir(legacyDirPath);
   }
 }
 
-async function writeTestReadme(filePath: string): Promise<void> {
-  await writeTextFile(
-    filePath,
+async function writeTestReadme(projectRoot: string): Promise<void> {
+  await writeWorkspaceTextFile(
+    projectRoot,
+    "test/README.md",
     "# Dreamboard Test Workspace\n\nTypeScript bases live in `test/bases/*.base.ts` and scenarios live in `test/scenarios/*.scenario.ts`.\n\n1. Define reusable seeded bases with `defineBase({ id, seed, players, setupProfileId?, setup })`.\n2. Define scenarios with `defineScenario({ id, from, when, then })`.\n3. Scenario assertions can read `players()`, `state()`, `view(playerId)`, and `interactions(playerId)`.\n4. Generate deterministic base snapshots: `dreamboard test generate`.\n5. Run tests: `dreamboard test run`.\n\nImport test helpers from `../testing-types`.\n\nGenerated artifacts are written to `test/generated/*` and should not be edited manually.\n",
   );
 }
 
 async function writeInitialBase(
-  filePath: string,
+  projectRoot: string,
   mode: StaticScaffoldMode,
   players: number,
 ): Promise<void> {
@@ -337,8 +333,9 @@ async function writeInitialBase(
     return;
   }
 
-  await writeTextFile(
-    filePath,
+  await writeWorkspaceTextFile(
+    projectRoot,
+    "test/bases/initial-turn.base.ts",
     `import { defineBase } from "../testing-types";
 
 export default defineBase({
@@ -352,89 +349,120 @@ export default defineBase({
 }
 
 async function writeInitialScenario(
-  filePath: string,
+  projectRoot: string,
   mode: StaticScaffoldMode,
 ): Promise<void> {
   if (mode === "new") {
-    await writeTextFile(filePath, INITIAL_SCENARIO_CONTENT);
+    await writeWorkspaceTextFile(
+      projectRoot,
+      "test/scenarios/smoke-initial-turn.scenario.ts",
+      INITIAL_SCENARIO_CONTENT,
+    );
     return;
   }
 
-  const existing = await readTextFileIfExists(filePath);
+  const existing = await readWorkspaceTextFileIfExists(
+    projectRoot,
+    "test/scenarios/smoke-initial-turn.scenario.ts",
+  );
   if (
     existing === null ||
     existing.trim().length === 0 ||
     existing === INITIAL_SCENARIO_CONTENT
   ) {
-    await writeTextFile(filePath, INITIAL_SCENARIO_CONTENT);
+    await writeWorkspaceTextFile(
+      projectRoot,
+      "test/scenarios/smoke-initial-turn.scenario.ts",
+      INITIAL_SCENARIO_CONTENT,
+    );
   }
 }
 
 async function writeTestingTypes(
-  filePath: string,
+  projectRoot: string,
   mode: StaticScaffoldMode,
 ): Promise<void> {
   if (mode === "new") {
-    await writeTextFile(filePath, REDUCER_TESTING_TYPES_WRAPPER_CONTENT);
+    await writeWorkspaceTextFile(
+      projectRoot,
+      "test/testing-types.ts",
+      REDUCER_TESTING_TYPES_WRAPPER_CONTENT,
+    );
     return;
   }
 
-  const existing = await readTextFileIfExists(filePath);
+  const existing = await readWorkspaceTextFileIfExists(
+    projectRoot,
+    "test/testing-types.ts",
+  );
   if (shouldRefreshGeneratedTestingTypes(existing)) {
-    await writeTextFile(filePath, REDUCER_TESTING_TYPES_WRAPPER_CONTENT);
+    await writeWorkspaceTextFile(
+      projectRoot,
+      "test/testing-types.ts",
+      REDUCER_TESTING_TYPES_WRAPPER_CONTENT,
+    );
   }
 }
 
 async function writeGeneratedTestingStubs(
-  generatedDir: string,
+  projectRoot: string,
   mode: StaticScaffoldMode,
 ): Promise<void> {
   const header = "// Generated by dreamboard scaffold. Do not edit by hand.\n";
   await writeGeneratedTestingStubFile(
-    path.join(generatedDir, "base-states.generated.ts"),
+    projectRoot,
+    "test/generated/base-states.generated.ts",
     `${header}export const BASE_STATES = {} as const;\nexport const BASE_STATES_CONTRACT_FINGERPRINT = undefined;\n`,
     mode,
   );
   await writeGeneratedTestingStubFile(
-    path.join(generatedDir, "base-states.generated.d.ts"),
+    projectRoot,
+    "test/generated/base-states.generated.d.ts",
     `${header}export declare const BASE_STATES: Record<string, unknown>;\nexport declare const BASE_STATES_CONTRACT_FINGERPRINT: string | undefined;\n`,
     mode,
   );
   await writeGeneratedTestingStubFile(
-    path.join(generatedDir, "testing-contract.ts"),
+    projectRoot,
+    "test/generated/testing-contract.ts",
     `${header}export type BaseId = string;\nexport type GameView = unknown;\nexport type InteractionId = string;\nexport type InteractionParamsOf<_Id extends string> = Record<string, unknown>;\nexport type PhaseName = string;\nexport type PlayerId = string;\nexport type RejectionCode = string;\nexport type StateName = string;\nexport type TestRunner = "reducer" | "remote" | "browser";\nexport type ViewByPhase = Record<string, GameView>;\nexport type WorkspaceStageName<_Phase extends string = string> = string;\nexport type Expectation = { [matcher: string]: (...args: unknown[]) => unknown; not: Expectation };\nexport type ExpectFn = (actual: unknown) => Expectation;\nexport type InteractionExplanation = { interactionId: string; phase: string; step: string | null; availability: "available" | "notYourTurn" | "wrongPhase" | "wrongStep" | "blocked"; rules: readonly { ruleId: string; outcome: "passed" | "failed" | "notEvaluated"; errorCode?: string; message?: string; }[]; actor: { required: readonly string[]; playerIsActor: boolean }; inputs: readonly { key: string; kind: string; eligibleCount: number | "lazy"; }[]; };\nexport interface InteractionDescriptorFor<Id extends string = string> { interactionId: Id; [key: string]: unknown; }\nexport interface ScenarioGameApi { start(): Promise<void>; submit<Id extends InteractionId>(playerId: PlayerId, interactionId: Id, params?: InteractionParamsOf<Id>): Promise<void>; }\nexport interface BaseContext { game: ScenarioGameApi; players(): readonly PlayerId[]; seat(index: number): PlayerId; }\nexport interface SharedScenarioContext { game: ScenarioGameApi; players(): readonly PlayerId[]; seat(index: number): PlayerId; state(): StateName; view(playerId: PlayerId): GameView; interactions(playerId: PlayerId): readonly InteractionDescriptorFor[]; explain(playerId: PlayerId, interactionId: InteractionId): InteractionExplanation; expect: ExpectFn; }\nexport type ScenarioContext<Phase extends PhaseName | undefined = undefined> = Omit<SharedScenarioContext, "state" | "view"> & { state(): Phase extends PhaseName ? Phase : StateName; view(playerId: PlayerId): Phase extends PhaseName ? ViewByPhase[Phase] : GameView; };\nexport type ScenarioThenContext<_Runners extends readonly TestRunner[] = readonly ["reducer"], Phase extends PhaseName | undefined = undefined> = ScenarioContext<Phase>;\nexport interface BaseDefinition { id: string; seed?: number; players?: number; setupProfileId?: string; extends?: BaseId | string; setup: (ctx: BaseContext) => void | Promise<void>; }\nexport interface ScenarioDefinition<Runners extends readonly TestRunner[] = readonly ["reducer"], Phase extends PhaseName | undefined = undefined> { id: string; description?: string; from: BaseId | string; runners?: Runners; phase?: Phase; stage?: Phase extends PhaseName ? WorkspaceStageName<Phase> : never; when: (ctx: ScenarioContext<Phase>) => void | Promise<void>; then: (ctx: ScenarioThenContext<Runners, Phase>) => void | Promise<void>; }\n`,
     mode,
   );
   await writeGeneratedTestingStubFile(
-    path.join(generatedDir, "scenario-manifest.generated.ts"),
+    projectRoot,
+    "test/generated/scenario-manifest.generated.ts",
     `${header}export const SCENARIO_MANIFEST = [] as const;\n`,
     mode,
   );
 }
 
 async function writeGeneratedTestingStubFile(
-  filePath: string,
+  projectRoot: string,
+  projectPath: string,
   content: string,
   mode: StaticScaffoldMode,
 ): Promise<void> {
   if (mode === "new") {
-    await writeTextFile(filePath, content);
+    await writeWorkspaceTextFile(projectRoot, projectPath, content);
     return;
   }
 
-  const existing = await readTextFileIfExists(filePath);
+  const existing = await readWorkspaceTextFileIfExists(
+    projectRoot,
+    projectPath,
+  );
   if (
     existing === null ||
     existing.trim().length === 0 ||
     existing.startsWith(GENERATED_SCENARIO_PREFIX)
   ) {
-    await writeTextFile(filePath, content);
+    await writeWorkspaceTextFile(projectRoot, projectPath, content);
   }
 }
 
-async function writeTestTsconfig(filePath: string): Promise<void> {
-  await writeTextFile(
-    filePath,
+async function writeTestTsconfig(projectRoot: string): Promise<void> {
+  await writeWorkspaceTextFile(
+    projectRoot,
+    "test/tsconfig.json",
     `${JSON.stringify(
       {
         compilerOptions: {
@@ -459,9 +487,12 @@ async function writeTestTsconfig(filePath: string): Promise<void> {
   );
 }
 
-async function writeManifestTypecheckTsconfig(filePath: string): Promise<void> {
-  await writeTextFile(
-    filePath,
+async function writeManifestTypecheckTsconfig(
+  projectRoot: string,
+): Promise<void> {
+  await writeWorkspaceTextFile(
+    projectRoot,
+    MANIFEST_TYPECHECK_CONFIG_FILE,
     `${JSON.stringify(
       {
         compilerOptions: {
@@ -485,12 +516,13 @@ async function writeManifestTypecheckTsconfig(filePath: string): Promise<void> {
 export async function migrateLegacyScenarioImports(
   projectRoot: string,
 ): Promise<void> {
-  const scenariosRoot = path.join(projectRoot, "test", "scenarios");
-  if (!(await exists(scenariosRoot))) return;
+  if (!(await workspacePathExists(projectRoot, "test/scenarios"))) return;
 
+  const scenariosRoot = resolveWorkspacePath(projectRoot, "test/scenarios");
   const scenarioFiles = await collectScenarioFiles(scenariosRoot);
   for (const filePath of scenarioFiles) {
-    const content = await readTextFile(filePath);
+    const projectPath = toWorkspaceProjectPath(projectRoot, filePath);
+    const content = await readWorkspaceTextFile(projectRoot, projectPath);
     if (!content.includes("@dreamboard/cli/testing")) continue;
 
     const relativeToTestingTypes = normalizeImportPath(
@@ -505,7 +537,7 @@ export async function migrateLegacyScenarioImports(
       .replaceAll("'@dreamboard/cli/testing'", `'${relativeToTestingTypes}'`);
 
     if (migrated !== content) {
-      await writeTextFile(filePath, migrated);
+      await writeWorkspaceTextFile(projectRoot, projectPath, migrated);
     }
   }
 }
@@ -525,8 +557,7 @@ function shouldRefreshGeneratedTestingTypes(
 async function inferInitialTestPlayerCount(
   projectRoot: string,
 ): Promise<number> {
-  const manifestPath = path.join(projectRoot, "manifest.ts");
-  if (!(await exists(manifestPath))) {
+  if (!(await workspacePathExists(projectRoot, "manifest.ts"))) {
     return 4;
   }
 
@@ -585,9 +616,12 @@ async function getStaticAssetEntries(): Promise<StaticAssetEntry[]> {
   const entries: StaticAssetEntry[] = [];
 
   for (const filePath of files) {
-    const targetPath = normalizeProjectPath(
-      path.relative(STATIC_ASSET_ROOT, filePath),
+    const targetPath = normalizeOwnedProjectPath(
+      path.relative(STATIC_ASSET_ROOT, filePath).replaceAll(path.sep, "/"),
     );
+    if (targetPath === null) {
+      throw new Error(`Unsafe static scaffold asset path: ${filePath}`);
+    }
     entries.push({
       targetPath,
       content: await readFile(filePath, "utf8"),
@@ -673,10 +707,12 @@ async function buildRootPackageJson(
     ...SDK_DEPENDENCY_RANGES,
     ...(options.localMaintainerRegistry?.packages ?? {}),
   };
-  const packageJsonPath = path.join(projectRoot, "package.json");
   const existingPackageJson =
-    mode === "update" && (await exists(packageJsonPath))
-      ? await readJsonFile<RootPackageJsonShape>(packageJsonPath)
+    mode === "update" &&
+    (await workspacePathExists(projectRoot, "package.json"))
+      ? (JSON.parse(
+          await readWorkspaceTextFile(projectRoot, "package.json"),
+        ) as RootPackageJsonShape)
       : null;
   const {
     dreamboardFrameworkVersion: _legacyFrameworkVersion,
@@ -876,8 +912,15 @@ function normalizeImportPath(relativePath: string): string {
   return `./${normalized}`;
 }
 
-function normalizeProjectPath(filePath: string): string {
-  return filePath.replace(/^\.\//, "").replace(/^\/+/, "").replace(/\\/g, "/");
+function toWorkspaceProjectPath(projectRoot: string, filePath: string): string {
+  const relativePath = path
+    .relative(path.resolve(projectRoot), path.resolve(filePath))
+    .replaceAll(path.sep, "/");
+  const projectPath = normalizeOwnedProjectPath(relativePath);
+  if (projectPath === null) {
+    throw new Error(`Unsafe project path: ${relativePath}`);
+  }
+  return projectPath;
 }
 
 function summarizePaths(paths: readonly string[]): string {

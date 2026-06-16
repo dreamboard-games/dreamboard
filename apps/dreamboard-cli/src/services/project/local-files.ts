@@ -1,4 +1,4 @@
-import { readdir, unlink } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
 import {
@@ -9,12 +9,6 @@ import {
   LOCAL_IGNORE_DIRS,
 } from "../../constants.js";
 import type { Snapshot } from "../../types.js";
-import {
-  readJsonFile,
-  readTextFile,
-  readTextFileIfExists,
-  writeTextFile,
-} from "../../utils/fs.js";
 import { atomicWriteFile } from "../../utils/atomic-file.js";
 import { hashContent } from "../../utils/crypto.js";
 import {
@@ -27,6 +21,13 @@ import {
   isDynamicGeneratedPath,
   isLibraryPath as isLibraryPathFromOwnership,
 } from "./scaffold-ownership.js";
+import {
+  readWorkspaceTextFile,
+  readWorkspaceTextFileIfExists,
+  resolveWorkspacePath,
+  unlinkWorkspaceFile,
+  writeWorkspaceTextFile,
+} from "./workspace-path.js";
 
 /**
  * Returns true when a path is inside the canonical game project structure.
@@ -65,8 +66,7 @@ export async function writeSourceFiles(
 ): Promise<void> {
   for (const [relativePath, content] of Object.entries(files)) {
     if (content === null || content === undefined) continue;
-    const filePath = path.join(rootDir, relativePath);
-    await writeTextFile(filePath, content);
+    await writeWorkspaceTextFile(rootDir, relativePath, content);
   }
 }
 
@@ -96,8 +96,10 @@ export async function writeScaffoldFiles(
   for (const [relativePath, content] of Object.entries(files)) {
     if (content === null || content === undefined) continue;
 
-    const fullPath = path.join(rootDir, relativePath);
-    const existingContent = await readTextFileIfExists(fullPath);
+    const existingContent = await readWorkspaceTextFileIfExists(
+      rootDir,
+      relativePath,
+    );
 
     const decision = shouldWriteScaffoldFile(relativePath, existingContent);
 
@@ -106,7 +108,7 @@ export async function writeScaffoldFiles(
       continue;
     }
 
-    await writeTextFile(fullPath, content);
+    await writeWorkspaceTextFile(rootDir, relativePath, content);
 
     if (existingContent !== content) {
       written.push(relativePath);
@@ -126,7 +128,7 @@ export async function removeExtraneousFiles(
   for (const filePath of Object.keys(localFiles)) {
     if (filePath === MANIFEST_FILE || filePath === RULE_FILE) continue;
     if (!keep.has(filePath)) {
-      await unlink(path.join(rootDir, filePath));
+      await unlinkWorkspaceFile(rootDir, filePath);
     }
   }
 }
@@ -152,7 +154,7 @@ export async function walkDir(
     } else if (entry.isFile()) {
       const filePath = path.join(currentDir, entry.name);
       const relativePath = path.relative(rootDir, filePath);
-      result[relativePath] = await readTextFile(filePath);
+      result[relativePath] = await readWorkspaceTextFile(rootDir, relativePath);
     }
   }
 }
@@ -168,8 +170,7 @@ export async function writeRule(
   rootDir: string,
   ruleText: string,
 ): Promise<void> {
-  const filePath = path.join(rootDir, RULE_FILE);
-  await writeTextFile(filePath, ruleText);
+  await writeWorkspaceTextFile(rootDir, RULE_FILE, ruleText);
 }
 
 export async function loadManifest(
@@ -181,8 +182,7 @@ export async function loadManifest(
 export { computeManifestHash };
 
 export async function loadRule(rootDir: string): Promise<string> {
-  const filePath = path.join(rootDir, RULE_FILE);
-  return readTextFile(filePath);
+  return readWorkspaceTextFile(rootDir, RULE_FILE);
 }
 
 export async function writeSnapshot(rootDir: string): Promise<void> {
@@ -204,15 +204,20 @@ export async function writeSnapshotFromFiles(
     snapshot.files[filePath] = hashContent(content);
   }
 
-  const snapshotPath = path.join(rootDir, PROJECT_DIR_NAME, SNAPSHOT_FILE);
   // Atomic write: a crash mid-snapshot (e.g. user kills a long `dreamboard
   // sync`) must not leave `.dreamboard/snapshot.json` truncated, or
   // `getLocalDiff` will silently report everything as "added" on the
   // next run and force a full re-sync.
+  const snapshotPath = resolveWorkspacePath(
+    rootDir,
+    `${PROJECT_DIR_NAME}/${SNAPSHOT_FILE}`,
+  );
   await atomicWriteFile(
     snapshotPath,
     `${JSON.stringify(snapshot, null, 2)}\n`,
-    { mode: 0o644 },
+    {
+      mode: 0o644,
+    },
   );
 }
 
@@ -228,8 +233,12 @@ export async function getLocalDiff(rootDir: string): Promise<{
   added: string[];
   deleted: string[];
 }> {
-  const snapshotPath = path.join(rootDir, PROJECT_DIR_NAME, SNAPSHOT_FILE);
-  const snapshot = await readJsonFile<Snapshot>(snapshotPath).catch(() => null);
+  const snapshot = await readWorkspaceTextFile(
+    rootDir,
+    `${PROJECT_DIR_NAME}/${SNAPSHOT_FILE}`,
+  )
+    .then((text) => JSON.parse(text) as Snapshot)
+    .catch(() => null);
   if (!snapshot) {
     return { modified: [], added: [], deleted: [] };
   }

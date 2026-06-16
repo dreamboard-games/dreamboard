@@ -1,11 +1,10 @@
 import { SCAFFOLD_OWNERSHIP } from "./scaffold-ownership.generated.js";
-
-function normalizeProjectPath(filePath: string): string {
-  return filePath.replace(/^\.\//, "").replace(/^\/+/, "").replace(/\\/g, "/");
-}
+import { normalizeOwnedProjectPath } from "./workspace-path.js";
+export { normalizeOwnedProjectPath } from "./workspace-path.js";
 
 export function isAllowedGamePath(filePath: string): boolean {
-  const path = normalizeProjectPath(filePath);
+  const path = normalizeOwnedProjectPath(filePath);
+  if (path === null) return false;
   if (SCAFFOLD_OWNERSHIP.allowedPaths.rootFiles.includes(path)) return true;
   return SCAFFOLD_OWNERSHIP.allowedPaths.directoryPrefixes.some((prefix) =>
     path.startsWith(prefix),
@@ -13,12 +12,14 @@ export function isAllowedGamePath(filePath: string): boolean {
 }
 
 export function isDynamicGeneratedPath(filePath: string): boolean {
-  const path = normalizeProjectPath(filePath);
+  const path = normalizeOwnedProjectPath(filePath);
+  if (path === null) return false;
   return SCAFFOLD_OWNERSHIP.dynamic.generatedFiles.includes(path);
 }
 
 export function isDynamicSeedPath(filePath: string): boolean {
-  const path = normalizeProjectPath(filePath);
+  const path = normalizeOwnedProjectPath(filePath);
+  if (path === null) return false;
   if (SCAFFOLD_OWNERSHIP.dynamic.seedFiles.includes(path)) return true;
   return SCAFFOLD_OWNERSHIP.dynamic.seedFilePatterns.some(
     (pattern) =>
@@ -27,7 +28,8 @@ export function isDynamicSeedPath(filePath: string): boolean {
 }
 
 export function isCliStaticPath(filePath: string): boolean {
-  const path = normalizeProjectPath(filePath);
+  const path = normalizeOwnedProjectPath(filePath);
+  if (path === null) return false;
   if (SCAFFOLD_OWNERSHIP.cliStatic.exactFiles.includes(path)) return true;
   return SCAFFOLD_OWNERSHIP.cliStatic.directoryPrefixes.some((prefix) =>
     path.startsWith(prefix),

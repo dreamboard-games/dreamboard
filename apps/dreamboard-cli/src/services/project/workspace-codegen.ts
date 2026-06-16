@@ -4,7 +4,10 @@ import {
   generateSeedFiles,
   isFrameworkOwnedSetupProfilesSeed,
 } from "@dreamboard-games/sdk/codegen";
-import { readTextFileIfExists, writeTextFile } from "../../utils/fs.js";
+import {
+  readWorkspaceTextFileIfExists,
+  writeWorkspaceTextFile,
+} from "./workspace-path.js";
 
 export interface WorkspaceCodegenWriteResult {
   written: string[];
@@ -30,25 +33,30 @@ export async function applyWorkspaceCodegen(options: {
   const written: string[] = [];
   const skipped: string[] = [];
   const merged: string[] = [];
-  const existingUiAppBeforeSeeds = await readTextFileIfExists(
-    `${projectRoot}/ui/App.tsx`,
+  const existingUiAppBeforeSeeds = await readWorkspaceTextFileIfExists(
+    projectRoot,
+    "ui/App.tsx",
   );
   const shouldWriteStarterUiSeedFiles =
     existingUiAppBeforeSeeds === null ||
     existingUiAppBeforeSeeds.trim().length === 0;
 
   for (const [relativePath, content] of Object.entries(authoritativeFiles)) {
-    const filePath = `${projectRoot}/${relativePath}`;
-    const existingContent = await readTextFileIfExists(filePath);
-    await writeTextFile(filePath, content);
+    const existingContent = await readWorkspaceTextFileIfExists(
+      projectRoot,
+      relativePath,
+    );
+    await writeWorkspaceTextFile(projectRoot, relativePath, content);
     if (existingContent !== content) {
       written.push(relativePath);
     }
   }
 
   for (const [relativePath, content] of Object.entries(seedFiles)) {
-    const filePath = `${projectRoot}/${relativePath}`;
-    const existingContent = await readTextFileIfExists(filePath);
+    const existingContent = await readWorkspaceTextFileIfExists(
+      projectRoot,
+      relativePath,
+    );
     if (
       STARTER_UI_SEED_FILES.has(relativePath) &&
       !shouldWriteStarterUiSeedFiles &&
@@ -63,7 +71,7 @@ export async function applyWorkspaceCodegen(options: {
       isFrameworkOwnedSetupProfilesSeed(existingContent);
 
     if (shouldRefreshFrameworkSeed) {
-      await writeTextFile(filePath, content);
+      await writeWorkspaceTextFile(projectRoot, relativePath, content);
       if (existingContent !== content) {
         written.push(relativePath);
       }
@@ -77,7 +85,7 @@ export async function applyWorkspaceCodegen(options: {
       continue;
     }
 
-    await writeTextFile(filePath, content);
+    await writeWorkspaceTextFile(projectRoot, relativePath, content);
     written.push(relativePath);
   }
 

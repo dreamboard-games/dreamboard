@@ -10,11 +10,11 @@ import { MANIFEST_FILE, MATERIALIZED_MANIFEST_FILE } from "../../constants.js";
 import { createRepoLocalPackageResolutionPlugin } from "../../utils/repo-local-package-resolution.js";
 import { hashContent } from "../../utils/crypto.js";
 import {
-  exists,
-  readTextFile,
-  writeJsonFile,
-  writeTextFile,
-} from "../../utils/fs.js";
+  readWorkspaceTextFile,
+  workspacePathExists,
+  writeWorkspaceJsonFile,
+  writeWorkspaceTextFile,
+} from "./workspace-path.js";
 
 function formatIssuePath(pathSegments: ReadonlyArray<string | number>): string {
   if (pathSegments.length === 0) {
@@ -82,8 +82,7 @@ export function computeManifestHash(manifest: GameTopologyManifest): string {
 async function evaluateManifestSource(
   projectRoot: string,
 ): Promise<GameTopologyManifest> {
-  const manifestPath = `${projectRoot}/${MANIFEST_FILE}`;
-  if (!(await exists(manifestPath))) {
+  if (!(await workspacePathExists(projectRoot, MANIFEST_FILE))) {
     throw new Error(`Missing ${MANIFEST_FILE}.`);
   }
 
@@ -159,7 +158,11 @@ export async function materializeManifest(
   projectRoot: string,
 ): Promise<GameTopologyManifest> {
   const manifest = await evaluateManifestSource(projectRoot);
-  await writeJsonFile(`${projectRoot}/${MATERIALIZED_MANIFEST_FILE}`, manifest);
+  await writeWorkspaceJsonFile(
+    projectRoot,
+    MATERIALIZED_MANIFEST_FILE,
+    manifest,
+  );
   return manifest;
 }
 
@@ -167,16 +170,21 @@ export async function readMaterializedManifestText(
   projectRoot: string,
 ): Promise<string> {
   await materializeManifest(projectRoot);
-  return readTextFile(`${projectRoot}/${MATERIALIZED_MANIFEST_FILE}`);
+  return readWorkspaceTextFile(projectRoot, MATERIALIZED_MANIFEST_FILE);
 }
 
 export async function writeManifestSource(
   projectRoot: string,
   manifest: GameTopologyManifest,
 ): Promise<void> {
-  await writeTextFile(
-    `${projectRoot}/${MANIFEST_FILE}`,
+  await writeWorkspaceTextFile(
+    projectRoot,
+    MANIFEST_FILE,
     renderManifestSource(manifest),
   );
-  await writeJsonFile(`${projectRoot}/${MATERIALIZED_MANIFEST_FILE}`, manifest);
+  await writeWorkspaceJsonFile(
+    projectRoot,
+    MATERIALIZED_MANIFEST_FILE,
+    manifest,
+  );
 }

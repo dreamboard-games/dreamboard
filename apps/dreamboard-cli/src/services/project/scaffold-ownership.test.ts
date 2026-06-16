@@ -7,6 +7,7 @@ import {
   isDynamicGeneratedPath,
   isDynamicSeedPath,
   isLibraryPath,
+  normalizeOwnedProjectPath,
 } from "./scaffold-ownership.js";
 import { resolveStaticAssetRoot } from "./static-scaffold.js";
 
@@ -59,6 +60,51 @@ test("dynamic generated and seed paths are not classified as cli-static", () => 
   const seedPatternSample = "app/phases/setup.ts";
   expect(isDynamicSeedPath(seedPatternSample)).toBe(true);
   expect(isCliStaticPath(seedPatternSample)).toBe(false);
+});
+
+test("strict ownership path normalization rejects unsafe forms", () => {
+  const unsafePaths = [
+    "",
+    "   ",
+    "../escape.ts",
+    "app/../escape.ts",
+    "/app/game.ts",
+    "app//game.ts",
+    "./app/game.ts",
+    "app/./game.ts",
+    "app\\game.ts",
+    "C:\\temp\\game.ts",
+    "C:/temp/game.ts",
+    "\\\\server\\share\\game.ts",
+    "//server/share/game.ts",
+    "\\\\?\\C:\\temp\\game.ts",
+    "https://example.com/game.ts",
+    "file:///tmp/game.ts",
+    "app/%2f/game.ts",
+    "app/%5C/game.ts",
+    "app/\u0000game.ts",
+    "app/\u001fgame.ts",
+    "app/CON",
+    "app/nul.txt",
+    "app/LPT1",
+  ];
+
+  for (const unsafePath of unsafePaths) {
+    expect(normalizeOwnedProjectPath(unsafePath)).toBeNull();
+    expect(isDynamicSeedPath(unsafePath)).toBe(false);
+    expect(isCliStaticPath(unsafePath)).toBe(false);
+    expect(isLibraryPath(unsafePath)).toBe(false);
+  }
+});
+
+test("strict ownership path normalization preserves allowed relative paths", () => {
+  expect(normalizeOwnedProjectPath("app/phases/setup.ts")).toBe(
+    "app/phases/setup.ts",
+  );
+  expect(normalizeOwnedProjectPath("ui/components/Panel.tsx")).toBe(
+    "ui/components/Panel.tsx",
+  );
+  expect(isDynamicSeedPath("app/phases/setup.ts")).toBe(true);
 });
 
 test("ownership exact cli-static asset files are bundled in the scaffold", async () => {

@@ -1,4 +1,3 @@
-import { unlink } from "node:fs/promises";
 import path from "node:path";
 import type { GameTopologyManifest } from "@dreamboard-games/api-client";
 import { MANIFEST_FILE, RULE_FILE } from "../../constants.js";
@@ -12,7 +11,7 @@ import {
   clearProjectPendingAuthoringSync,
   updateProjectAuthoringState,
 } from "./project-state.js";
-import { exists, writeTextFile } from "../../utils/fs.js";
+import { exists } from "../../utils/fs.js";
 import {
   collectLocalFiles,
   removeExtraneousFiles,
@@ -25,6 +24,11 @@ import {
 import { isAllowedGamePath, isLibraryPath } from "./scaffold-ownership.js";
 import { applyWorkspaceCodegen } from "./workspace-codegen.js";
 import { installWorkspaceDependencies } from "./workspace-dependencies.js";
+import {
+  unlinkWorkspaceFile,
+  workspacePathExists,
+  writeWorkspaceTextFile,
+} from "./workspace-path.js";
 
 const META_FILES = new Set([RULE_FILE]);
 const LOCAL_PACKAGE_METADATA_FILES = new Set([
@@ -205,15 +209,13 @@ export async function fetchLatestRemoteProjectSources(
     return null;
   }
   return {
-    authoringStateId: sources.authoringStateId,
-    revisionDigest: undefined,
+    authoringStateId: sources.revisionDigest,
+    revisionDigest: sources.revisionDigest,
     files: normalizeRemoteFiles(sources),
     sourceRevisionId: sources.sourceRevisionId,
     treeHash: sources.treeHash,
-    manifestId: sources.manifestId,
     manifestContentHash: sources.manifestContentHash ?? undefined,
     manifest: sources.manifest,
-    ruleId: sources.ruleId,
     ruleText: sources.ruleText,
   };
 }
@@ -223,9 +225,7 @@ export async function pullIntoDirectory(
   targetDir: string,
   projectConfig: ProjectConfig,
 ): Promise<ProjectConfig> {
-  const latest = await fetchLatestRemoteProjectSources(
-    projectConfig.projectId,
-  );
+  const latest = await fetchLatestRemoteProjectSources(projectConfig.projectId);
   if (!latest) {
     throw new Error("No authoring state found for this game.");
   }
@@ -331,16 +331,15 @@ export async function reconcileRemoteChangesIntoWorkspace(options: {
       remoteContent: latestFiles[filePath] ?? null,
     });
 
-    const absolutePath = path.join(projectRoot, filePath);
     if (mergeResult.content === null) {
-      if (await exists(absolutePath)) {
-        await unlink(absolutePath);
+      if (await workspacePathExists(projectRoot, filePath)) {
+        await unlinkWorkspaceFile(projectRoot, filePath);
         deleted.push(filePath);
       }
       continue;
     }
 
-    await writeTextFile(absolutePath, mergeResult.content);
+    await writeWorkspaceTextFile(projectRoot, filePath, mergeResult.content);
     written.push(filePath);
 
     if (mergeResult.conflicted) {
