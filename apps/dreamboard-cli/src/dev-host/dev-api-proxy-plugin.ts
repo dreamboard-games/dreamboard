@@ -34,6 +34,8 @@ import {
 import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 import type { ResolvedConfig } from "../types.js";
 
+const BROWSER_ORIGIN_HEADER = "X-Dreamboard-Browser-Origin";
+
 export type ResolvedBearerOk = {
   readonly kind: "ok";
   readonly token: string | null;
@@ -212,23 +214,30 @@ function createStreamingProxy(target: string): DevApiProxy {
   return proxy;
 }
 
-function createForwardHeaders(
+export function createForwardHeaders(
   req: IncomingMessage,
   targetUrl: URL,
 ): http.OutgoingHttpHeaders {
   const headers: http.OutgoingHttpHeaders = { ...req.headers };
+  const browserOrigin = isGameplayCapabilityRequest(req.url ?? "")
+    ? canonicalizeBrowserOrigin(req.headers.origin)
+    : null;
 
   // Browser requests are same-origin with the dev host. Once the CLI proxies
   // them to the backend, they are server-to-server requests; forwarding the
   // browser Origin from a Cloudflare/LAN host makes backend CORS reject valid
   // dev traffic.
   delete headers.origin;
+  deleteHeaderCaseInsensitive(headers, BROWSER_ORIGIN_HEADER);
   delete headers["access-control-request-headers"];
   delete headers["access-control-request-method"];
 
   headers.host = targetUrl.host;
   headers["x-forwarded-host"] = req.headers.host;
   headers["x-forwarded-proto"] = targetUrl.protocol.replace(":", "");
+  if (browserOrigin) {
+    headers[BROWSER_ORIGIN_HEADER] = browserOrigin;
+  }
 
   return headers;
 }
@@ -313,6 +322,72 @@ function respondRefreshFailed(res: ServerResponse, error: unknown): void {
 
 function isApiRequest(url: string): boolean {
   return url === "/api" || url.startsWith("/api/") || url.startsWith("/api?");
+}
+
+function isGameplayCapabilityRequest(url: string): boolean {
+  let pathname: string;
+  try {
+    pathname = new URL(url, "http://dreamboard.dev").pathname;
+  } catch {
+    pathname = url.split("?", 1)[0] ?? "";
+  }
+
+  return (
+    /^\/api\/sessions\/[^/]+\/players\/[^/]+\/gameplay-capability$/.test(
+      pathname,
+    ) ||
+    /^\/api\/demo\/sessions\/[^/]+\/players\/[^/]+\/gameplay-capability$/.test(
+      pathname,
+    )
+  );
+}
+
+function canonicalizeBrowserOrigin(
+  origin: string | string[] | undefined,
+): string | null {
+  if (typeof origin !== "string") return null;
+  const rawOrigin = origin.trim();
+  if (!rawOrigin || rawOrigin === "null") return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawOrigin);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return null;
+  }
+  if (parsed.username || parsed.password) {
+    return null;
+  }
+  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    return null;
+  }
+  if (
+    parsed.hostname !== "localhost" &&
+    parsed.hostname.includes("localhost")
+  ) {
+    return null;
+  }
+  if (parsed.hostname.startsWith("[") && rawOrigin !== parsed.origin) {
+    return null;
+  }
+
+  return parsed.origin;
+}
+
+function deleteHeaderCaseInsensitive(
+  headers: http.OutgoingHttpHeaders,
+  headerName: string,
+): void {
+  const target = headerName.toLowerCase();
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === target) {
+      delete headers[key];
+    }
+  }
 }
 
 function formatUnknown(value: unknown): string {

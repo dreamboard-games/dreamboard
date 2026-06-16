@@ -191,7 +191,9 @@ export default defineCommand({
 
     const remoteRevisionDigest = remoteProject.project.head?.revisionDigest;
     if (!remoteRevisionDigest) {
-      throw new Error("Remote has no authored project revision to compile yet.");
+      throw new Error(
+        "Remote has no authored project revision to compile yet.",
+      );
     }
     if (remoteRevisionDigest !== localRevisionDigest) {
       throw new Error(
@@ -230,13 +232,13 @@ export default defineCommand({
         jobId: undefined,
         revisionDigest: localRevisionDigest,
         authoringStateId:
-          existingCompiledResult.authoringStateId ?? localRevisionDigest,
+          localAuthoring.authoringStateId ?? localRevisionDigest,
         status: "successful",
         diagnosticsSummary: undefined,
       });
       await updateProjectState(projectRoot, nextProjectConfig);
       consola.success(
-        `Reusing compiled ${existingCompiledResult.id} for authored state ${existingCompiledResult.authoringStateId}.`,
+        `Reusing compiled ${existingCompiledResult.id} for revision ${localRevisionDigest}.`,
       );
       return;
     }
@@ -311,7 +313,7 @@ export default defineCommand({
       resultId: compiledResult.id,
       jobId: compileJobId,
       revisionDigest: localRevisionDigest,
-      authoringStateId: compiledResult.authoringStateId ?? localRevisionDigest,
+      authoringStateId: localAuthoring.authoringStateId ?? localRevisionDigest,
       status:
         compiledResult.success && !failedJobProducedCompiledResult
           ? "successful"

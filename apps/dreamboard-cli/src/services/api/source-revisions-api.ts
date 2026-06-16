@@ -79,7 +79,11 @@ function chunkSourceBlobs(
   blobs: SourceBlobUploadInput[],
 ): SourceBlobUploadInput[][] {
   const chunks: SourceBlobUploadInput[][] = [];
-  for (let index = 0; index < blobs.length; index += SOURCE_BLOB_UPLOAD_BATCH_SIZE) {
+  for (
+    let index = 0;
+    index < blobs.length;
+    index += SOURCE_BLOB_UPLOAD_BATCH_SIZE
+  ) {
     chunks.push(blobs.slice(index, index + SOURCE_BLOB_UPLOAD_BATCH_SIZE));
   }
   return chunks;
@@ -93,7 +97,7 @@ export async function queueCompiledResultJobSdk(options: {
   const { data, error, response } = await queueCompiledResultJob({
     path: { gameId },
     body: {
-      authoringStateId,
+      gameRevisionId: authoringStateId,
     },
   });
 

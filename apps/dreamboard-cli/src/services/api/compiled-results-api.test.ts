@@ -168,7 +168,7 @@ beforeEach(() => {
   mockState.jobResponses = [];
 });
 
-test("findCompiledResultsForAuthoringState delegates filtering to the backend", async () => {
+test("findCompiledResultsForAuthoringState filters legacy authoring ids locally", async () => {
   mockState.listCompiledResultsResponse = {
     data: {
       results: [
@@ -200,7 +200,6 @@ test("findCompiledResultsForAuthoringState delegates filtering to the backend", 
       path: { gameId: "game-1" },
       query: {
         limit: 100,
-        authoringStateId: "authoring-state-2",
       },
     },
   ]);

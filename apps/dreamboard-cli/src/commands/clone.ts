@@ -72,67 +72,67 @@ export default defineCommand({
       );
     }
 
-      await scaffoldStaticWorkspace(targetDir, "update", {
-        localMaintainerRegistry,
-      });
+    await scaffoldStaticWorkspace(targetDir, "update", {
+      localMaintainerRegistry,
+    });
+    await installWorkspaceDependencies(targetDir);
+    const pulledProjectConfig = await pullIntoDirectory(config, targetDir, {
+      schemaVersion: 2,
+      projectId: project.projectId,
+      gameId: project.projectId,
+      deploymentId: "project",
+      ownerScopeId: "default",
+      slug: normalizedSlug,
+      remoteHeadDigest,
+      apiBaseUrl: config.apiBaseUrl,
+      webBaseUrl: config.webBaseUrl,
+    });
+    const fallbackRegistryUrl = localMaintainerRegistry?.registryUrl;
+    const workspaceLocalMaintainerRegistry =
+      localMaintainerRegistry ??
+      (await readWorkspaceLocalMaintainerRegistry(
+        targetDir,
+        fallbackRegistryUrl,
+      ));
+    await scaffoldStaticWorkspace(targetDir, "update", {
+      localMaintainerRegistry: workspaceLocalMaintainerRegistry,
+    });
+    if (workspaceLocalMaintainerRegistry) {
       await installWorkspaceDependencies(targetDir);
-      const pulledProjectConfig = await pullIntoDirectory(config, targetDir, {
-        schemaVersion: 2,
-        projectId: project.projectId,
-        gameId: project.projectId,
-        deploymentId: "project",
-        ownerScopeId: "default",
-        slug: normalizedSlug,
-        remoteHeadDigest,
-        apiBaseUrl: config.apiBaseUrl,
-        webBaseUrl: config.webBaseUrl,
-      });
-      const fallbackRegistryUrl = localMaintainerRegistry?.registryUrl;
-      const workspaceLocalMaintainerRegistry =
-        localMaintainerRegistry ??
-        (await readWorkspaceLocalMaintainerRegistry(
-          targetDir,
-          fallbackRegistryUrl,
-        ));
-      await scaffoldStaticWorkspace(targetDir, "update", {
-        localMaintainerRegistry: workspaceLocalMaintainerRegistry,
-      });
-      if (workspaceLocalMaintainerRegistry) {
-        await installWorkspaceDependencies(targetDir);
-      }
+    }
+    await updateProjectState(
+      targetDir,
+      updateProjectLocalMaintainerRegistry(
+        pulledProjectConfig,
+        workspaceLocalMaintainerRegistry ?? undefined,
+      ),
+    );
+
+    const remoteResults = await findProjectCompiledResultsForRevision({
+      projectId: project.projectId,
+      revisionDigest: remoteHeadDigest,
+    });
+    const latestSuccess = remoteResults.find(
+      (result: { success: boolean }) => result.success,
+    );
+    if (latestSuccess) {
+      const configWithLatestCompileAttempt = setLatestCompileAttempt(
+        pulledProjectConfig,
+        {
+          resultId: latestSuccess.id,
+          authoringStateId: latestSuccess.revisionDigest ?? remoteHeadDigest,
+          revisionDigest: remoteHeadDigest,
+          status: "successful",
+        },
+      );
       await updateProjectState(
         targetDir,
         updateProjectLocalMaintainerRegistry(
-          pulledProjectConfig,
+          configWithLatestCompileAttempt,
           workspaceLocalMaintainerRegistry ?? undefined,
         ),
       );
-
-      const remoteResults = await findProjectCompiledResultsForRevision({
-        projectId: project.projectId,
-        revisionDigest: remoteHeadDigest,
-      });
-      const latestSuccess = remoteResults.find(
-        (result: { success: boolean }) => result.success,
-      );
-      if (latestSuccess) {
-        const configWithLatestCompileAttempt = setLatestCompileAttempt(
-          pulledProjectConfig,
-          {
-            resultId: latestSuccess.id,
-            authoringStateId: latestSuccess.authoringStateId ?? remoteHeadDigest,
-            revisionDigest: remoteHeadDigest,
-            status: "successful",
-          },
-        );
-        await updateProjectState(
-          targetDir,
-          updateProjectLocalMaintainerRegistry(
-            configWithLatestCompileAttempt,
-            workspaceLocalMaintainerRegistry ?? undefined,
-          ),
-        );
-      }
+    }
 
     consola.success(`Cloned ${normalizedSlug} into ${targetDir}`);
   },

@@ -118,7 +118,6 @@ export async function findCompiledResultsForAuthoringState(options: {
     path: { gameId },
     query: {
       limit: 100,
-      authoringStateId,
     },
   });
   if (error || !data) {
@@ -128,7 +127,12 @@ export async function findCompiledResultsForAuthoringState(options: {
       "Failed to list compiled results",
     );
   }
-  return data.results;
+  return data.results.filter(
+    (result) =>
+      result.revisionDigest === authoringStateId ||
+      (result as { authoringStateId?: string }).authoringStateId ===
+        authoringStateId,
+  );
 }
 
 export async function getCompiledResultSdk(
@@ -168,14 +172,7 @@ export async function findProjectCompiledResultsForRevision(options: {
     );
   }
   return data.results.filter(
-    (result) => {
-      const maybeRevisionDigest = (result as { revisionDigest?: string })
-        .revisionDigest;
-      return (
-        maybeRevisionDigest === revisionDigest ||
-        result.authoringStateId === revisionDigest
-      );
-    },
+    (result) => result.revisionDigest === revisionDigest,
   );
 }
 

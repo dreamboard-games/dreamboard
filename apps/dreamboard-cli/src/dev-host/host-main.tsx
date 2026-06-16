@@ -36,6 +36,7 @@ import {
   createGameplayAuthorityTransport,
   createUnifiedSessionStore,
   unifiedSessionSelectors,
+  type GameplayCapabilityRequester,
   type HistoryState,
   type HostFeedback,
 } from "@dreamboard-games/ui-host-runtime/runtime";
@@ -66,10 +67,15 @@ const storage = new SessionStorageDevHostStorage(window.sessionStorage);
 // same-origin and the CLI's reverse-proxy middleware (`/api/*`) injects
 // `Authorization: Bearer <fresh>` on the wire.
 client.setConfig({ baseUrl: "" });
-const createDevHostGameplayCapability = (
-  options: Parameters<typeof createGameplayCapability>[0],
-): ReturnType<typeof createGameplayCapability> =>
-  createGameplayCapability({ ...options, client });
+const createDevHostGameplayCapability: GameplayCapabilityRequester = (
+  options,
+) =>
+  createGameplayCapability({
+    ...options,
+    client,
+  } as Parameters<
+    typeof createGameplayCapability
+  >[0]) as ReturnType<GameplayCapabilityRequester>;
 // Gameplay streaming and submits go through the Gameplay Authority WebSocket
 // (the backend's event-batches stream is removed); snapshot/start/dev-session
 // requests fall back to the dev-server endpoints.
