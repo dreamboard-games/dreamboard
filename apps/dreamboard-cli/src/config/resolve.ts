@@ -23,6 +23,7 @@ import {
 } from "./credential-store.js";
 import { classifyRefreshError } from "../auth/refresh-error.js";
 import { refreshClerkOAuthToken } from "../auth/clerk-oauth.js";
+import { createUserTokenManager } from "../auth/user-token-manager.js";
 import { resolveLocalHarnessAccessToken } from "./local-harness-auth.js";
 
 const LOGIN_HINT = "Run `dreamboard login` to authenticate again.";
@@ -33,6 +34,8 @@ export type CredentialSnapshot = {
   accessToken?: string;
   refreshToken?: string;
   tokenExpiresAt?: string;
+  dreamboardApiToken?: string;
+  dreamboardApiExpiresAt?: string;
   clerkOAuthIssuer?: string;
   clerkOAuthClientId?: string;
   clerkOAuthTokenUrl?: string;
@@ -110,12 +113,19 @@ export function resolveConfig(
     environment,
     apiBaseUrl,
     webBaseUrl,
-    authToken: snapshot.accessToken,
+    authToken:
+      snapshot.dreamboardApiToken ??
+      (snapshot.refreshToken ? undefined : snapshot.accessToken),
     refreshToken: snapshot.refreshToken,
-    tokenExpiresAt: snapshot.tokenExpiresAt,
+    tokenExpiresAt:
+      snapshot.dreamboardApiExpiresAt ??
+      (snapshot.refreshToken ? undefined : snapshot.tokenExpiresAt),
+    clerkAccessToken: snapshot.accessToken,
+    clerkAccessExpiresAt: snapshot.tokenExpiresAt,
+    dreamboardApiToken: snapshot.dreamboardApiToken,
+    dreamboardApiExpiresAt: snapshot.dreamboardApiExpiresAt,
     clerkOAuthIssuer: snapshot.clerkOAuthIssuer ?? oauthConfig.issuer,
-    clerkOAuthClientId:
-      snapshot.clerkOAuthClientId ?? oauthConfig.clientId,
+    clerkOAuthClientId: snapshot.clerkOAuthClientId ?? oauthConfig.clientId,
     clerkOAuthTokenUrl: snapshot.clerkOAuthTokenUrl ?? oauthConfig.tokenUrl,
     clerkOAuthScope: oauthConfig.scope,
     authTokenSource: snapshot.authTokenSource,
@@ -153,9 +163,7 @@ function resolveEnvironmentOAuthConfig(
       valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_TOKEN_URL) ??
       envConfig?.clerkOAuthTokenUrl,
     scope:
-      valueOrUndefined(
-        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_SCOPE`],
-      ) ??
+      valueOrUndefined(process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_SCOPE`]) ??
       valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_SCOPE) ??
       envConfig?.clerkOAuthScope,
   };
@@ -191,11 +199,17 @@ function buildCredentialSnapshot(
       accessToken: stored?.accessToken,
       refreshToken: stored?.refreshToken,
       tokenExpiresAt: stored?.tokenExpiresAt,
+      dreamboardApiToken: stored?.dreamboardApiToken,
+      dreamboardApiExpiresAt: stored?.dreamboardApiExpiresAt,
       clerkOAuthIssuer: stored?.clerkOAuthIssuer,
       clerkOAuthClientId: stored?.clerkOAuthClientId,
       clerkOAuthTokenUrl: stored?.clerkOAuthTokenUrl,
       environment: stored?.environment,
-      authTokenSource: stored?.accessToken ? "global" : "none",
+      authTokenSource:
+        stored?.dreamboardApiToken ||
+        (stored?.accessToken && !stored.refreshToken)
+          ? "global"
+          : "none",
       refreshTokenSource: stored?.refreshToken ? "global" : "none",
     };
   }
@@ -224,6 +238,9 @@ function buildCredentialSnapshot(
     accessToken,
     refreshToken,
     tokenExpiresAt: environmentScopedStoredCredentials?.tokenExpiresAt,
+    dreamboardApiToken: environmentScopedStoredCredentials?.dreamboardApiToken,
+    dreamboardApiExpiresAt:
+      environmentScopedStoredCredentials?.dreamboardApiExpiresAt,
     clerkOAuthIssuer: environmentScopedStoredCredentials?.clerkOAuthIssuer,
     clerkOAuthClientId: environmentScopedStoredCredentials?.clerkOAuthClientId,
     clerkOAuthTokenUrl: environmentScopedStoredCredentials?.clerkOAuthTokenUrl,
@@ -293,7 +310,11 @@ function assertPublicRuntimeFlags(flags: ConfigFlags): void {
  * still see a bearer header and can surface the original error).
  */
 export async function configureClient(config: ResolvedConfig): Promise<void> {
-  const effectiveAccessToken = await ensureEffectiveAccessToken(config);
+  const localHarnessToken = resolveLocalHarnessAccessToken(config);
+  const resolvedToken = localHarnessToken
+    ? { token: localHarnessToken }
+    : await createUserTokenManager(config).resolveApiToken();
+  const effectiveAccessToken = resolvedToken?.token;
 
   client.setConfig({
     baseUrl: config.apiBaseUrl,
@@ -383,7 +404,7 @@ async function ensureEffectiveAccessToken(
 
   if (config.refreshToken) {
     const credentials = await refreshClerkOAuthSessionIfNeeded(config);
-    return credentials?.accessToken ?? config.authToken;
+    return credentials?.dreamboardApiToken ?? config.authToken;
   }
 
   return config.authToken;
@@ -409,13 +430,15 @@ async function refreshClerkOAuthSessionIfNeeded(
 ): Promise<Credentials | null> {
   const expiry = config.tokenExpiresAt
     ? new Date(config.tokenExpiresAt)
-    : getAuthTokenExpiry(config.authToken);
+    : getAuthTokenExpiry(config.clerkAccessToken);
   if (expiry && expiry.getTime() > Date.now() + DEFAULT_REFRESH_WINDOW_MS) {
-    if (!config.authToken || !config.refreshToken) return null;
+    if (!config.clerkAccessToken || !config.refreshToken) return null;
     return {
-      accessToken: config.authToken,
+      accessToken: config.clerkAccessToken,
       refreshToken: config.refreshToken,
-      tokenExpiresAt: config.tokenExpiresAt,
+      tokenExpiresAt: config.clerkAccessExpiresAt,
+      dreamboardApiToken: config.dreamboardApiToken,
+      dreamboardApiExpiresAt: config.dreamboardApiExpiresAt,
       clerkOAuthIssuer: config.clerkOAuthIssuer,
       clerkOAuthClientId: config.clerkOAuthClientId,
       clerkOAuthTokenUrl: config.clerkOAuthTokenUrl,
@@ -451,7 +474,11 @@ async function refreshClerkOAuthSession(
 }
 
 export function requireAuth(config: ResolvedConfig): void {
-  if (!config.authToken && !resolveLocalHarnessAccessToken(config)) {
+  if (
+    !config.authToken &&
+    !config.refreshToken &&
+    !resolveLocalHarnessAccessToken(config)
+  ) {
     throw new Error(
       "Missing Dreamboard session. Run `dreamboard login` to authenticate.",
     );
@@ -503,10 +530,7 @@ export function formatStoredSessionInvalidMessage(reason?: string): string {
 }
 
 function usesStoredSession(config: ResolvedConfig): boolean {
-  return (
-    config.authTokenSource === "global" &&
-    config.refreshTokenSource === "global"
-  );
+  return config.refreshTokenSource === "global";
 }
 
 /**

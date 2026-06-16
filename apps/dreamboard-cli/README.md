@@ -35,13 +35,9 @@ Use browser login:
 dreamboard login
 ```
 
-The published CLI stores your refreshable session in:
+The published CLI stores your refreshable session in the operating system credential store via `@napi-rs/keyring`. It does not fall back to plaintext `~/.dreamboard/auth.json`.
 
-```bash
-~/.dreamboard/config.json
-```
-
-That stored session includes the refresh token the CLI needs to renew access automatically. Direct JWT injection is intentionally not part of the published CLI flow.
+That stored session includes the Clerk refresh token the CLI needs to renew and exchange for short-lived Dreamboard API tokens automatically. Direct JWT injection is intentionally not part of the published CLI flow.
 
 ## Source Checkout Setup
 

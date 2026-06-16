@@ -7,6 +7,7 @@ import {
   createPkcePair,
   exchangeClerkOAuthCode,
 } from "../auth/clerk-oauth.js";
+import { exchangeDreamboardUserToken } from "../auth/token-exchange.js";
 import { DEFAULT_LOGIN_TIMEOUT_MS } from "../constants.js";
 import {
   getGlobalAuthPath,
@@ -244,10 +245,17 @@ export default defineCommand({
       });
 
       if (refreshToken) {
+        const dreamboardApiToken = await exchangeDreamboardUserToken({
+          apiBaseUrl: resolvedConfig.apiBaseUrl,
+          clerkAccessToken: accessToken,
+          audience: "dreamboard-api",
+        });
         await setCredentials({
           accessToken,
           refreshToken,
           tokenExpiresAt,
+          dreamboardApiToken: dreamboardApiToken.accessToken,
+          dreamboardApiExpiresAt: dreamboardApiToken.expiresAt,
           clerkOAuthIssuer: resolvedConfig.clerkOAuthIssuer,
           clerkOAuthClientId: resolvedConfig.clerkOAuthClientId,
           clerkOAuthTokenUrl,

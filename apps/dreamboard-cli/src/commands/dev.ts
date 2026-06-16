@@ -18,6 +18,7 @@ import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import { PROJECT_DIR_NAME } from "../constants.js";
 import { configureClient, resolveProjectContext } from "../config/resolve.js";
 import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
+import { createUserTokenManager } from "../auth/user-token-manager.js";
 import { parseDevCommandArgs, parsePlayerCountFlags } from "../flags.js";
 import type { ProjectConfig } from "../types.js";
 import { ensureDir, readTextFile, writeJsonFile } from "../utils/fs.js";
@@ -350,7 +351,9 @@ export default defineCommand({
     });
     const effectiveProjectConfig = remoteProject.projectConfig;
     const effectiveAuthToken =
-      config.authToken ?? resolveLocalHarnessAccessToken(config);
+      resolveLocalHarnessAccessToken(config) ??
+      (await createUserTokenManager(config).resolveApiToken())?.token ??
+      config.authToken;
 
     const devCompile = await ensureDevCompiledResult({
       projectRoot,
@@ -830,8 +833,7 @@ async function readWorkspacePackageJson(projectRoot: string): Promise<unknown> {
 
 function isDreamboardPublicPackage(packageName: string): boolean {
   return (
-    packageName === "dreamboard" ||
-    packageName.startsWith("@dreamboard-games/")
+    packageName === "dreamboard" || packageName.startsWith("@dreamboard-games/")
   );
 }
 

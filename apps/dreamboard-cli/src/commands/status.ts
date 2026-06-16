@@ -5,9 +5,7 @@ import { resolveProjectContext, configureClient } from "../config/resolve.js";
 import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 import { parseStatusCommandArgs } from "../flags.js";
 import { getLocalDiff } from "../services/project/local-files.js";
-import {
-  findProjectCompiledResultsForRevision,
-} from "../services/api/index.js";
+import { findProjectCompiledResultsForRevision } from "../services/api/index.js";
 import {
   getProjectAuthoringState,
   getProjectCompileState,
@@ -51,10 +49,11 @@ export default defineCommand({
       | "stale_success" = "never_compiled";
     let verified: boolean | null = null;
     let verifiedAt: string | null = null;
-    const effectiveAuthToken =
-      config.authToken ?? resolveLocalHarnessAccessToken(config);
+    const hasAuth =
+      Boolean(config.authToken || config.refreshToken) ||
+      Boolean(resolveLocalHarnessAccessToken(config));
 
-    if (effectiveAuthToken) {
+    if (hasAuth) {
       await configureClient(config);
       const remoteProject = await resolveRemoteProject({
         projectRoot,
@@ -120,7 +119,7 @@ export default defineCommand({
               latestAttempt: localCompile.latestAttempt ?? null,
               latestSuccessful: localCompile.latestSuccessful ?? null,
             },
-            authenticated: Boolean(effectiveAuthToken),
+            authenticated: hasAuth,
             localDiff: {
               modified: diff.modified.length,
               added: diff.added.length,
@@ -154,7 +153,7 @@ export default defineCommand({
       );
     }
 
-    if (!effectiveAuthToken) {
+    if (!hasAuth) {
       consola.warn("Remote status unavailable (no auth token).");
       return;
     }

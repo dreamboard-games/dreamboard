@@ -215,7 +215,7 @@ const generateCommand = defineCommand({
       throw new Error(NO_REDUCER_NATIVE_SCENARIOS_FOUND_ERROR);
     }
 
-    if (useRemoteRuntime && config.authToken) {
+    if (useRemoteRuntime && (config.authToken || config.refreshToken)) {
       await configureClient(config);
       await uploadGeneratedPreviewProjection({
         projectRoot,

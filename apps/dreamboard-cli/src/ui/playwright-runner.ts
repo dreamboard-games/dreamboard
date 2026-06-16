@@ -1,6 +1,8 @@
 import os from "node:os";
 import path from "node:path";
 import type { ResolvedConfig } from "../types.js";
+import { createUserTokenManager } from "../auth/user-token-manager.js";
+import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 
 /**
  * Browser test runner helpers shared with reducer-native-test-harness (browser runner).
@@ -36,9 +38,12 @@ export function configurePlaywrightBrowsersPath(): void {
 export async function buildBrowserAuthInitScript(
   config: ResolvedConfig,
 ): Promise<string | null> {
-  if (!config.authToken) return null;
+  const resolvedToken =
+    resolveLocalHarnessAccessToken(config) ??
+    (await createUserTokenManager(config).resolveApiToken())?.token;
+  if (!resolvedToken) return null;
 
-  return `(function(){localStorage.setItem('dreamboard_auth_token',${JSON.stringify(config.authToken)});})();`;
+  return `(function(){localStorage.setItem('dreamboard_auth_token',${JSON.stringify(resolvedToken)});})();`;
 }
 
 export async function waitForGameReady(

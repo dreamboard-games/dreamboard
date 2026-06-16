@@ -1,29 +1,24 @@
 /**
  * OS keychain-backed `CredentialBackend` built on top of `@napi-rs/keyring`.
  *
- * Keychain is an *opt-in* storage backend, enabled by setting
- * `credentialBackend: "keychain"` in `~/.dreamboard/config.json` (see
- * `credential-store.ts` for the resolver). When enabled, it gives us:
+ * Keychain is the required storage backend for published builds. Development
+ * builds can still opt in with `credentialBackend: "keychain"` in
+ * `~/.dreamboard/config.json` (see `credential-store.ts` for the resolver).
+ * When enabled, it gives us:
  * - A refresh token encrypted at rest by the OS (Keychain on macOS,
  *   Credential Vault on Windows, Secret Service on Linux).
  * - Protection against other processes running as the same user tailing
  *   `~/.dreamboard/auth.json` to scrape the token.
  *
- * It is not the default because on macOS the first keychain write
- * triggers a login-password prompt, and macOS re-prompts whenever the
- * executing Node binary's code signature changes (e.g. after an
- * `nvm`/`volta` upgrade). The zero-prompt file backend is a better
- * out-of-the-box experience for CLI users.
- *
  * This module is loaded optionally: `@napi-rs/keyring` is declared as an
- * `optionalDependencies` entry so environments where the native binary is
- * unavailable (e.g. Alpine containers, Linux without libsecret, some CI
- * images) still get a working CLI via the file backend fallback.
+ * `optionalDependencies` entry. Published builds fail closed when the native
+ * binary or OS keyring is unavailable; development builds may still use the
+ * file backend.
  *
- * One-time migration: when a user opts into the keychain and `auth.json`
- * still has tokens, `credential-store.ts` copies them into the keychain
- * and deletes the file. This is the only path that intentionally mutates
- * both backends.
+ * One-time migration: when the active backend is keychain and `auth.json` still
+ * has tokens, `credential-store.ts` copies them into the keychain, verifies the
+ * keychain read, and deletes the file. This is the only path that intentionally
+ * mutates both backends.
  */
 
 import type {
@@ -57,8 +52,8 @@ async function loadKeyringModule(): Promise<KeyringModule | null> {
   if (cachedModule !== undefined) return cachedModule;
   try {
     // `@napi-rs/keyring` is an optional dependency. If the native binary is
-    // missing on this platform the dynamic import throws; we swallow that
-    // and fall back to the file backend.
+    // missing on this platform the dynamic import throws; resolver policy in
+    // credential-store decides whether that is fatal.
     const mod = (await import("@napi-rs/keyring")) as unknown as KeyringModule;
     cachedModule = mod;
   } catch {
@@ -80,9 +75,13 @@ function keychainProbe(entry: EntryInstance): boolean {
 }
 
 type KeychainPayload = {
+  clerkAccessToken?: string;
   accessToken?: string;
   refreshToken?: string;
+  clerkAccessExpiresAt?: string;
   tokenExpiresAt?: string;
+  dreamboardApiToken?: string;
+  dreamboardApiExpiresAt?: string;
   clerkOAuthIssuer?: string;
   clerkOAuthClientId?: string;
   clerkOAuthTokenUrl?: string;
@@ -97,11 +96,15 @@ function parsePayload(
   if (trimmed.length === 0) return null;
   try {
     const parsed = JSON.parse(trimmed) as KeychainPayload;
-    if (!parsed.accessToken && !parsed.refreshToken) return null;
+    const accessToken = parsed.clerkAccessToken ?? parsed.accessToken;
+    if (!accessToken && !parsed.refreshToken) return null;
     return {
-      accessToken: parsed.accessToken || undefined,
+      accessToken: accessToken || undefined,
       refreshToken: parsed.refreshToken || undefined,
-      tokenExpiresAt: parsed.tokenExpiresAt || undefined,
+      tokenExpiresAt:
+        parsed.clerkAccessExpiresAt || parsed.tokenExpiresAt || undefined,
+      dreamboardApiToken: parsed.dreamboardApiToken || undefined,
+      dreamboardApiExpiresAt: parsed.dreamboardApiExpiresAt || undefined,
       clerkOAuthIssuer: parsed.clerkOAuthIssuer || undefined,
       clerkOAuthClientId: parsed.clerkOAuthClientId || undefined,
       clerkOAuthTokenUrl: parsed.clerkOAuthTokenUrl || undefined,
@@ -119,9 +122,11 @@ function writeFull(entry: EntryInstance, creds: Credentials): void {
     );
   }
   const payload: KeychainPayload = {
-    accessToken: creds.accessToken,
+    clerkAccessToken: creds.accessToken,
     refreshToken: creds.refreshToken,
-    tokenExpiresAt: creds.tokenExpiresAt,
+    clerkAccessExpiresAt: creds.tokenExpiresAt,
+    dreamboardApiToken: creds.dreamboardApiToken,
+    dreamboardApiExpiresAt: creds.dreamboardApiExpiresAt,
     clerkOAuthIssuer: creds.clerkOAuthIssuer,
     clerkOAuthClientId: creds.clerkOAuthClientId,
     clerkOAuthTokenUrl: creds.clerkOAuthTokenUrl,

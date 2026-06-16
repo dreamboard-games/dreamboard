@@ -32,30 +32,33 @@
  *    A newer `accessToken` key is also accepted for read to ease any
  *    future format bump.
  *
- * 5. The file backend is the default. The OS keychain is opt-in via
- *    `credentialBackend: "keychain"` in `~/.dreamboard/config.json`
- *    because on macOS the first keychain write triggers a login-password
- *    prompt, and re-prompts whenever the executing Node binary's code
- *    signature changes (e.g. after an `nvm`/`volta` upgrade). Users who
- *    want encrypted-at-rest storage can opt in explicitly; everyone else
- *    gets a zero-prompt experience.
+ * 5. Development builds may still use the file backend for local testing.
+ *    Published builds require the OS keychain and fail closed when it is
+ *    unavailable.
  */
 
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { PROJECT_DIR_NAME } from "../constants.js";
+import { IS_PUBLISHED_BUILD } from "../build-target.js";
 import {
   atomicWriteFile,
   withFileLock,
   type FileLockOptions,
 } from "../utils/atomic-file.js";
 
-/** Fully refreshable session: both tokens required. */
+/**
+ * Fully refreshable session. `accessToken` is the Clerk OAuth bootstrap token
+ * retained for refresh/exchange compatibility; ordinary API calls use
+ * `dreamboardApiToken`.
+ */
 export type Credentials = {
   readonly accessToken: string;
   readonly refreshToken: string;
   readonly tokenExpiresAt?: string;
+  readonly dreamboardApiToken?: string;
+  readonly dreamboardApiExpiresAt?: string;
   readonly clerkOAuthIssuer?: string;
   readonly clerkOAuthClientId?: string;
   readonly clerkOAuthTokenUrl?: string;
@@ -70,6 +73,8 @@ export type StoredSessionSnapshot = {
   readonly accessToken?: string;
   readonly refreshToken?: string;
   readonly tokenExpiresAt?: string;
+  readonly dreamboardApiToken?: string;
+  readonly dreamboardApiExpiresAt?: string;
   readonly clerkOAuthIssuer?: string;
   readonly clerkOAuthClientId?: string;
   readonly clerkOAuthTokenUrl?: string;
@@ -95,10 +100,14 @@ export type CredentialLockOps = {
 };
 
 type DiskShape = Partial<{
+  clerkAccessToken: string;
+  clerkAccessExpiresAt: string;
   accessToken: string;
   authToken: string;
   refreshToken: string;
   tokenExpiresAt: string;
+  dreamboardApiToken: string;
+  dreamboardApiExpiresAt: string;
   clerkOAuthIssuer: string;
   clerkOAuthClientId: string;
   clerkOAuthTokenUrl: string;
@@ -131,13 +140,17 @@ async function fileRead(): Promise<StoredSessionSnapshot | null> {
   } catch {
     return null;
   }
-  const accessToken = parsed.accessToken ?? parsed.authToken;
+  const accessToken =
+    parsed.clerkAccessToken ?? parsed.accessToken ?? parsed.authToken;
   const refreshToken = parsed.refreshToken;
   if (!accessToken && !refreshToken) return null;
   return {
     accessToken: accessToken || undefined,
     refreshToken: refreshToken || undefined,
-    tokenExpiresAt: parsed.tokenExpiresAt || undefined,
+    tokenExpiresAt:
+      parsed.clerkAccessExpiresAt || parsed.tokenExpiresAt || undefined,
+    dreamboardApiToken: parsed.dreamboardApiToken || undefined,
+    dreamboardApiExpiresAt: parsed.dreamboardApiExpiresAt || undefined,
     clerkOAuthIssuer: parsed.clerkOAuthIssuer || undefined,
     clerkOAuthClientId: parsed.clerkOAuthClientId || undefined,
     clerkOAuthTokenUrl: parsed.clerkOAuthTokenUrl || undefined,
@@ -160,9 +173,11 @@ async function fileWriteFull(creds: Credentials): Promise<void> {
     );
   }
   await writeFilePayload({
-    authToken: creds.accessToken,
+    clerkAccessToken: creds.accessToken,
     refreshToken: creds.refreshToken,
-    tokenExpiresAt: creds.tokenExpiresAt,
+    clerkAccessExpiresAt: creds.tokenExpiresAt,
+    dreamboardApiToken: creds.dreamboardApiToken,
+    dreamboardApiExpiresAt: creds.dreamboardApiExpiresAt,
     clerkOAuthIssuer: creds.clerkOAuthIssuer,
     clerkOAuthClientId: creds.clerkOAuthClientId,
     clerkOAuthTokenUrl: creds.clerkOAuthTokenUrl,
@@ -198,12 +213,21 @@ export type BackendResolver = () =>
   | CredentialBackend
   | Promise<CredentialBackend>;
 
+export class CredentialStoreUnavailableError extends Error {
+  readonly code = "CREDENTIAL_STORE_UNAVAILABLE";
+
+  constructor(reason: string) {
+    super(`Credential store unavailable: ${reason}`);
+    this.name = "CredentialStoreUnavailableError";
+  }
+}
+
 let cachedBackend: CredentialBackend | null = null;
 let migrationCompleted = false;
 let backendResolver: BackendResolver = defaultBackendResolver;
 
 /**
- * Default resolver precedence:
+ * Development resolver precedence:
  *
  *   1. `DREAMBOARD_CREDENTIAL_BACKEND` env var (debugging / CI override).
  *        - "file"     -> force file
@@ -216,7 +240,10 @@ let backendResolver: BackendResolver = defaultBackendResolver;
  *        - "file" / unset / malformed -> file
  *   3. Default: file backend.
  *
- * Keychain is opt-in because on macOS the OS login-keychain prompts for
+ * Published builds skip this precedence, require keychain, and throw
+ * CREDENTIAL_STORE_UNAVAILABLE instead of falling back to plaintext.
+ *
+ * In development, keychain is opt-in because on macOS the OS login-keychain prompts for
  * the user's password the first time a new binary tries to write to an
  * item, and re-prompts whenever the Node binary signature changes. We
  * would rather ship a zero-prompt default and let users who care about
@@ -229,6 +256,20 @@ async function defaultBackendResolver(): Promise<CredentialBackend> {
   const override = (process.env.DREAMBOARD_CREDENTIAL_BACKEND ?? "")
     .trim()
     .toLowerCase();
+  if (IS_PUBLISHED_BUILD) {
+    if (override && override !== "keychain" && override !== "auto") {
+      throw new CredentialStoreUnavailableError(
+        "published builds require the OS credential store",
+      );
+    }
+    const { tryKeychainBackend } = await import("./keychain-backend.js");
+    const keychain = await tryKeychainBackend();
+    if (keychain.available) {
+      return keychain.backend;
+    }
+    throw new CredentialStoreUnavailableError(keychain.reason);
+  }
+
   if (override === "file") {
     return fileCredentialBackend;
   }
@@ -294,7 +335,9 @@ export async function getCredentialBackend(): Promise<CredentialBackend> {
     // empty, so repeated migrations cannot stomp a newer keychain
     // session with a stale file session.
     if (!migrationCompleted && cachedBackend.name !== "file") {
-      await migrateFromFileBackendIfNeeded(cachedBackend);
+      await migrateFromFileBackendIfNeeded(cachedBackend, {
+        failClosed: IS_PUBLISHED_BUILD,
+      });
     }
     migrationCompleted = true;
   }
@@ -303,6 +346,7 @@ export async function getCredentialBackend(): Promise<CredentialBackend> {
 
 async function migrateFromFileBackendIfNeeded(
   target: CredentialBackend,
+  options: { failClosed?: boolean } = {},
 ): Promise<void> {
   try {
     const [onDisk, onTarget] = await Promise.all([
@@ -317,21 +361,52 @@ async function migrateFromFileBackendIfNeeded(
       return;
     }
     if (onDisk.accessToken && onDisk.refreshToken) {
-      await target.writeFull({
+      const migrated: Credentials = {
         accessToken: onDisk.accessToken,
         refreshToken: onDisk.refreshToken,
-      });
+        tokenExpiresAt: onDisk.tokenExpiresAt,
+        dreamboardApiToken: onDisk.dreamboardApiToken,
+        dreamboardApiExpiresAt: onDisk.dreamboardApiExpiresAt,
+        clerkOAuthIssuer: onDisk.clerkOAuthIssuer,
+        clerkOAuthClientId: onDisk.clerkOAuthClientId,
+        clerkOAuthTokenUrl: onDisk.clerkOAuthTokenUrl,
+        environment: onDisk.environment,
+      };
+      await target.writeFull(migrated);
+      await verifyMigratedSession(target, migrated);
     } else if (onDisk.accessToken) {
       await target.writeAccessOnly(onDisk.accessToken);
+      const migrated = await target.read();
+      if (migrated?.accessToken !== onDisk.accessToken) {
+        throw new Error("Credential migration verification failed.");
+      }
     } else {
       return;
     }
     await fileCredentialBackend.clear();
-  } catch {
+  } catch (error) {
+    if (options.failClosed) {
+      throw new CredentialStoreUnavailableError(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
     // Migration is best-effort. A failure here should not block CLI
     // operation; on next run the file backend is still consulted
     // directly because the keychain backend's `read` returns null and
     // callers fall through to "missing session" → login prompt.
+  }
+}
+
+async function verifyMigratedSession(
+  target: CredentialBackend,
+  expected: Credentials,
+): Promise<void> {
+  const migrated = await target.read();
+  if (
+    migrated?.accessToken !== expected.accessToken ||
+    migrated.refreshToken !== expected.refreshToken
+  ) {
+    throw new Error("Credential migration verification failed.");
   }
 }
 
@@ -342,6 +417,9 @@ export async function getActiveCredentialBackendName(): Promise<CredentialBacken
 
 /** Loose read: returns whatever is on disk, including access-only sessions. */
 export async function getStoredSession(): Promise<StoredSessionSnapshot | null> {
+  if (process.env.DREAMBOARD_AGENT_TOKEN?.trim()) {
+    return null;
+  }
   const backend = await getCredentialBackend();
   return backend.read();
 }
@@ -352,7 +430,17 @@ export async function getCredentials(): Promise<Credentials | null> {
   if (!snapshot) return null;
   const { accessToken, refreshToken } = snapshot;
   if (!accessToken || !refreshToken) return null;
-  return { accessToken, refreshToken };
+  return {
+    accessToken,
+    refreshToken,
+    tokenExpiresAt: snapshot.tokenExpiresAt,
+    dreamboardApiToken: snapshot.dreamboardApiToken,
+    dreamboardApiExpiresAt: snapshot.dreamboardApiExpiresAt,
+    clerkOAuthIssuer: snapshot.clerkOAuthIssuer,
+    clerkOAuthClientId: snapshot.clerkOAuthClientId,
+    clerkOAuthTokenUrl: snapshot.clerkOAuthTokenUrl,
+    environment: snapshot.environment,
+  };
 }
 
 export async function setCredentials(creds: Credentials): Promise<void> {

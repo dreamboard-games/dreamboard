@@ -20,6 +20,7 @@ import {
   createPkcePair,
   exchangeClerkOAuthCode,
 } from "../auth/clerk-oauth.js";
+import { exchangeDreamboardUserToken } from "../auth/token-exchange.js";
 
 export default defineCommand({
   meta: {
@@ -84,6 +85,11 @@ export default defineCommand({
         redirectUri: server.redirectUri,
         codeVerifier: pkce.verifier,
       });
+      const dreamboardApiToken = await exchangeDreamboardUserToken({
+        apiBaseUrl: config.apiBaseUrl,
+        clerkAccessToken: tokenResponse.accessToken,
+        audience: "dreamboard-api",
+      });
 
       const resolvedEnvironment = config.environment;
 
@@ -99,6 +105,8 @@ export default defineCommand({
         accessToken: tokenResponse.accessToken,
         refreshToken: tokenResponse.refreshToken,
         tokenExpiresAt: tokenResponse.expiresAt,
+        dreamboardApiToken: dreamboardApiToken.accessToken,
+        dreamboardApiExpiresAt: dreamboardApiToken.expiresAt,
         clerkOAuthIssuer: config.clerkOAuthIssuer,
         clerkOAuthClientId: config.clerkOAuthClientId,
         clerkOAuthTokenUrl: tokenResponse.tokenUrl,

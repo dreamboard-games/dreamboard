@@ -151,6 +151,10 @@ export type ResolvedConfig = {
   readonly authToken?: string;
   readonly refreshToken?: string;
   readonly tokenExpiresAt?: string;
+  readonly clerkAccessToken?: string;
+  readonly clerkAccessExpiresAt?: string;
+  readonly dreamboardApiToken?: string;
+  readonly dreamboardApiExpiresAt?: string;
   readonly clerkOAuthIssuer?: string;
   readonly clerkOAuthClientId?: string;
   readonly clerkOAuthTokenUrl?: string;

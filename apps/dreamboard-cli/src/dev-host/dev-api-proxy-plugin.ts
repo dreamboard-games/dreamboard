@@ -2,8 +2,8 @@
  * Reverse-proxy plugin for the `dreamboard dev` Vite server.
  *
  * Every `/api/*` request the browser makes is intercepted here, run
- * through the Clerk OAuth refresh flow when needed, then forwarded to the configured upstream
- * backend with an `Authorization: Bearer <fresh-token>` header injected
+ * through the CLI token manager when needed, then forwarded to the configured upstream
+ * backend with an `Authorization: Bearer <Dreamboard API JWT>` header injected
  * on the wire. The access and refresh tokens never reach the browser.
  *
  * Failure contract:
@@ -27,10 +27,7 @@ import https from "node:https";
 import { EventEmitter } from "node:events";
 import consola from "consola";
 import type { Plugin } from "vite";
-import {
-  getAuthTokenExpiry,
-  refreshResolvedAuthSession,
-} from "../config/resolve.js";
+import { createUserTokenManager } from "../auth/user-token-manager.js";
 import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 import type { ResolvedConfig } from "../types.js";
 
@@ -256,12 +253,6 @@ export async function resolveDevBearer(
     return { kind: "ok", token: config.authToken ?? null };
   }
 
-  const expiry = getAuthTokenExpiry(config.authToken);
-  const isExpired = expiry !== null && expiry.getTime() <= Date.now();
-  if (!isExpired) {
-    return { kind: "ok", token: config.authToken ?? null };
-  }
-
   if (!config.refreshToken) {
     return {
       kind: "permanent_invalid",
@@ -270,18 +261,12 @@ export async function resolveDevBearer(
     };
   }
 
-  const refreshed = await refreshResolvedAuthSession(config);
-  return {
-    kind: "ok",
-    token: refreshed?.accessToken ?? config.authToken ?? null,
-  };
+  const resolved = await createUserTokenManager(config).resolveApiToken();
+  return { kind: "ok", token: resolved?.token ?? null };
 }
 
 function usesStoredSession(config: ResolvedConfig): boolean {
-  return (
-    config.authTokenSource === "global" &&
-    config.refreshTokenSource === "global"
-  );
+  return config.refreshTokenSource === "global";
 }
 
 function respondSessionInvalid(res: ServerResponse, message: string): void {
