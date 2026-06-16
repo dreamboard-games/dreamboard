@@ -646,11 +646,14 @@ async function readProjectLocalMaintainerRegistry(
 async function getExpectedStaticEntries(
   projectRoot: string,
 ): Promise<StaticAssetEntry[]> {
+  const localMaintainerRegistry =
+    await readProjectLocalMaintainerRegistry(projectRoot);
   const entries = [
-    ...(await getStaticAssetEntries()),
+    ...(await getStaticAssetEntries()).filter(
+      (entry) => entry.targetPath !== ".npmrc",
+    ),
     ...(await getDynamicStaticEntries(projectRoot, "update", {
-      localMaintainerRegistry:
-        await readProjectLocalMaintainerRegistry(projectRoot),
+      localMaintainerRegistry,
     })),
   ];
   entries.sort((left, right) =>

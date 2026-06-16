@@ -127,6 +127,22 @@ test("fails compile preflight when shared static files are missing", async () =>
   }
 });
 
+test("does not require .npmrc when no local maintainer registry is configured", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+
+  try {
+    await scaffoldStaticWorkspace(tempRoot, "new");
+    await scaffoldStaticWorkspace(tempRoot, "update");
+
+    expect(await Bun.file(path.join(tempRoot, ".npmrc")).exists()).toBe(false);
+    await expect(assertCliStaticScaffoldComplete(tempRoot)).resolves.toBe(
+      undefined,
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("fails compile preflight when ui scaffold files are missing", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
   const missingFilePath = path.join(tempRoot, "ui", "index.tsx");
