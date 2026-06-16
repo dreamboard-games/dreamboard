@@ -43,7 +43,7 @@ test("staging resolves the built-in Clerk OAuth registry", () => {
     "https://happy-caribou-19.clerk.accounts.dev/oauth/token",
   );
   expect(config.clerkOAuthScope).toBe("openid profile email offline_access");
-  expect(config.clerkOAuthClientId).toBeUndefined();
+  expect(config.clerkOAuthClientId).toBe("wkjMF92OFsKbSaGI");
 });
 
 test("OAuth env overrides are resolved at call time", () => {

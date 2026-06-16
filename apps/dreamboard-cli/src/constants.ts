@@ -20,6 +20,7 @@ export const ENVIRONMENT_CONFIGS: Record<string, EnvironmentConfig> = {
     apiBaseUrl: "https://api-staging.dreamboard.games",
     webBaseUrl: "https://staging.dreamboard.games",
     clerkOAuthIssuer: "https://happy-caribou-19.clerk.accounts.dev",
+    clerkOAuthClientId: "wkjMF92OFsKbSaGI",
     clerkOAuthTokenUrl:
       "https://happy-caribou-19.clerk.accounts.dev/oauth/token",
     clerkOAuthScope: DEFAULT_CLERK_OAUTH_SCOPE,
