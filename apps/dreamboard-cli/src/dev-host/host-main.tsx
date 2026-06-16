@@ -21,6 +21,7 @@ import {
   DrawerTrigger,
 } from "./components/drawer.js";
 import { Input } from "./components/input.js";
+import { createGameplayCapability } from "@dreamboard-games/api-client";
 import { client } from "@dreamboard-games/api-client/client.gen";
 import {
   HostFeedbackToaster,
@@ -61,10 +62,19 @@ import { resolveInitialDevHostPlayerId } from "./dev-host-player-query.js";
 const diagnosticsLevel = resolveDevDiagnosticsLevel(devConfig.debug);
 const devLogger = createDevDiagnosticsLogger(diagnosticsLevel);
 const storage = new SessionStorageDevHostStorage(window.sessionStorage);
+// The browser never sees the bearer token. All backend traffic is
+// same-origin and the CLI's reverse-proxy middleware (`/api/*`) injects
+// `Authorization: Bearer <fresh>` on the wire.
+client.setConfig({ baseUrl: "" });
+const createDevHostGameplayCapability = (
+  options: Parameters<typeof createGameplayCapability>[0],
+): ReturnType<typeof createGameplayCapability> =>
+  createGameplayCapability({ ...options, client });
 // Gameplay streaming and submits go through the Gameplay Authority WebSocket
 // (the backend's event-batches stream is removed); snapshot/start/dev-session
 // requests fall back to the dev-server endpoints.
 const hostSessionTransport = createGameplayAuthorityTransport({
+  capabilityRequester: createDevHostGameplayCapability,
   fallbackTransport: createDevHostSessionTransport(),
   getCurrentSessionContext: () =>
     unifiedSessionSelectors.sessionContext(store.getState()),
@@ -132,10 +142,6 @@ const controller = new DevHostController(
   devLogger,
 );
 
-// The browser never sees the bearer token. All backend traffic is
-// same-origin and the CLI's reverse-proxy middleware (`/api/*`) injects
-// `Authorization: Bearer <fresh>` on the wire.
-client.setConfig({ baseUrl: "" });
 installProxyAuthErrorInterceptor();
 
 const app = document.getElementById("app");
