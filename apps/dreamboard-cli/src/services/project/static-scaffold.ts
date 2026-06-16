@@ -20,7 +20,6 @@ import {
   writeTextFile,
 } from "../../utils/fs.js";
 import { resolveCliRepoRoot } from "../../utils/repo-root.js";
-import { loadProjectConfig } from "../../config/project-config.js";
 import { materializeManifest } from "./manifest-authoring.js";
 import { isDynamicSeedPath } from "./scaffold-ownership.js";
 import {
@@ -627,34 +626,14 @@ async function getDynamicStaticEntries(
   return entries;
 }
 
-async function readProjectLocalMaintainerRegistry(
-  projectRoot: string,
-): Promise<LocalMaintainerRegistryConfig | null> {
-  const projectConfigPath = path.join(
-    projectRoot,
-    PROJECT_DIR_NAME,
-    PROJECT_CONFIG_FILE,
-  );
-  if (!(await exists(projectConfigPath))) {
-    return null;
-  }
-
-  const projectConfig = await loadProjectConfig(projectRoot);
-  return projectConfig.localMaintainerRegistry ?? null;
-}
-
 async function getExpectedStaticEntries(
   projectRoot: string,
 ): Promise<StaticAssetEntry[]> {
-  const localMaintainerRegistry =
-    await readProjectLocalMaintainerRegistry(projectRoot);
   const entries = [
     ...(await getStaticAssetEntries()).filter(
       (entry) => entry.targetPath !== ".npmrc",
     ),
-    ...(await getDynamicStaticEntries(projectRoot, "update", {
-      localMaintainerRegistry,
-    })),
+    ...(await getDynamicStaticEntries(projectRoot, "update")),
   ];
   entries.sort((left, right) =>
     left.targetPath.localeCompare(right.targetPath),
