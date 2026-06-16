@@ -1,4 +1,4 @@
-import type { CompiledResult } from "@dreamboard/api-client";
+import type { CompiledResult } from "@dreamboard-games/api-client";
 import type { ProjectConfig } from "../types.js";
 import { defineCommand } from "citty";
 import consola from "consola";
@@ -8,17 +8,23 @@ import { updateProjectState } from "../config/project-config.js";
 import { parseCompileCommandArgs } from "../flags.js";
 import { getLocalDiff } from "../services/project/local-files.js";
 import { assertCliStaticScaffoldComplete } from "../services/project/static-scaffold.js";
+import {
+  assertCompilerPortableDependencies,
+  assertReleaseEnvironmentPortableDependencies,
+} from "../services/project/dependency-portability.js";
 import { runLocalTypecheck } from "../services/project/local-typecheck.js";
 import {
-  getAuthoringHeadSdk,
-  queueCompiledResultJobSdk,
+  findProjectCompiledResultsForRevision,
+  queueProjectRevisionCompileSdk,
   waitForCompiledResultJobSdk,
 } from "../services/api/index.js";
 import {
   getProjectAuthoringState,
+  getProjectPendingAuthoringSync,
   setLatestCompileAttempt,
 } from "../services/project/project-state.js";
 import { formatCliError } from "../utils/errors.js";
+import { resolveRemoteProject } from "../services/project/remote-project.js";
 
 function formatDiagnosticsSummary(
   diagnostics: Array<{ message?: string }> | null | undefined,
@@ -53,12 +59,40 @@ function formatCompileJobProgressMessage(job: {
   return `Compile ${job.status.toLowerCase()}${phase}${detail}`.trim();
 }
 
+function formatFailedCompileJobSummary(job: {
+  phase?: string;
+  message?: string | null;
+  errorMessage?: string | null;
+}): string {
+  return formatCompileJobProgressMessage({
+    status: "FAILED",
+    phase: job.phase,
+    message: job.errorMessage ?? job.message ?? undefined,
+  });
+}
+
+function formatFailedCompileJobWithCompiledResultMessage(options: {
+  compiledResultId: string;
+  job: {
+    phase?: string;
+    message?: string | null;
+    errorMessage?: string | null;
+  };
+}): string {
+  return `${formatFailedCompileJobSummary(options.job)}. The backend created compiled result ${options.compiledResultId}, but the compile job did not complete cleanly. Run 'dreamboard compile' again after fixing the backend/compiler issue.`;
+}
+
 function formatRemoteCompileCommandError(options: {
   message: string;
   jobId?: string;
 }): string {
   const detail = options.message.trim();
+  const hasActionableTerminalContext =
+    /^Compile\s+(failed|completed|cancelled|interrupted)\b/i.test(detail);
   if (options.jobId) {
+    if (hasActionableTerminalContext) {
+      return `Remote compile job ${options.jobId} could not be completed. ${detail}`;
+    }
     return `Remote compile job ${options.jobId} could not be completed. ${detail} Check backend health and try 'dreamboard compile' again.`;
   }
   return `Remote compile could not be started. ${detail} Check backend health and try 'dreamboard compile' again.`;
@@ -67,14 +101,16 @@ function formatRemoteCompileCommandError(options: {
 async function persistFailedCompileAttempt(options: {
   projectRoot: string;
   projectConfig: ProjectConfig;
-  authoringStateId: string;
+  revisionDigest: string;
+  authoringStateId?: string;
   diagnosticsSummary: string;
   jobId?: string;
 }): Promise<void> {
   const nextProjectConfig = setLatestCompileAttempt(options.projectConfig, {
     resultId: undefined,
     jobId: options.jobId,
-    authoringStateId: options.authoringStateId,
+    revisionDigest: options.revisionDigest,
+    authoringStateId: options.authoringStateId ?? options.revisionDigest,
     status: "failed",
     diagnosticsSummary: options.diagnosticsSummary,
   });
@@ -101,8 +137,18 @@ export default defineCommand({
   },
   async run({ args }) {
     const parsedArgs = parseCompileCommandArgs(args);
-    const { projectRoot, projectConfig } =
+    const { projectRoot, projectConfig, config } =
       await resolveProjectContext(parsedArgs);
+    let nextProjectConfig = projectConfig;
+    await assertReleaseEnvironmentPortableDependencies({
+      projectRoot,
+      projectConfig: nextProjectConfig,
+      environment: config.environment,
+    });
+    await assertCompilerPortableDependencies({
+      projectRoot,
+      projectConfig: nextProjectConfig,
+    });
 
     const diff = await getLocalDiff(projectRoot);
     await assertCliStaticScaffoldComplete(projectRoot, diff.deleted);
@@ -116,20 +162,40 @@ export default defineCommand({
       );
     }
 
-    const localAuthoring = getProjectAuthoringState(projectConfig);
-    if (!localAuthoring.authoringStateId) {
+    const remoteProject = await resolveRemoteProject({
+      projectRoot,
+      projectConfig: nextProjectConfig,
+      config,
+    });
+    nextProjectConfig = remoteProject.projectConfig;
+
+    const localAuthoring = getProjectAuthoringState(nextProjectConfig);
+    const pendingSync = getProjectPendingAuthoringSync(nextProjectConfig);
+    if (pendingSync) {
+      if (pendingSync.phase === "authoring_state_created") {
+        throw new Error(
+          "Previous sync reached the remote authored head, but local scaffold finalization did not complete. Run 'dreamboard sync' again before compiling.",
+        );
+      }
       throw new Error(
-        "This workspace does not know its authored base yet. Run 'dreamboard sync' first.",
+        "Previous sync uploaded source changes but did not finish creating the authored head. Run 'dreamboard sync' again before compiling.",
+      );
+    }
+    const localRevisionDigest =
+      localAuthoring.revisionDigest ?? nextProjectConfig.remoteHeadDigest;
+    if (!localRevisionDigest) {
+      throw new Error(
+        "This workspace does not know its authored revision yet. Run 'dreamboard sync' first.",
       );
     }
 
-    const remoteHead = await getAuthoringHeadSdk(projectConfig.gameId);
-    if (!remoteHead?.authoringStateId) {
-      throw new Error("Remote has no authored state to compile yet.");
+    const remoteRevisionDigest = remoteProject.project.head?.revisionDigest;
+    if (!remoteRevisionDigest) {
+      throw new Error("Remote has no authored project revision to compile yet.");
     }
-    if (remoteHead.authoringStateId !== localAuthoring.authoringStateId) {
+    if (remoteRevisionDigest !== localRevisionDigest) {
       throw new Error(
-        `Remote authored state is ${remoteHead.authoringStateId} but this workspace is based on ${localAuthoring.authoringStateId}. Run 'dreamboard pull' before compiling.`,
+        `Remote project head is ${remoteRevisionDigest} but this workspace is based on ${localRevisionDigest}. Run 'dreamboard pull' before compiling.`,
       );
     }
 
@@ -152,20 +218,55 @@ export default defineCommand({
       }
     }
 
+    const existingCompiledResult = (
+      await findProjectCompiledResultsForRevision({
+        projectId: nextProjectConfig.projectId,
+        revisionDigest: localRevisionDigest,
+      })
+    ).find((result) => result.success);
+    if (existingCompiledResult) {
+      nextProjectConfig = setLatestCompileAttempt(nextProjectConfig, {
+        resultId: existingCompiledResult.id,
+        jobId: undefined,
+        revisionDigest: localRevisionDigest,
+        authoringStateId:
+          existingCompiledResult.authoringStateId ?? localRevisionDigest,
+        status: "successful",
+        diagnosticsSummary: undefined,
+      });
+      await updateProjectState(projectRoot, nextProjectConfig);
+      consola.success(
+        `Reusing compiled ${existingCompiledResult.id} for authored state ${existingCompiledResult.authoringStateId}.`,
+      );
+      return;
+    }
+
     let compileJobId: string | undefined;
+    let compileJobStatus: string | undefined;
+    let compileJobPhase: string | undefined;
+    let compileJobMessage: string | null | undefined;
+    let compileJobErrorMessage: string | null | undefined;
     let compiledResult: CompiledResult;
     try {
-      const compileJob = await queueCompiledResultJobSdk({
-        gameId: projectConfig.gameId,
-        authoringStateId: localAuthoring.authoringStateId,
+      const compileJob = await queueProjectRevisionCompileSdk({
+        projectId: nextProjectConfig.projectId,
+        revisionDigest: localRevisionDigest,
       });
       compileJobId = compileJob.jobId;
       if (!compileJobId) {
         throw new Error("Failed to create compile job: missing jobId.");
       }
 
-      ({ compiledResult } = await waitForCompiledResultJobSdk({
-        gameId: projectConfig.gameId,
+      ({
+        job: {
+          status: compileJobStatus,
+          phase: compileJobPhase,
+          message: compileJobMessage,
+          errorMessage: compileJobErrorMessage,
+        },
+        compiledResult,
+      } = await waitForCompiledResultJobSdk({
+        projectId: nextProjectConfig.projectId,
         jobId: compileJobId,
         onProgress: (job) => {
           const message = formatCompileJobProgressMessage(job);
@@ -181,7 +282,8 @@ export default defineCommand({
       if (compileJobId) {
         await persistFailedCompileAttempt({
           projectRoot,
-          projectConfig,
+          projectConfig: nextProjectConfig,
+          revisionDigest: localRevisionDigest,
           authoringStateId: localAuthoring.authoringStateId,
           diagnosticsSummary: message,
           jobId: compileJobId,
@@ -195,14 +297,43 @@ export default defineCommand({
       );
     }
 
-    const nextProjectConfig = setLatestCompileAttempt(projectConfig, {
+    const failedJobProducedCompiledResult =
+      compileJobStatus === "FAILED" && compiledResult.success;
+    const failedJobWithCompiledResultSummary = failedJobProducedCompiledResult
+      ? formatFailedCompileJobSummary({
+          phase: compileJobPhase,
+          message: compileJobMessage,
+          errorMessage: compileJobErrorMessage,
+        })
+      : undefined;
+
+    nextProjectConfig = setLatestCompileAttempt(nextProjectConfig, {
       resultId: compiledResult.id,
       jobId: compileJobId,
-      authoringStateId: compiledResult.authoringStateId,
-      status: compiledResult.success ? "successful" : "failed",
-      diagnosticsSummary: formatDiagnosticsSummary(compiledResult.diagnostics),
+      revisionDigest: localRevisionDigest,
+      authoringStateId: compiledResult.authoringStateId ?? localRevisionDigest,
+      status:
+        compiledResult.success && !failedJobProducedCompiledResult
+          ? "successful"
+          : "failed",
+      diagnosticsSummary:
+        failedJobWithCompiledResultSummary ??
+        formatDiagnosticsSummary(compiledResult.diagnostics),
     });
     await updateProjectState(projectRoot, nextProjectConfig);
+
+    if (failedJobProducedCompiledResult) {
+      throw new Error(
+        formatFailedCompileJobWithCompiledResultMessage({
+          compiledResultId: compiledResult.id,
+          job: {
+            phase: compileJobPhase,
+            message: compileJobMessage,
+            errorMessage: compileJobErrorMessage,
+          },
+        }),
+      );
+    }
 
     if (!compiledResult.success) {
       for (const diagnostic of compiledResult.diagnostics ?? []) {
@@ -216,7 +347,7 @@ export default defineCommand({
     }
 
     consola.success(
-      `Compiled ${compiledResult.id} for authored state ${compiledResult.authoringStateId}.`,
+      `Compiled ${compiledResult.id} for revision ${localRevisionDigest}.`,
     );
   },
 });

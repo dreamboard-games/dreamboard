@@ -1,12 +1,7 @@
 import path from "node:path";
 import { defineCommand } from "citty";
 import consola from "consola";
-import {
-  createGame,
-  deleteGame,
-  scaffoldGameSourcesV3,
-} from "@dreamboard/api-client";
-import type { BoardManifest } from "@dreamboard/sdk-types";
+import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
 import {
   resolveConfig,
   requireAuth,
@@ -14,25 +9,16 @@ import {
 } from "../config/resolve.js";
 import { parseNewCommandArgs } from "../flags.js";
 import { loadGlobalConfig } from "../config/global-config.js";
-import { normalizeSlug, titleFromSlug } from "../utils/strings.js";
-import { ensureDir, installSkillFile, writeTextFile } from "../utils/fs.js";
+import { getStoredSession } from "../config/credential-store.js";
+import { normalizeSlug } from "../utils/strings.js";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import {
-  tryGetGameBySlug,
-  getLatestRuleIdSdk,
-  saveManifestSdk,
+  ensureProjectSdk,
+  loadRemoteProjectIdentity,
 } from "../services/api/index.js";
-import {
-  writeManifest,
-  writeRule,
-  writeSnapshot,
-  writeScaffoldFiles,
-} from "../services/project/local-files.js";
-import { validateDynamicScaffoldResponse } from "../services/project/dynamic-scaffold-response.js";
-import { updateProjectState } from "../config/project-config.js";
-import { scaffoldStaticWorkspace } from "../services/project/static-scaffold.js";
-import { updateProjectAuthoringState } from "../services/project/project-state.js";
-import { formatApiError } from "../utils/errors.js";
+import { materializeWorkspaceProject } from "../services/project/materialize-workspace.js";
+import { ensureLocalMaintainerSnapshot } from "../services/project/local-maintainer-registry.js";
+import { createUuidV7 } from "../utils/uuid-v7.js";
 
 export default defineCommand({
   meta: {
@@ -59,6 +45,7 @@ export default defineCommand({
     const description = parsedArgs.description.trim();
 
     const normalizedSlug = normalizeSlug(slugInput);
+    const projectId = createUuidV7();
     if (!normalizedSlug) {
       throw new Error("Slug must contain at least one alphanumeric character.");
     }
@@ -66,157 +53,71 @@ export default defineCommand({
       consola.info(`Normalized slug to '${normalizedSlug}'.`);
     }
 
-    const config = resolveConfig(await loadGlobalConfig(), parsedArgs);
+    const [globalConfig, storedSession] = await Promise.all([
+      loadGlobalConfig(),
+      getStoredSession(),
+    ]);
+    const config = resolveConfig(
+      globalConfig,
+      parsedArgs,
+      undefined,
+      storedSession,
+    );
     requireAuth(config);
     await configureClient(config);
+    const localMaintainerRegistry = await ensureLocalMaintainerSnapshot(
+      config.apiBaseUrl,
+    );
 
-    if (parsedArgs.force) {
-      const existing = await tryGetGameBySlug(normalizedSlug, {
-        includeDeleted: true,
-      });
-      if (existing) {
-        consola.warn(`Deleting existing game '${normalizedSlug}' (--force)...`);
-        const { error: deleteError, response: deleteResponse } =
-          await deleteGame({ path: { gameId: existing.id } });
-        if (deleteError && deleteResponse?.status !== 404) {
-          throw new Error(
-            formatApiError(
-              deleteError,
-              deleteResponse,
-              `Failed to delete existing game '${normalizedSlug}'`,
-            ),
-          );
-        }
-      }
-    }
-
-    const {
-      data: game,
-      error: createError,
-      response: createResponse,
-    } = await createGame({
-      body: {
-        name: titleFromSlug(normalizedSlug),
-        slug: normalizedSlug,
-        description,
-        ruleText: "",
-      },
+    const identity = await loadRemoteProjectIdentity();
+    const project = await ensureProjectSdk({
+      projectId,
+      slug: normalizedSlug,
+      description,
+      updateAlias: Boolean(parsedArgs.force),
     });
-    if (createError || !game) {
-      if (createResponse?.status === 409) {
-        throw new Error(
-          `Game with slug '${normalizedSlug}' already exists. Use --force to delete and recreate it, or choose a different slug.`,
-        );
-      }
-      throw new Error(
-        formatApiError(createError, createResponse, "Failed to create game"),
-      );
-    }
 
-    try {
-      const ruleId = await getLatestRuleIdSdk(game.id);
+    const blankManifest: GameTopologyManifest = {
+      players: {
+        minPlayers: 2,
+        maxPlayers: 4,
+        optimalPlayers: 4,
+      },
+      cardSets: [],
+      zones: [],
+      boardTemplates: [],
+      boards: [],
+      pieceTypes: [],
+      pieceSeeds: [],
+      dieTypes: [],
+      dieSeeds: [],
+      resources: [],
+      setupOptions: [],
+      setupProfiles: [],
+    };
 
-      const blankManifest: BoardManifest = {
-        cardSets: [],
-        decks: [],
-        dice: [],
-        playerHandDefinitions: [],
-        playerConfig: {
-          minPlayers: 2,
-          maxPlayers: 4,
-          optimalPlayers: 4,
-        },
-        variableSchema: {
-          globalVariableSchema: { properties: {} },
-          playerVariableSchema: { properties: {} },
-        },
-        availableActions: [],
-        stateMachine: {
-          initialState: "setup",
-          states: [
-            {
-              name: "setup",
-              type: "AUTO",
-              description: "Initial setup phase",
-              transitions: [],
-              availableActions: [],
-            },
-          ],
-        },
-      };
+    consola.start("Scaffolding local workspace...");
 
-      consola.start("Saving initial manifest...");
-      const { manifestId, contentHash } = await saveManifestSdk(
-        game.id,
-        blankManifest,
-        ruleId,
-      );
+    const targetDir = path.resolve(process.cwd(), project.slug);
+    await materializeWorkspaceProject({
+      targetDir,
+      projectId,
+      slug: project.slug,
+      gameId: project.projectId,
+      deploymentId: identity.deploymentId,
+      ownerScopeId: identity.ownerScopeId,
+      bindingKey: identity.bindingKey,
+      remoteHeadDigest: project.head?.revisionDigest,
+      apiBaseUrl: config.apiBaseUrl,
+      webBaseUrl: config.webBaseUrl,
+      manifest: blankManifest,
+      ruleText: "",
+      localMaintainerRegistry,
+    });
 
-      consola.start("Scaffolding dynamic and static sources...");
-      const {
-        data: dynamicScaffold,
-        error: dynamicError,
-        response: dynamicResponse,
-      } = await scaffoldGameSourcesV3({
-        path: { gameId: game.id },
-        body: {
-          manifestId,
-          ruleId,
-          mode: "new",
-          seedMissingOnly: true,
-        },
-      });
-      if (dynamicError || !dynamicScaffold) {
-        throw new Error(
-          formatApiError(
-            dynamicError,
-            dynamicResponse,
-            "Failed to scaffold dynamic sources",
-          ),
-        );
-      }
-
-      const targetDir = path.resolve(process.cwd(), normalizedSlug);
-      await ensureDir(targetDir);
-
-      const scaffoldFiles =
-        validateDynamicScaffoldResponse(dynamicScaffold).allFiles;
-
-      await writeScaffoldFiles(targetDir, scaffoldFiles);
-      await writeManifest(targetDir, blankManifest);
-      await writeRule(targetDir, "");
-
-      await scaffoldStaticWorkspace(targetDir, "new", { updateSdk: true });
-
-      await updateProjectState(
-        targetDir,
-        updateProjectAuthoringState(
-          {
-            gameId: game.id,
-            slug: normalizedSlug,
-            apiBaseUrl: config.apiBaseUrl,
-            webBaseUrl: config.webBaseUrl,
-          },
-          {
-            ruleId,
-            manifestId,
-            manifestContentHash: contentHash,
-          },
-        ),
-      );
-      await writeSnapshot(targetDir);
-
-      await installSkillFile(targetDir);
-      await writeTextFile(path.join(targetDir, "feedback.md"), "");
-
-      consola.success(`Created new game in ${targetDir}`);
-      consola.info(
-        "Next: edit your files, then run 'dreamboard sync' followed by 'dreamboard compile'.",
-      );
-    } catch (err) {
-      consola.warn(`Creation failed, deleting game '${normalizedSlug}'...`);
-      await deleteGame({ path: { gameId: game.id } });
-      throw err;
-    }
+    consola.success(`Created new project in ${targetDir}`);
+    consola.info(
+      "Next: edit your files, then run 'dreamboard sync' followed by 'dreamboard compile'.",
+    );
   },
 });

@@ -16,7 +16,7 @@ if (projectCommands.has(args[0] ?? "")) {
   if (!hasProjectConfig(invokedCwd)) {
     const candidates = findProjectCandidates(invokedCwd);
     if (candidates.length === 1) {
-      spawnCwd = candidates[0];
+      spawnCwd = candidates[0]!;
     } else if (candidates.length > 1) {
       // eslint-disable-next-line no-console
       console.error(

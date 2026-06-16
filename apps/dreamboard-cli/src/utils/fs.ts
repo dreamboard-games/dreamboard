@@ -1,22 +1,8 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { SKILL_ASSET_FILES } from "../generated/skill-content.generated.js";
 
 export async function ensureDir(dirPath: string): Promise<void> {
   await mkdir(dirPath, { recursive: true });
-}
-
-/**
- * Copies the bundled public skill into `.agents/skills/dreamboard/` inside the
- * given project root so that AI coding agents can discover it.
- */
-export async function installSkillFile(projectRoot: string): Promise<void> {
-  const skillRoot = path.join(projectRoot, ".agents", "skills", "dreamboard");
-  for (const [relativePath, content] of Object.entries(SKILL_ASSET_FILES)) {
-    const targetPath = path.join(skillRoot, relativePath);
-    await ensureDir(path.dirname(targetPath));
-    await writeFile(targetPath, content, "utf8");
-  }
 }
 
 export async function exists(filePath: string): Promise<boolean> {

@@ -86,6 +86,7 @@ Use this order by default:
 7. Generate test artifacts with `dreamboard test generate`.
 8. Run scenarios with `dreamboard test run`.
 9. Validate the local runtime with `dreamboard run`.
+10. For agent-built games, run `dreamboard dev` and verify the browser UI before handoff. Use Playwright to open the dev host, check that the plugin iframe renders without console errors, and click a primary interaction such as selecting a playable hand card. Reducer scenarios alone are not enough when the game has an interactive UI.
 
 ## Guardrails
 
@@ -96,6 +97,8 @@ Use this order by default:
 - Use `dreamboard status` to distinguish authored sync from compile health before deciding whether the next command should be `sync`, `compile`, or `pull`.
 - Re-run `dreamboard test generate` after runtime-shape changes in `manifest.json` or `app/`.
 - Keep reducer-owned UI data in views; do not reintroduce the old `shared/ui-args.ts` pattern in new scaffolds.
+- When a game exposes clickable hands, markets, boards, or prompts, prove the same interaction works through `dreamboard dev` in a browser. A direct scenario submission can pass even when the rendered surface does not collect the input.
+- For interactive card hands, render generated surfaces such as `handSurface.Hand` and `handSurface.Card` consistently. Do not swap a surface card for a raw `Card` or custom tile based on `me.canAct`; the surface primitive is responsible for disabling unavailable interactions.
 
 ## Editable Surface
 

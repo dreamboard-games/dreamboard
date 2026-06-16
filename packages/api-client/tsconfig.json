@@ -13,6 +13,6 @@
     "skipLibCheck": true,
     "strict": true
   },
-  "include": ["src/**/*", "openapi-ts.config.ts", "scripts/**/*.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,43 +1,72 @@
-import { gzipSync } from "node:zlib";
 import {
   createSourceRevision,
-  createSourceRevisionBundle,
   type CreateSourceRevisionRequest,
   queueCompiledResultJob,
   type QueueCompiledResultJobResponse,
   type SourceRevision,
-} from "@dreamboard/api-client";
-import { planSourceRevisionTransport } from "@dreamboard/api-client/source-revisions";
-import { formatApiError } from "../../utils/errors.js";
+} from "@dreamboard-games/api-client";
+import {
+  SourceBlobSessionRequestError,
+  uploadGameSourceBlobs,
+  uploadProjectSourceBlobs,
+  type SourceBlobUploadInput,
+} from "@dreamboard-games/api-client/source-revisions";
+import { toDreamboardApiError } from "../../utils/errors.js";
 
 export async function createSourceRevisionSdk(
   gameId: string,
   request: CreateSourceRevisionRequest,
 ): Promise<SourceRevision> {
-  const transport = planSourceRevisionTransport(request);
-  const response = transport.useBundle
-    ? await createSourceRevisionBundle({
-        path: { gameId },
-        body: new Blob([gzipSync(transport.serializedJson)], {
-          type: "application/gzip",
-        }),
-      })
-    : await createSourceRevision({
-        path: { gameId },
-        body: transport.request,
-      });
+  const response = await createSourceRevision({
+    path: { gameId },
+    body: request,
+  });
 
   if (response.error || !response.data) {
-    throw new Error(
-      formatApiError(
-        response.error,
-        response.response,
-        "Failed to create source revision",
-      ),
+    throw toDreamboardApiError(
+      response.error,
+      response.response,
+      "Failed to create source revision",
     );
   }
 
   return response.data;
+}
+
+export async function uploadSourceBlobsSdk(
+  gameId: string,
+  blobs: SourceBlobUploadInput[],
+): Promise<void> {
+  try {
+    await uploadGameSourceBlobs({ gameId, blobs });
+  } catch (error) {
+    if (error instanceof SourceBlobSessionRequestError) {
+      throw toDreamboardApiError(
+        error.apiError as Parameters<typeof toDreamboardApiError>[0],
+        error.response,
+        error.message,
+      );
+    }
+    throw error;
+  }
+}
+
+export async function uploadProjectSourceBlobsSdk(
+  projectId: string,
+  blobs: SourceBlobUploadInput[],
+): Promise<void> {
+  try {
+    await uploadProjectSourceBlobs({ projectId, blobs });
+  } catch (error) {
+    if (error instanceof SourceBlobSessionRequestError) {
+      throw toDreamboardApiError(
+        error.apiError as Parameters<typeof toDreamboardApiError>[0],
+        error.response,
+        error.message,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function queueCompiledResultJobSdk(options: {
@@ -53,9 +82,7 @@ export async function queueCompiledResultJobSdk(options: {
   });
 
   if (error || !data) {
-    throw new Error(
-      formatApiError(error, response, "Failed to create compile job"),
-    );
+    throw toDreamboardApiError(error, response, "Failed to create compile job");
   }
 
   return data;

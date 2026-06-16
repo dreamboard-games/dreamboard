@@ -1,18 +1,19 @@
 import { defineCommand } from "citty";
 import consola from "consola";
-import { getGame } from "@dreamboard/api-client";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import { resolveProjectContext, configureClient } from "../config/resolve.js";
+import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 import { parseStatusCommandArgs } from "../flags.js";
 import { getLocalDiff } from "../services/project/local-files.js";
 import {
-  findCompiledResultsForAuthoringState,
-  getAuthoringHeadSdk,
+  findProjectCompiledResultsForRevision,
 } from "../services/api/index.js";
 import {
   getProjectAuthoringState,
   getProjectCompileState,
+  getProjectPendingAuthoringSync,
 } from "../services/project/project-state.js";
+import { resolveRemoteProject } from "../services/project/remote-project.js";
 
 export default defineCommand({
   meta: { name: "status", description: "Show local vs remote status" },
@@ -33,6 +34,7 @@ export default defineCommand({
 
     const diff = await getLocalDiff(projectRoot);
     const localAuthoring = getProjectAuthoringState(projectConfig);
+    const pendingSync = getProjectPendingAuthoringSync(projectConfig);
     const localCompile = getProjectCompileState(projectConfig);
     let remoteHeadId: string | null = null;
     let authoredRelation:
@@ -40,49 +42,47 @@ export default defineCommand({
       | "ahead"
       | "behind"
       | "diverged"
+      | "pending_finalize"
       | "unknown" = "unknown";
     let compileRelation:
       | "successful"
       | "failed"
       | "never_compiled"
       | "stale_success" = "never_compiled";
-    let completionLights: {
-      rules: unknown;
-      manifest: unknown;
-      phases: unknown;
-      ui: unknown;
-    } | null = null;
+    let verified: boolean | null = null;
+    let verifiedAt: string | null = null;
+    const effectiveAuthToken =
+      config.authToken ?? resolveLocalHarnessAccessToken(config);
 
-    if (config.authToken) {
+    if (effectiveAuthToken) {
       await configureClient(config);
-      const remoteHead = await getAuthoringHeadSdk(projectConfig.gameId);
-      remoteHeadId = remoteHead?.authoringStateId ?? null;
-
-      const { data: game } = await getGame({
-        path: { gameId: projectConfig.gameId },
+      const remoteProject = await resolveRemoteProject({
+        projectRoot,
+        projectConfig,
+        config,
       });
-      if (game) {
-        completionLights = game.completionLights;
-      }
+      remoteHeadId = remoteProject.project.head?.revisionDigest ?? null;
 
       const hasLocalDiff =
         diff.modified.length > 0 ||
         diff.added.length > 0 ||
         diff.deleted.length > 0;
-      if (!localAuthoring.authoringStateId) {
+      if (pendingSync) {
+        authoredRelation = "pending_finalize";
+      } else if (!localAuthoring.revisionDigest) {
         authoredRelation = "unknown";
       } else if (remoteHeadId === null) {
         authoredRelation = hasLocalDiff ? "ahead" : "unknown";
-      } else if (remoteHeadId === localAuthoring.authoringStateId) {
+      } else if (remoteHeadId === localAuthoring.revisionDigest) {
         authoredRelation = hasLocalDiff ? "ahead" : "in_sync";
       } else {
         authoredRelation = hasLocalDiff ? "diverged" : "behind";
       }
 
       if (remoteHeadId) {
-        const remoteResults = await findCompiledResultsForAuthoringState({
-          gameId: projectConfig.gameId,
-          authoringStateId: remoteHeadId,
+        const remoteResults = await findProjectCompiledResultsForRevision({
+          projectId: projectConfig.projectId,
+          revisionDigest: remoteHeadId,
         });
         const latestAttempt = remoteResults[0] ?? null;
 
@@ -92,7 +92,7 @@ export default defineCommand({
           compileRelation = "failed";
         } else if (
           localCompile.latestSuccessful &&
-          localCompile.latestSuccessful.authoringStateId !== remoteHeadId
+          localCompile.latestSuccessful.revisionDigest !== remoteHeadId
         ) {
           compileRelation = "stale_success";
         } else {
@@ -105,26 +105,32 @@ export default defineCommand({
       console.log(
         JSON.stringify(
           {
-            gameId: projectConfig.gameId,
+            projectId: projectConfig.projectId,
             slug: projectConfig.slug,
             authoring: {
+              localRevisionDigest: localAuthoring.revisionDigest ?? null,
+              remoteRevisionDigest: remoteHeadId,
               localAuthoringStateId: localAuthoring.authoringStateId ?? null,
-              remoteAuthoringStateId: remoteHeadId,
+              remoteAuthoringStateId: null,
               relation: authoredRelation,
+              pendingSync: pendingSync ?? null,
             },
             compile: {
               relation: compileRelation,
               latestAttempt: localCompile.latestAttempt ?? null,
               latestSuccessful: localCompile.latestSuccessful ?? null,
             },
-            authenticated: Boolean(config.authToken),
+            authenticated: Boolean(effectiveAuthToken),
             localDiff: {
               modified: diff.modified.length,
               added: diff.added.length,
               deleted: diff.deleted.length,
             },
             localDiffPaths: diff,
-            completionLights,
+            verification: {
+              verified,
+              verifiedAt,
+            },
           },
           null,
           2,
@@ -142,24 +148,25 @@ export default defineCommand({
     if (diff.deleted.length > 0)
       consola.log(`Deleted: ${diff.deleted.join(", ")}`);
 
-    if (completionLights) {
-      const lightSummary = [
-        `rules:${completionLights.rules}`,
-        `manifest:${completionLights.manifest}`,
-        `phases:${completionLights.phases}`,
-        `ui:${completionLights.ui}`,
-      ].join("  ");
-      consola.info(`Completion lights: ${lightSummary}`);
+    if (verified !== null) {
+      consola.info(
+        `Verification: ${verified ? "verified" : "unverified"}${verifiedAt ? ` at ${verifiedAt}` : ""}`,
+      );
     }
 
-    if (!config.authToken) {
+    if (!effectiveAuthToken) {
       consola.warn("Remote status unavailable (no auth token).");
       return;
     }
 
     consola.info(
-      `Authored state: ${authoredRelation} (local=${localAuthoring.authoringStateId ?? "unknown"}, remote=${remoteHeadId ?? "none"})`,
+      `Project revision: ${authoredRelation} (local=${localAuthoring.revisionDigest ?? "unknown"}, remote=${remoteHeadId ?? "none"})`,
     );
+    if (pendingSync) {
+      consola.warn(
+        `Previous sync is still being finalized (${pendingSync.phase}). Run 'dreamboard sync' again to finish updating local scaffold files.`,
+      );
+    }
     consola.info(`Compile state: ${compileRelation}`);
     if (compileRelation === "failed") {
       consola.warn(

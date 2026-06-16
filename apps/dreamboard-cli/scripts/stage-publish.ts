@@ -1,4 +1,12 @@
-import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -18,6 +26,7 @@ const sourcePackage = JSON.parse(
   version: string;
   keywords?: string[];
   dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   description?: string;
   repository?: string | { type?: string; url?: string };
   homepage?: string;
@@ -37,7 +46,7 @@ const bugsUrl =
     ? sourcePackage.bugs
     : (sourcePackage.bugs?.url ?? process.env.DREAMBOARD_PUBLIC_BUGS_URL);
 const packageJson: Record<string, unknown> = {
-  name: "dreamboard",
+  name: "@dreamboard-games/cli",
   version: sourcePackage.version,
   description:
     sourcePackage.description ??
@@ -45,6 +54,14 @@ const packageJson: Record<string, unknown> = {
   type: "module",
   bin: {
     dreamboard: "dist/index.js",
+  },
+  exports: {
+    ".": "./dist/index.js",
+    "./internal": {
+      types: "./dist/internal.d.ts",
+      default: "./dist/internal.js",
+    },
+    "./package.json": "./package.json",
   },
   files: ["dist", "README.md", "skills"],
   keywords: sourcePackage.keywords ?? [
@@ -55,20 +72,38 @@ const packageJson: Record<string, unknown> = {
     "multiplayer",
   ],
   engines: {
-    node: ">=20",
+    node: ">=24",
   },
   publishConfig: {
     access: "public",
   },
-  dependencies: {
-    esbuild: sourcePackage.dependencies?.esbuild ?? "^0.25.1",
-    playwright: sourcePackage.dependencies?.playwright ?? "^1.50.1",
-  },
+  dependencies: buildPublishedDependencies(sourcePackage.dependencies ?? {}),
+  optionalDependencies: sourcePackage.optionalDependencies,
   license:
     sourcePackage.license ??
     process.env.DREAMBOARD_PUBLIC_LICENSE ??
     "UNLICENSED",
 };
+
+function buildPublishedDependencies(
+  sourceDependencies: Record<string, string>,
+): Record<string, string> {
+  const dependencies = { ...sourceDependencies };
+  if (dependencies["@dreamboard-games/api-client"]?.startsWith("workspace:")) {
+    dependencies["@dreamboard-games/api-client"] = "0.3.0-alpha.3";
+  }
+  return dependencies;
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
 
 if (repositoryUrl) {
   packageJson.repository = {
@@ -111,6 +146,19 @@ await cp(path.join(packageRoot, "dist"), path.join(stageRoot, "dist"), {
   recursive: true,
   force: true,
 });
+if (
+  await pathExists(
+    path.join(
+      stageRoot,
+      "dist",
+      "agent-verifier",
+      "agent-workspace-verifier.mjs",
+    ),
+  )
+) {
+  (packageJson.exports as Record<string, unknown>)["./agent-workspace-verifier"] =
+    "./dist/agent-verifier/agent-workspace-verifier.mjs";
+}
 await cp(
   path.join(packageRoot, "README.md"),
   path.join(stageRoot, "README.md"),

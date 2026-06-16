@@ -1,6 +1,6 @@
 import { readdir, unlink } from "node:fs/promises";
 import path from "node:path";
-import type { BoardManifest } from "@dreamboard/sdk-types";
+import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
 import {
   PROJECT_DIR_NAME,
   MANIFEST_FILE,
@@ -13,12 +13,18 @@ import {
   readJsonFile,
   readTextFile,
   readTextFileIfExists,
-  writeJsonFile,
   writeTextFile,
 } from "../../utils/fs.js";
+import { atomicWriteFile } from "../../utils/atomic-file.js";
 import { hashContent } from "../../utils/crypto.js";
 import {
+  computeManifestHash,
+  materializeManifest,
+  writeManifestSource,
+} from "./manifest-authoring.js";
+import {
   isAllowedGamePath as isAllowedPathFromOwnership,
+  isDynamicGeneratedPath,
   isLibraryPath as isLibraryPathFromOwnership,
 } from "./scaffold-ownership.js";
 
@@ -153,10 +159,9 @@ export async function walkDir(
 
 export async function writeManifest(
   rootDir: string,
-  manifest: BoardManifest,
+  manifest: GameTopologyManifest,
 ): Promise<void> {
-  const filePath = path.join(rootDir, MANIFEST_FILE);
-  await writeTextFile(filePath, `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeManifestSource(rootDir, manifest);
 }
 
 export async function writeRule(
@@ -167,10 +172,13 @@ export async function writeRule(
   await writeTextFile(filePath, ruleText);
 }
 
-export async function loadManifest(rootDir: string): Promise<BoardManifest> {
-  const filePath = path.join(rootDir, MANIFEST_FILE);
-  return readJsonFile<BoardManifest>(filePath);
+export async function loadManifest(
+  rootDir: string,
+): Promise<GameTopologyManifest> {
+  return materializeManifest(rootDir);
 }
+
+export { computeManifestHash };
 
 export async function loadRule(rootDir: string): Promise<string> {
   const filePath = path.join(rootDir, RULE_FILE);
@@ -192,11 +200,27 @@ export async function writeSnapshotFromFiles(
 
   for (const [filePath, content] of Object.entries(files)) {
     if (filePath.startsWith(`${PROJECT_DIR_NAME}/`)) continue;
+    if (isDynamicGeneratedPath(filePath)) continue;
     snapshot.files[filePath] = hashContent(content);
   }
 
   const snapshotPath = path.join(rootDir, PROJECT_DIR_NAME, SNAPSHOT_FILE);
-  await writeJsonFile(snapshotPath, snapshot);
+  // Atomic write: a crash mid-snapshot (e.g. user kills a long `dreamboard
+  // sync`) must not leave `.dreamboard/snapshot.json` truncated, or
+  // `getLocalDiff` will silently report everything as "added" on the
+  // next run and force a full re-sync.
+  await atomicWriteFile(
+    snapshotPath,
+    `${JSON.stringify(snapshot, null, 2)}\n`,
+    { mode: 0o644 },
+  );
+}
+
+function isIgnorableLocalDiffPath(filePath: string): boolean {
+  return (
+    filePath.startsWith("test/generated/") ||
+    filePath.startsWith(".playwright-cli/")
+  );
 }
 
 export async function getLocalDiff(rootDir: string): Promise<{
@@ -215,6 +239,8 @@ export async function getLocalDiff(rootDir: string): Promise<{
 
   for (const [filePath, content] of Object.entries(files)) {
     if (filePath.startsWith(`${PROJECT_DIR_NAME}/`)) continue;
+    if (isIgnorableLocalDiffPath(filePath)) continue;
+    if (isDynamicGeneratedPath(filePath)) continue;
     currentHashes[filePath] = hashContent(content);
   }
 
@@ -232,6 +258,8 @@ export async function getLocalDiff(rootDir: string): Promise<{
   }
 
   for (const filePath of Object.keys(snapshot.files)) {
+    if (isIgnorableLocalDiffPath(filePath)) continue;
+    if (isDynamicGeneratedPath(filePath)) continue;
     if (!currentHashes[filePath]) {
       deleted.push(filePath);
     }

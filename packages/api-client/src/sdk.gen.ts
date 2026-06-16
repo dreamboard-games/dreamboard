@@ -2,7 +2,7 @@
 
 import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
-import type { AbortSandboxSessionData, AbortSandboxSessionErrors, AbortSandboxSessionResponses, AddSeatData, AddSeatErrors, AddSeatResponses, AssignSeatData, AssignSeatErrors, AssignSeatResponses, CancelConversationJobData, CancelConversationJobErrors, CancelConversationJobResponses, CreateAuthoringStateData, CreateAuthoringStateErrors, CreateAuthoringStateResponses, CreateGameData, CreateGameErrors, CreateGameResponses, CreateGameRuleData, CreateGameRuleErrors, CreateGameRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateSourceRevisionBundleData, CreateSourceRevisionBundleErrors, CreateSourceRevisionBundleResponses, CreateSourceRevisionData, CreateSourceRevisionErrors, CreateSourceRevisionResponses, DeleteConversationData, DeleteConversationErrors, DeleteConversationResponses, DeleteGameData, DeleteGameErrors, DeleteGameResponses, DownloadGameSourcesData, DownloadGameSourcesErrors, DownloadGameSourcesResponses, FetchUiBundleData, FetchUiBundleErrors, FetchUiBundleResponses, FindManifestsData, FindManifestsErrors, FindManifestsResponses, GetActiveJobData, GetActiveJobErrors, GetActiveJobResponses, GetAgentChatContextData, GetAgentChatContextErrors, GetAgentChatContextResponses, GetAuthoringHeadData, GetAuthoringHeadErrors, GetAuthoringHeadResponses, GetCompiledResultData, GetCompiledResultErrors, GetCompiledResultResponses, GetGameBySlugData, GetGameBySlugErrors, GetGameBySlugResponses, GetGameData, GetGameErrors, GetGameResponses, GetGameRuleData, GetGameRuleErrors, GetGameRuleResponses, GetGameScriptsData, GetGameScriptsErrors, GetGameScriptsResponses, GetGameSourcesData, GetGameSourcesErrors, GetGameSourcesResponses, GetJobData, GetJobErrors, GetJobResponses, GetLatestCompiledResultData, GetLatestCompiledResultErrors, GetLatestCompiledResultResponses, GetLatestGameRuleData, GetLatestGameRuleErrors, GetLatestGameRuleResponses, GetManifestData, GetManifestErrors, GetManifestResponses, GetSessionByShortCodeData, GetSessionByShortCodeErrors, GetSessionByShortCodeResponses, GetSessionStatusData, GetSessionStatusErrors, GetSessionStatusResponses, HealthCheckData, HealthCheckResponses, ListCompiledResultsData, ListCompiledResultsErrors, ListCompiledResultsResponses, ListConversationsData, ListConversationsErrors, ListConversationsResponses, ListGameRulesData, ListGameRulesErrors, ListGameRulesResponses, ListGamesData, ListGamesErrors, ListGamesResponses, QueryWorkshopRulebookData, QueryWorkshopRulebookErrors, QueryWorkshopRulebookResponses, QueueCompiledResultJobData, QueueCompiledResultJobErrors, QueueCompiledResultJobResponses, ReceiveSandboxWebhookCompleteData, ReceiveSandboxWebhookCompleteErrors, ReceiveSandboxWebhookCompleteResponses, ReceiveSandboxWebhookEventData, ReceiveSandboxWebhookEventErrors, ReceiveSandboxWebhookEventResponses, RemoveSeatData, RemoveSeatErrors, RemoveSeatResponses, RestoreHistoryData, RestoreHistoryErrors, RestoreHistoryResponses, SandboxAbortData, SandboxAbortErrors, SandboxAbortResponses, SandboxChatData, SandboxChatErrors, SandboxChatResponses, SaveManifestData, SaveManifestErrors, SaveManifestResponses, ScaffoldGameSourcesV3Data, ScaffoldGameSourcesV3Errors, ScaffoldGameSourcesV3Responses, SendSandboxMessageData, SendSandboxMessageErrors, SendSandboxMessageResponses, StartGameData, StartGameErrors, StartGameResponses, StreamConversationData, StreamConversationErrors, StreamConversationResponses, SubmitActionData, SubmitActionErrors, SubmitActionResponses, SubscribeToGameLogsData, SubscribeToGameLogsErrors, SubscribeToGameLogsResponses, SubscribeToSessionEventsData, SubscribeToSessionEventsErrors, SubscribeToSessionEventsResponses, UnassignSeatData, UnassignSeatErrors, UnassignSeatResponses, UpdateGameData, UpdateGameErrors, UpdateGameResponses, UpdateSeatData, UpdateSeatErrors, UpdateSeatResponses, ValidateActionData, ValidateActionErrors, ValidateActionResponses } from './types.gen.js';
+import type { AddSeatData, AddSeatErrors, AddSeatResponses, AssignSeatData, AssignSeatErrors, AssignSeatResponses, CancelGameRunData, CancelGameRunErrors, CancelGameRunResponses, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionErrors, CreateBillingCheckoutSessionResponses, CreateBillingPortalSessionData, CreateBillingPortalSessionErrors, CreateBillingPortalSessionResponses, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityErrors, CreateDemoGameplayCapabilityResponses, CreateDemoGameSessionData, CreateDemoGameSessionErrors, CreateDemoGameSessionResponses, CreateGameData, CreateGameErrors, CreateGameplayCapabilityData, CreateGameplayCapabilityErrors, CreateGameplayCapabilityResponses, CreateGameResponses, CreateGameRevisionData, CreateGameRevisionErrors, CreateGameRevisionResponses, CreateGameRunData, CreateGameRunErrors, CreateGameRunResponses, CreateProjectSessionData, CreateProjectSessionErrors, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotErrors, CreateProjectSessionFromReducerSnapshotResponses, CreateProjectSessionResponses, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionErrors, CreateProjectSourceBlobUploadSessionResponses, CreateSessionData, CreateSessionErrors, CreateSessionFromReducerSnapshotData, CreateSessionFromReducerSnapshotErrors, CreateSessionFromReducerSnapshotResponses, CreateSessionResponses, CreateSourceBlobUploadSessionData, CreateSourceBlobUploadSessionErrors, CreateSourceBlobUploadSessionResponses, CreateSourceRevisionData, CreateSourceRevisionErrors, CreateSourceRevisionResponses, DeleteGameData, DeleteGameErrors, DeleteGameResponses, DownloadProjectSourcesData, DownloadProjectSourcesErrors, DownloadProjectSourcesResponses, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileErrors, EnsureProjectDevCompileResponses, EnsureProjectErrors, EnsureProjectResponses, ExtractGameSpecData, ExtractGameSpecErrors, ExtractGameSpecResponses, FetchDemoUiBundleData, FetchDemoUiBundleErrors, FetchDemoUiBundleResponses, FetchPreviewImageData, FetchPreviewImageErrors, FetchPreviewImageResponses, FetchUiBundleData, FetchUiBundleErrors, FetchUiBundleResponses, GetActiveJobData, GetActiveJobErrors, GetActiveJobResponses, GetApiVersionData, GetApiVersionResponses, GetCompiledResultData, GetCompiledResultErrors, GetCompiledResultResponses, GetCurrentAuthUserData, GetCurrentAuthUserErrors, GetCurrentAuthUserResponses, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsErrors, GetCurrentBillingEntitlementsResponses, GetDemoGameData, GetDemoGameErrors, GetDemoGameResponses, GetDemoGameThumbnailData, GetDemoGameThumbnailErrors, GetDemoGameThumbnailResponses, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeErrors, GetDemoSessionByShortCodeResponses, GetDemoSessionEventBatchData, GetDemoSessionEventBatchErrors, GetDemoSessionEventBatchResponses, GetDemoSessionLogBatchData, GetDemoSessionLogBatchErrors, GetDemoSessionLogBatchResponses, GetDemoSessionSnapshotData, GetDemoSessionSnapshotErrors, GetDemoSessionSnapshotResponses, GetGameBySlugData, GetGameBySlugErrors, GetGameBySlugResponses, GetGameData, GetGameErrors, GetGameResponses, GetJobData, GetJobErrors, GetJobEventBatchData, GetJobEventBatchErrors, GetJobEventBatchResponses, GetJobResponses, GetLatestCompiledResultData, GetLatestCompiledResultErrors, GetLatestCompiledResultResponses, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultErrors, GetLatestProjectCompiledResultResponses, GetProjectBySlugData, GetProjectBySlugErrors, GetProjectBySlugResponses, GetProjectCompiledResultData, GetProjectCompiledResultErrors, GetProjectCompiledResultResponses, GetProjectRevisionSourcesData, GetProjectRevisionSourcesErrors, GetProjectRevisionSourcesResponses, GetProjectSourcesData, GetProjectSourcesErrors, GetProjectSourcesResponses, GetSessionByShortCodeData, GetSessionByShortCodeErrors, GetSessionByShortCodeResponses, GetSessionEventBatchData, GetSessionEventBatchErrors, GetSessionEventBatchResponses, GetSessionLogBatchData, GetSessionLogBatchErrors, GetSessionLogBatchResponses, GetSessionSnapshotData, GetSessionSnapshotErrors, GetSessionSnapshotResponses, HealthCheckData, HealthCheckResponses, ListCompiledResultsData, ListCompiledResultsErrors, ListCompiledResultsResponses, ListDemoGamesData, ListDemoGamesErrors, ListDemoGamesResponses, ListGamesData, ListGamesErrors, ListGamesResponses, ListProjectCompiledResultsData, ListProjectCompiledResultsErrors, ListProjectCompiledResultsResponses, QueryWorkshopRulebookData, QueryWorkshopRulebookErrors, QueryWorkshopRulebookResponses, QueueCompiledResultJobData, QueueCompiledResultJobErrors, QueueCompiledResultJobResponses, QueuePreviewScreenshotData, QueuePreviewScreenshotErrors, QueuePreviewScreenshotResponses, QueueProjectRevisionCompileData, QueueProjectRevisionCompileErrors, QueueProjectRevisionCompileResponses, ReceiveStripeBillingWebhookData, ReceiveStripeBillingWebhookErrors, ReceiveStripeBillingWebhookResponses, RemoveSeatData, RemoveSeatErrors, RemoveSeatResponses, StartDemoGameData, StartDemoGameErrors, StartDemoGameResponses, StartGameData, StartGameErrors, StartGameResponses, UnassignSeatData, UnassignSeatErrors, UnassignSeatResponses, UpdateGameData, UpdateGameErrors, UpdateGameResponses, UpdateSeatData, UpdateSeatErrors, UpdateSeatResponses, UploadInitialProjectionData, UploadInitialProjectionErrors, UploadInitialProjectionResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -23,11 +23,85 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  *
  * Returns a simple health check message
  */
-export const healthCheck = <ThrowOnError extends boolean = false>(options?: Options<HealthCheckData, ThrowOnError>) => (options?.client ?? client).get<HealthCheckResponses, unknown, ThrowOnError>({
+export const healthCheck = <ThrowOnError extends boolean = false>(options?: Options<HealthCheckData, ThrowOnError>) => (options?.client ?? client).get<HealthCheckResponses, unknown, ThrowOnError>({ url: '/', ...options });
+
+/**
+ * Get backend version metadata
+ *
+ * Returns backend revision metadata and the UI SDK version expected by the backend runtime.
+ */
+export const getApiVersion = <ThrowOnError extends boolean = false>(options?: Options<GetApiVersionData, ThrowOnError>) => (options?.client ?? client).get<GetApiVersionResponses, unknown, ThrowOnError>({ url: '/api/version', ...options });
+
+/**
+ * Get the authenticated Dreamboard user identity
+ *
+ * Returns the backend-resolved Dreamboard internal user identity for the
+ * current bearer token. Provider-specific subjects such as Clerk user IDs
+ * are exposed only as metadata; clients should use `id` for Dreamboard
+ * ownership and session control.
+ *
+ */
+export const getCurrentAuthUser = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentAuthUserData, ThrowOnError>) => (options?.client ?? client).get<GetCurrentAuthUserResponses, GetCurrentAuthUserErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/',
+    url: '/api/auth/me',
     ...options
 });
+
+/**
+ * Create a Stripe Checkout Session
+ *
+ * Creates a Stripe-hosted subscription checkout session for the current
+ * authenticated Dreamboard user. Dreamboard resolves billing ownership
+ * through the internal user id, not through Clerk or Stripe ids.
+ *
+ */
+export const createBillingCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<CreateBillingCheckoutSessionData, ThrowOnError>) => (options.client ?? client).post<CreateBillingCheckoutSessionResponses, CreateBillingCheckoutSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/billing/checkout-sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create a Stripe Customer Portal Session
+ *
+ * Creates a Stripe-hosted billing portal session for the current
+ * authenticated Dreamboard user.
+ *
+ */
+export const createBillingPortalSession = <ThrowOnError extends boolean = false>(options: Options<CreateBillingPortalSessionData, ThrowOnError>) => (options.client ?? client).post<CreateBillingPortalSessionResponses, CreateBillingPortalSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/billing/portal-sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get current user entitlements
+ *
+ * Returns backend-owned entitlement state for the current authenticated user.
+ */
+export const getCurrentBillingEntitlements = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentBillingEntitlementsData, ThrowOnError>) => (options?.client ?? client).get<GetCurrentBillingEntitlementsResponses, GetCurrentBillingEntitlementsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/billing/entitlements',
+    ...options
+});
+
+/**
+ * Receive Stripe billing webhook events
+ *
+ * Receives Stripe webhook events. The handler verifies the Stripe signature
+ * against the raw request body before updating backend-owned billing and
+ * entitlement state.
+ *
+ */
+export const receiveStripeBillingWebhook = <ThrowOnError extends boolean = false>(options?: Options<ReceiveStripeBillingWebhookData, ThrowOnError>) => (options?.client ?? client).post<ReceiveStripeBillingWebhookResponses, ReceiveStripeBillingWebhookErrors, ThrowOnError>({ url: '/api/webhooks/stripe', ...options });
 
 /**
  * List user's games
@@ -48,6 +122,21 @@ export const listGames = <ThrowOnError extends boolean = false>(options?: Option
 export const createGame = <ThrowOnError extends boolean = false>(options: Options<CreateGameData, ThrowOnError>) => (options.client ?? client).post<CreateGameResponses, CreateGameErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/games',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Extract a structured game spec
+ *
+ * Extract a normalized structured game spec from pasted rule text.
+ */
+export const extractGameSpec = <ThrowOnError extends boolean = false>(options: Options<ExtractGameSpecData, ThrowOnError>) => (options.client ?? client).post<ExtractGameSpecResponses, ExtractGameSpecErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/games/extract-spec',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -104,35 +193,13 @@ export const getGameBySlug = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Query rulebook text by title
+ * Ensure project
  *
- * Search ranked rulebook candidates for the provided title, try up to the top 3 matches, and return extracted text from the first valid PDF found.
+ * Ensure a portable project is installed in the authenticated user's active owner scope.
  */
-export const queryWorkshopRulebook = <ThrowOnError extends boolean = false>(options: Options<QueryWorkshopRulebookData, ThrowOnError>) => (options.client ?? client).get<QueryWorkshopRulebookResponses, QueryWorkshopRulebookErrors, ThrowOnError>({
+export const ensureProject = <ThrowOnError extends boolean = false>(options: Options<EnsureProjectData, ThrowOnError>) => (options.client ?? client).put<EnsureProjectResponses, EnsureProjectErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/workshop/query',
-    ...options
-});
-
-/**
- * Find manifests for game
- *
- * Retrieve a list of manifest versions for a game, ordered by version descending (newest first)
- */
-export const findManifests = <ThrowOnError extends boolean = false>(options: Options<FindManifestsData, ThrowOnError>) => (options.client ?? client).get<FindManifestsResponses, FindManifestsErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/manifests',
-    ...options
-});
-
-/**
- * Save game manifest
- *
- * Create a new versioned manifest for a game. Each save creates a new version with automatic version numbering.
- */
-export const saveManifest = <ThrowOnError extends boolean = false>(options: Options<SaveManifestData, ThrowOnError>) => (options.client ?? client).post<SaveManifestResponses, SaveManifestErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/manifests',
+    url: '/api/projects/{projectId}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -141,13 +208,161 @@ export const saveManifest = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Get manifest by ID
+ * Get project by slug
  *
- * Retrieve a specific manifest version by its ID with full board manifest details
+ * Resolve a portable project installed in the authenticated user's active owner scope by slug.
  */
-export const getManifest = <ThrowOnError extends boolean = false>(options: Options<GetManifestData, ThrowOnError>) => (options.client ?? client).get<GetManifestResponses, GetManifestErrors, ThrowOnError>({
+export const getProjectBySlug = <ThrowOnError extends boolean = false>(options: Options<GetProjectBySlugData, ThrowOnError>) => (options.client ?? client).get<GetProjectBySlugResponses, GetProjectBySlugErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/manifests/{manifestId}',
+    url: '/api/projects/slug/{slug}',
+    ...options
+});
+
+/**
+ * Create game revision
+ *
+ * Atomically finalize source, rule text, and manifest into one immutable project revision.
+ */
+export const createGameRevision = <ThrowOnError extends boolean = false>(options: Options<CreateGameRevisionData, ThrowOnError>) => (options.client ?? client).post<CreateGameRevisionResponses, CreateGameRevisionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/revisions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get project revision source files
+ *
+ * Retrieve source files and authored metadata for an immutable project revision digest.
+ */
+export const getProjectRevisionSources = <ThrowOnError extends boolean = false>(options: Options<GetProjectRevisionSourcesData, ThrowOnError>) => (options.client ?? client).get<GetProjectRevisionSourcesResponses, GetProjectRevisionSourcesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/revisions/{revisionDigest}/sources',
+    ...options
+});
+
+/**
+ * Create project source blob direct-upload targets
+ *
+ * Create a direct-upload session for source blobs referenced by a forthcoming project revision.
+ */
+export const createProjectSourceBlobUploadSession = <ThrowOnError extends boolean = false>(options: Options<CreateProjectSourceBlobUploadSessionData, ThrowOnError>) => (options.client ?? client).post<CreateProjectSourceBlobUploadSessionResponses, CreateProjectSourceBlobUploadSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/source-blobs/upload-sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Queue compile for project revision
+ *
+ * Queue an asynchronous compile for one immutable project revision. Poll `/api/jobs/{jobId}` and fetch the final compiled result by ID when the job completes.
+ */
+export const queueProjectRevisionCompile = <ThrowOnError extends boolean = false>(options: Options<QueueProjectRevisionCompileData, ThrowOnError>) => (options.client ?? client).post<QueueProjectRevisionCompileResponses, QueueProjectRevisionCompileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/revisions/{revisionDigest}/compile',
+    ...options
+});
+
+/**
+ * Get latest compiled result for a project
+ *
+ * Return the most recent compiled result for the project installation in the active owner scope.
+ */
+export const getLatestProjectCompiledResult = <ThrowOnError extends boolean = false>(options: Options<GetLatestProjectCompiledResultData, ThrowOnError>) => (options.client ?? client).get<GetLatestProjectCompiledResultResponses, GetLatestProjectCompiledResultErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/compiled-results/latest',
+    ...options
+});
+
+/**
+ * List compiled results for a project
+ *
+ * Retrieve compiled results for the project installation in the active owner scope, ordered by creation date descending.
+ */
+export const listProjectCompiledResults = <ThrowOnError extends boolean = false>(options: Options<ListProjectCompiledResultsData, ThrowOnError>) => (options.client ?? client).get<ListProjectCompiledResultsResponses, ListProjectCompiledResultsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/compiled-results',
+    ...options
+});
+
+/**
+ * Get project compiled result by ID
+ *
+ * Fetch a specific compiled result for the project installation in the active owner scope.
+ */
+export const getProjectCompiledResult = <ThrowOnError extends boolean = false>(options: Options<GetProjectCompiledResultData, ThrowOnError>) => (options.client ?? client).get<GetProjectCompiledResultResponses, GetProjectCompiledResultErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/compiled-results/{compiledResultId}',
+    ...options
+});
+
+/**
+ * Ensure a private project dev compile exists
+ *
+ * Reuse or create a session-scoped dev compilation for the provided workspace fingerprint without advancing the canonical authored head.
+ */
+export const ensureProjectDevCompile = <ThrowOnError extends boolean = false>(options: Options<EnsureProjectDevCompileData, ThrowOnError>) => (options.client ?? client).post<EnsureProjectDevCompileResponses, EnsureProjectDevCompileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/dev-compiles/ensure',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create a gameplay session for a project
+ *
+ * Create a gameplay session pinned to a compiled result from the project installation in the active owner scope.
+ */
+export const createProjectSession = <ThrowOnError extends boolean = false>(options: Options<CreateProjectSessionData, ThrowOnError>) => (options.client ?? client).post<CreateProjectSessionResponses, CreateProjectSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Download authored project source files
+ *
+ * Download the authored source files for the current project head as a ZIP archive.
+ */
+export const downloadProjectSources = <ThrowOnError extends boolean = false>(options: Options<DownloadProjectSourcesData, ThrowOnError>) => (options.client ?? client).get<DownloadProjectSourcesResponses, DownloadProjectSourcesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/download',
+    ...options
+});
+
+/**
+ * Get authored project source files
+ *
+ * Retrieve authored source files as JSON for the current project head.
+ */
+export const getProjectSources = <ThrowOnError extends boolean = false>(options: Options<GetProjectSourcesData, ThrowOnError>) => (options.client ?? client).get<GetProjectSourcesResponses, GetProjectSourcesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/sources',
+    ...options
+});
+
+/**
+ * Query rulebook text by title
+ *
+ * Search ranked rulebook candidates for the provided title, try up to the top 3 matches, and return extracted text from the first valid PDF found.
+ */
+export const queryWorkshopRulebook = <ThrowOnError extends boolean = false>(options: Options<QueryWorkshopRulebookData, ThrowOnError>) => (options.client ?? client).get<QueryWorkshopRulebookResponses, QueryWorkshopRulebookErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/workshop/query',
     ...options
 });
 
@@ -174,9 +389,9 @@ export const listCompiledResults = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Queue a compile job for an authoring state
+ * Queue a compile job for a game revision
  *
- * Queue an asynchronous compile for a specific authoring state. Poll `/api/jobs/{jobId}` and fetch the final compiled result by ID when the job completes.
+ * Queue an asynchronous compile for a specific game revision. Poll `/api/jobs/{jobId}` and fetch the final compiled result by ID when the job completes.
  */
 export const queueCompiledResultJob = <ThrowOnError extends boolean = false>(options: Options<QueueCompiledResultJobData, ThrowOnError>) => (options.client ?? client).post<QueueCompiledResultJobResponses, QueueCompiledResultJobErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -186,6 +401,43 @@ export const queueCompiledResultJob = <ThrowOnError extends boolean = false>(opt
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Upload initial projection for preview rendering
+ *
+ * Store the reducer-native projection JSON used by the compiler service to render a dashboard preview screenshot.
+ */
+export const uploadInitialProjection = <ThrowOnError extends boolean = false>(options: Options<UploadInitialProjectionData, ThrowOnError>) => (options.client ?? client).put<UploadInitialProjectionResponses, UploadInitialProjectionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/games/{gameId}/preview/initial-projection',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Queue preview screenshot generation
+ *
+ * Queue an async job that renders the latest successful UI bundle with the stored initial projection and stores a PNG preview.
+ */
+export const queuePreviewScreenshot = <ThrowOnError extends boolean = false>(options: Options<QueuePreviewScreenshotData, ThrowOnError>) => (options.client ?? client).post<QueuePreviewScreenshotResponses, QueuePreviewScreenshotErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/games/{gameId}/preview/screenshot',
+    ...options
+});
+
+/**
+ * Fetch generated preview image
+ *
+ * Return the latest generated game preview PNG from artifact storage.
+ */
+export const fetchPreviewImage = <ThrowOnError extends boolean = false>(options: Options<FetchPreviewImageData, ThrowOnError>) => (options.client ?? client).get<FetchPreviewImageResponses, FetchPreviewImageErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/games/{gameId}/preview/image',
+    ...options
 });
 
 /**
@@ -200,46 +452,9 @@ export const getCompiledResult = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Download authored game source files
- *
- * Download the authored source files for the current authoring head as a ZIP archive.
- */
-export const downloadGameSources = <ThrowOnError extends boolean = false>(options: Options<DownloadGameSourcesData, ThrowOnError>) => (options.client ?? client).get<DownloadGameSourcesResponses, DownloadGameSourcesErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/download',
-    ...options
-});
-
-/**
- * Get authored game source files
- *
- * Retrieve authored source files as JSON for the selected authoring state. If no authoring state is provided, the current authoring head is used.
- */
-export const getGameSources = <ThrowOnError extends boolean = false>(options: Options<GetGameSourcesData, ThrowOnError>) => (options.client ?? client).get<GetGameSourcesResponses, GetGameSourcesErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/sources',
-    ...options
-});
-
-/**
- * Generate dynamic scaffold files from manifest
- *
- * Returns manifest-derived scaffold files split by ownership semantics: generated files (always replaceable) and seed files (generated then user-owned).
- */
-export const scaffoldGameSourcesV3 = <ThrowOnError extends boolean = false>(options: Options<ScaffoldGameSourcesV3Data, ThrowOnError>) => (options.client ?? client).post<ScaffoldGameSourcesV3Responses, ScaffoldGameSourcesV3Errors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/scaffold/v3',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Create a source revision for a game
  *
- * Create a new authored source revision from an inline change set. The request must be based on the current head revision for the game.
+ * Create a new authored source revision from a hash-addressed change set. The request must be based on the current head revision for the game.
  */
 export const createSourceRevision = <ThrowOnError extends boolean = false>(options: Options<CreateSourceRevisionData, ThrowOnError>) => (options.client ?? client).post<CreateSourceRevisionResponses, CreateSourceRevisionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -252,70 +467,18 @@ export const createSourceRevision = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Get current authoring head for a game
+ * Create direct-upload targets for source blobs
  *
- * Retrieve the current remote authoring head for the specified game.
+ * Create a direct-upload session for one or more source blobs referenced by a forthcoming source revision.
  */
-export const getAuthoringHead = <ThrowOnError extends boolean = false>(options: Options<GetAuthoringHeadData, ThrowOnError>) => (options.client ?? client).get<GetAuthoringHeadResponses, GetAuthoringHeadErrors, ThrowOnError>({
+export const createSourceBlobUploadSession = <ThrowOnError extends boolean = false>(options: Options<CreateSourceBlobUploadSessionData, ThrowOnError>) => (options.client ?? client).post<CreateSourceBlobUploadSessionResponses, CreateSourceBlobUploadSessionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/authoring/head',
-    ...options
-});
-
-/**
- * Advance the authoring head for a game
- *
- * Create a new immutable authoring state and make it the current authoring head for the specified game.
- */
-export const createAuthoringState = <ThrowOnError extends boolean = false>(options: Options<CreateAuthoringStateData, ThrowOnError>) => (options.client ?? client).post<CreateAuthoringStateResponses, CreateAuthoringStateErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/authoring/states',
+    url: '/api/games/{gameId}/source-blobs/upload-sessions',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
-});
-
-/**
- * Create a source revision for a game from a gzip bundle
- *
- * Create a new authored source revision from a gzip-compressed JSON payload matching CreateSourceRevisionRequest.
- */
-export const createSourceRevisionBundle = <ThrowOnError extends boolean = false>(options: Options<CreateSourceRevisionBundleData, ThrowOnError>) => (options.client ?? client).post<CreateSourceRevisionBundleResponses, CreateSourceRevisionBundleErrors, ThrowOnError>({
-    bodySerializer: null,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/source-revisions/bundle',
-    ...options,
-    headers: {
-        'Content-Type': 'application/gzip',
-        ...options.headers
-    }
-});
-
-/**
- * Get game scripts
- *
- * Retrieve all compiled app and UI scripts for a specific manifest
- */
-export const getGameScripts = <ThrowOnError extends boolean = false>(options: Options<GetGameScriptsData, ThrowOnError>) => (options.client ?? client).get<GetGameScriptsResponses, GetGameScriptsErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/scripts',
-    ...options
-});
-
-/**
- * Get agent chat context
- *
- * Retrieve all initial data needed for the agent chat page in a single request.
- * Returns rules, manifests for the latest rule, and scripts for the latest manifest,
- * with pre-selected defaults to eliminate client-side auto-selection logic.
- *
- */
-export const getAgentChatContext = <ThrowOnError extends boolean = false>(options: Options<GetAgentChatContextData, ThrowOnError>) => (options.client ?? client).get<GetAgentChatContextResponses, GetAgentChatContextErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/agent-chat-context',
-    ...options
 });
 
 /**
@@ -330,24 +493,35 @@ export const getActiveJob = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * List game rules for a game
+ * Get job details
  *
- * Retrieve a list of rule versions for a game, ordered by version descending (newest first)
+ * Fetch details for a specific async job, including ordered user-facing tasks.
  */
-export const listGameRules = <ThrowOnError extends boolean = false>(options: Options<ListGameRulesData, ThrowOnError>) => (options.client ?? client).get<ListGameRulesResponses, ListGameRulesErrors, ThrowOnError>({
+export const getJob = <ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>) => (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/rules',
+    url: '/api/jobs/{jobId}',
     ...options
 });
 
 /**
- * Create a new game rule
+ * Long-poll job details
  *
- * Create a new versioned rule for a game. Each save creates a new version with automatic version numbering.
+ * Return the current job snapshot immediately when it differs from afterCursor, otherwise wait briefly for a job update.
  */
-export const createGameRule = <ThrowOnError extends boolean = false>(options: Options<CreateGameRuleData, ThrowOnError>) => (options.client ?? client).post<CreateGameRuleResponses, CreateGameRuleErrors, ThrowOnError>({
+export const getJobEventBatch = <ThrowOnError extends boolean = false>(options: Options<GetJobEventBatchData, ThrowOnError>) => (options.client ?? client).get<GetJobEventBatchResponses, GetJobEventBatchErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/rules',
+    url: '/api/jobs/{jobId}/event-batches',
+    ...options
+});
+
+/**
+ * Create a game build run
+ *
+ * Create a new game draft build job from a structured game spec.
+ */
+export const createGameRun = <ThrowOnError extends boolean = false>(options: Options<CreateGameRunData, ThrowOnError>) => (options.client ?? client).post<CreateGameRunResponses, CreateGameRunErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/runs',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -356,24 +530,13 @@ export const createGameRule = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Get the latest game rule
+ * Cancel a game build run
  *
- * Retrieve the most recent rule version for a game with full details including the complete rule text
+ * Request cancellation of an active game draft build job.
  */
-export const getLatestGameRule = <ThrowOnError extends boolean = false>(options: Options<GetLatestGameRuleData, ThrowOnError>) => (options.client ?? client).get<GetLatestGameRuleResponses, GetLatestGameRuleErrors, ThrowOnError>({
+export const cancelGameRun = <ThrowOnError extends boolean = false>(options: Options<CancelGameRunData, ThrowOnError>) => (options.client ?? client).post<CancelGameRunResponses, CancelGameRunErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/games/{gameId}/rules/latest',
-    ...options
-});
-
-/**
- * Get game rule by ID
- *
- * Retrieve a specific game rule version by its ID with full details
- */
-export const getGameRule = <ThrowOnError extends boolean = false>(options: Options<GetGameRuleData, ThrowOnError>) => (options.client ?? client).get<GetGameRuleResponses, GetGameRuleErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/rules/{ruleId}',
+    url: '/api/runs/{jobId}/cancel',
     ...options
 });
 
@@ -393,9 +556,39 @@ export const createSession = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
+ * Create a session from a reducer snapshot
+ *
+ * Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness.
+ */
+export const createSessionFromReducerSnapshot = <ThrowOnError extends boolean = false>(options: Options<CreateSessionFromReducerSnapshotData, ThrowOnError>) => (options.client ?? client).post<CreateSessionFromReducerSnapshotResponses, CreateSessionFromReducerSnapshotErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/games/{gameId}/sessions/from-reducer-snapshot',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create a project session from a reducer snapshot
+ *
+ * Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness, resolved through a portable project.
+ */
+export const createProjectSessionFromReducerSnapshot = <ThrowOnError extends boolean = false>(options: Options<CreateProjectSessionFromReducerSnapshotData, ThrowOnError>) => (options.client ?? client).post<CreateProjectSessionFromReducerSnapshotResponses, CreateProjectSessionFromReducerSnapshotErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/sessions/from-reducer-snapshot',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Get session by short code
  *
- * Look up a session using its memorable short code
+ * Look up and hydrate a session using its memorable short code.
  */
 export const getSessionByShortCode = <ThrowOnError extends boolean = false>(options: Options<GetSessionByShortCodeData, ThrowOnError>) => (options.client ?? client).get<GetSessionByShortCodeResponses, GetSessionByShortCodeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -404,35 +597,35 @@ export const getSessionByShortCode = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Get session status
+ * Get a session snapshot
  *
- * Get current status and phase of a game session
+ * Return the canonical selected-perspective session snapshot for first render or explicit resync.
  */
-export const getSessionStatus = <ThrowOnError extends boolean = false>(options: Options<GetSessionStatusData, ThrowOnError>) => (options.client ?? client).get<GetSessionStatusResponses, GetSessionStatusErrors, ThrowOnError>({
+export const getSessionSnapshot = <ThrowOnError extends boolean = false>(options: Options<GetSessionSnapshotData, ThrowOnError>) => (options.client ?? client).get<GetSessionSnapshotResponses, GetSessionSnapshotErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/status',
+    url: '/api/sessions/{sessionId}/snapshot',
     ...options
 });
 
 /**
- * Subscribe to session events (SSE)
+ * Long-poll selected-perspective session events
  *
- * Server-Sent Events stream for real-time session updates. Supports event replay via lastMessageId query parameter using exclusive cursor semantics (events with ID > lastMessageId).
+ * Return a session snapshot when no cursor is supplied, otherwise return visible persisted events after the cursor or wait briefly for the next update.
  */
-export const subscribeToSessionEvents = <ThrowOnError extends boolean = false>(options: Options<SubscribeToSessionEventsData, ThrowOnError>) => (options.client ?? client).sse.get<SubscribeToSessionEventsResponses, SubscribeToSessionEventsErrors, ThrowOnError>({
+export const getSessionEventBatch = <ThrowOnError extends boolean = false>(options: Options<GetSessionEventBatchData, ThrowOnError>) => (options.client ?? client).get<GetSessionEventBatchResponses, GetSessionEventBatchErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/events',
+    url: '/api/sessions/{sessionId}/event-batches',
     ...options
 });
 
 /**
- * Subscribe to game logs (SSE)
+ * Long-poll game logs
  *
- * Server-Sent Events stream for real-time game engine console logs (stdout/stderr). Supports log replay via lastLogId query parameter for reconnection.
+ * Return replayed game engine console logs after a cursor or wait briefly for the next log entry.
  */
-export const subscribeToGameLogs = <ThrowOnError extends boolean = false>(options: Options<SubscribeToGameLogsData, ThrowOnError>) => (options.client ?? client).sse.get<SubscribeToGameLogsResponses, SubscribeToGameLogsErrors, ThrowOnError>({
+export const getSessionLogBatch = <ThrowOnError extends boolean = false>(options: Options<GetSessionLogBatchData, ThrowOnError>) => (options.client ?? client).get<GetSessionLogBatchResponses, GetSessionLogBatchErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/logs',
+    url: '/api/sessions/{sessionId}/log-batches',
     ...options
 });
 
@@ -448,33 +641,14 @@ export const startGame = <ThrowOnError extends boolean = false>(options: Options
 });
 
 /**
- * Submit a player action
+ * Issue a gameplay authority capability
  *
- * Submit an action during gameplay phase
+ * Returns a short-lived, session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
  */
-export const submitAction = <ThrowOnError extends boolean = false>(options: Options<SubmitActionData, ThrowOnError>) => (options.client ?? client).post<SubmitActionResponses, SubmitActionErrors, ThrowOnError>({
+export const createGameplayCapability = <ThrowOnError extends boolean = false>(options: Options<CreateGameplayCapabilityData, ThrowOnError>) => (options.client ?? client).post<CreateGameplayCapabilityResponses, CreateGameplayCapabilityErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/actions',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Validate a player action
- *
- * Validate an action before submitting it. Returns validation result with error code if invalid.
- */
-export const validateAction = <ThrowOnError extends boolean = false>(options: Options<ValidateActionData, ThrowOnError>) => (options.client ?? client).post<ValidateActionResponses, ValidateActionErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/validate-action',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
+    url: '/api/sessions/{sessionId}/players/{playerId}/gameplay-capability',
+    ...options
 });
 
 /**
@@ -526,21 +700,6 @@ export const assignSeat = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * Restore game state from history
- *
- * Restore the game to a previous state from history (host only)
- */
-export const restoreHistory = <ThrowOnError extends boolean = false>(options: Options<RestoreHistoryData, ThrowOnError>) => (options.client ?? client).post<RestoreHistoryResponses, RestoreHistoryErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/history/restore',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Unassign a seat
  *
  * Unassign the current user from a specific seat
@@ -552,177 +711,96 @@ export const unassignSeat = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Stream conversation messages
- *
- * SSE endpoint that streams all messages for a conversation.
- * On connect, emits all persisted MessageEvents in order.
- * Then continues streaming live events as they occur.
- * All events use the same MessageEvent type for uniform handling.
- *
- */
-export const streamConversation = <ThrowOnError extends boolean = false>(options: Options<StreamConversationData, ThrowOnError>) => (options.client ?? client).sse.get<StreamConversationResponses, StreamConversationErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/conversations/{conversationId}/stream',
-    ...options
-});
-
-/**
- * Cancel job for conversation
- *
- * Cancel the active job for a conversation. This is the unified cancellation endpoint
- * that works for all job types. The backend will find the active job for the conversation
- * and cancel it. Only the job owner can cancel it. Returns 204 regardless of whether
- * a job was found (idempotent).
- *
- */
-export const cancelConversationJob = <ThrowOnError extends boolean = false>(options: Options<CancelConversationJobData, ThrowOnError>) => (options.client ?? client).post<CancelConversationJobResponses, CancelConversationJobErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/conversations/{conversationId}/cancel',
-    ...options
-});
-
-/**
- * List conversations
- *
- * List all conversations for the current user, optionally filtered by gameId
- */
-export const listConversations = <ThrowOnError extends boolean = false>(options: Options<ListConversationsData, ThrowOnError>) => (options.client ?? client).get<ListConversationsResponses, ListConversationsErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/conversations',
-    ...options
-});
-
-/**
- * Delete conversation
- *
- * Delete a conversation and all its messages
- */
-export const deleteConversation = <ThrowOnError extends boolean = false>(options: Options<DeleteConversationData, ThrowOnError>) => (options.client ?? client).delete<DeleteConversationResponses, DeleteConversationErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/conversations/{conversationId}',
-    ...options
-});
-
-/**
- * Get job details
- *
- * Fetch details for a specific agent job, including created artifact IDs.
- */
-export const getJob = <ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>) => (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/jobs/{jobId}',
-    ...options
-});
-
-/**
- * Send message to sandbox
- *
- * Send a prompt/message to the active OpenCode sandbox session for this conversation.
- * The backend finds the active sandbox job for the conversation and forwards the
- * message to the OpenCode server. Progress events are streamed via the existing
- * conversation stream SSE endpoint.
- *
- */
-export const sendSandboxMessage = <ThrowOnError extends boolean = false>(options: Options<SendSandboxMessageData, ThrowOnError>) => (options.client ?? client).post<SendSandboxMessageResponses, SendSandboxMessageErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/conversations/{conversationId}/sandbox/messages',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Abort sandbox session
- *
- * Abort the OpenCode session running in the sandbox for this conversation.
- * The backend finds the active sandbox job and sends an abort signal to the
- * OpenCode server. Only the conversation owner can abort the session.
- *
- */
-export const abortSandboxSession = <ThrowOnError extends boolean = false>(options: Options<AbortSandboxSessionData, ThrowOnError>) => (options.client ?? client).post<AbortSandboxSessionResponses, AbortSandboxSessionErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/conversations/{conversationId}/sandbox/abort',
-    ...options
-});
-
-/**
- * Send a chat message to sandbox
- *
- * Send a message to the sandbox. If no sandbox session exists for this conversation,
- * one is created automatically (provisions Modal sandbox, creates OpenCode session,
- * starts background event persister). If no conversationId is provided, a new
- * conversation is created. Clients should continue the task in
- * /sandbox/{gameId}/{conversationId} while streaming events from
- * GET /api/conversations/{conversationId}/stream.
- *
- */
-export const sandboxChat = <ThrowOnError extends boolean = false>(options: Options<SandboxChatData, ThrowOnError>) => (options.client ?? client).post<SandboxChatResponses, SandboxChatErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sandbox/chat',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Abort a sandbox session
- *
- * Abort the sandbox session for a conversation. This stops the current OpenCode
- * operation, cancels the background event persister, marks the AgentJob as cancelled,
- * and emits a JobCancelledProgress event so the frontend SSE terminates cleanly.
- *
- */
-export const sandboxAbort = <ThrowOnError extends boolean = false>(options: Options<SandboxAbortData, ThrowOnError>) => (options.client ?? client).post<SandboxAbortResponses, SandboxAbortErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sandbox/abort',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Receive sandbox webhook event
- *
- * Receive a progress event from the Modal sandbox. Called by the Modal Bridge service.
- */
-export const receiveSandboxWebhookEvent = <ThrowOnError extends boolean = false>(options: Options<ReceiveSandboxWebhookEventData, ThrowOnError>) => (options.client ?? client).post<ReceiveSandboxWebhookEventResponses, ReceiveSandboxWebhookEventErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/webhooks/sandbox/{jobId}/event',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Receive sandbox webhook completion
- *
- * Receive a completion notification from the Modal sandbox. Called by the Modal Bridge service.
- */
-export const receiveSandboxWebhookComplete = <ThrowOnError extends boolean = false>(options: Options<ReceiveSandboxWebhookCompleteData, ThrowOnError>) => (options.client ?? client).post<ReceiveSandboxWebhookCompleteResponses, ReceiveSandboxWebhookCompleteErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/webhooks/sandbox/{jobId}/complete',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Fetch UI bundle
  *
- * Fetch and return the HTML content of a UI bundle from Supabase storage based on the last compiled UI result
+ * Fetch and return the HTML content of a UI bundle from object storage based on the last compiled UI result
  */
-export const fetchUiBundle = <ThrowOnError extends boolean = false>(options: Options<FetchUiBundleData, ThrowOnError>) => (options.client ?? client).get<FetchUiBundleResponses, FetchUiBundleErrors, ThrowOnError>({
+export const fetchUiBundle = <ThrowOnError extends boolean = false>(options?: Options<FetchUiBundleData, ThrowOnError>) => (options?.client ?? client).get<FetchUiBundleResponses, FetchUiBundleErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/ui-bundles/fetch',
     ...options
 });
+
+/**
+ * List demo games
+ *
+ * List bundled demo games that can be opened without a normal user account.
+ */
+export const listDemoGames = <ThrowOnError extends boolean = false>(options?: Options<ListDemoGamesData, ThrowOnError>) => (options?.client ?? client).get<ListDemoGamesResponses, ListDemoGamesErrors, ThrowOnError>({ url: '/api/demo-games', ...options });
+
+/**
+ * Get demo game
+ *
+ * Return registration and playability metadata for a bundled demo game.
+ */
+export const getDemoGame = <ThrowOnError extends boolean = false>(options: Options<GetDemoGameData, ThrowOnError>) => (options.client ?? client).get<GetDemoGameResponses, GetDemoGameErrors, ThrowOnError>({ url: '/api/demo-games/{slug}', ...options });
+
+/**
+ * Get demo game thumbnail
+ *
+ * Return the static thumbnail image for an active bundled demo game.
+ */
+export const getDemoGameThumbnail = <ThrowOnError extends boolean = false>(options: Options<GetDemoGameThumbnailData, ThrowOnError>) => (options.client ?? client).get<GetDemoGameThumbnailResponses, GetDemoGameThumbnailErrors, ThrowOnError>({ url: '/api/demo-games/{slug}/thumbnail', ...options });
+
+/**
+ * Create demo session
+ *
+ * Create a fresh guest-play session for a bundled demo game.
+ */
+export const createDemoGameSession = <ThrowOnError extends boolean = false>(options: Options<CreateDemoGameSessionData, ThrowOnError>) => (options.client ?? client).post<CreateDemoGameSessionResponses, CreateDemoGameSessionErrors, ThrowOnError>({
+    url: '/api/demo-games/{slug}/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get demo session by short code
+ *
+ * Look up and hydrate a demo session using its memorable short code.
+ */
+export const getDemoSessionByShortCode = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionByShortCodeData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionByShortCodeResponses, GetDemoSessionByShortCodeErrors, ThrowOnError>({ url: '/api/demo/sessions/code/{shortCode}', ...options });
+
+/**
+ * Get a demo session snapshot
+ *
+ * Return the canonical selected-perspective demo session snapshot.
+ */
+export const getDemoSessionSnapshot = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionSnapshotData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionSnapshotResponses, GetDemoSessionSnapshotErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/snapshot', ...options });
+
+/**
+ * Long-poll selected-perspective demo session events
+ *
+ * Return a demo session snapshot when no cursor is supplied, otherwise return visible persisted events after the cursor or wait briefly for the next update.
+ */
+export const getDemoSessionEventBatch = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionEventBatchData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionEventBatchResponses, GetDemoSessionEventBatchErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/event-batches', ...options });
+
+/**
+ * Long-poll demo session logs
+ *
+ * Return replayed demo session engine console logs after a cursor or wait briefly for the next log entry.
+ */
+export const getDemoSessionLogBatch = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionLogBatchData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionLogBatchResponses, GetDemoSessionLogBatchErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/log-batches', ...options });
+
+/**
+ * Start the demo game
+ *
+ * Transition a demo session from lobby to gameplay phase.
+ */
+export const startDemoGame = <ThrowOnError extends boolean = false>(options: Options<StartDemoGameData, ThrowOnError>) => (options.client ?? client).post<StartDemoGameResponses, StartDemoGameErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/start', ...options });
+
+/**
+ * Issue a demo gameplay authority capability
+ *
+ * Returns a short-lived demo session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
+ */
+export const createDemoGameplayCapability = <ThrowOnError extends boolean = false>(options: Options<CreateDemoGameplayCapabilityData, ThrowOnError>) => (options.client ?? client).post<CreateDemoGameplayCapabilityResponses, CreateDemoGameplayCapabilityErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability', ...options });
+
+/**
+ * Fetch demo UI bundle
+ *
+ * Fetch and return the HTML content of a demo session UI bundle from object storage.
+ */
+export const fetchDemoUiBundle = <ThrowOnError extends boolean = false>(options: Options<FetchDemoUiBundleData, ThrowOnError>) => (options.client ?? client).get<FetchDemoUiBundleResponses, FetchDemoUiBundleErrors, ThrowOnError>({ url: '/api/demo/ui-bundles/fetch', ...options });

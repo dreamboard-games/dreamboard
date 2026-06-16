@@ -1,87 +1,107 @@
 import { defineCommand } from "citty";
 import consola from "consola";
 import {
-  scaffoldGameSourcesV3,
-  type SourceChangeMode,
-  type SourceChangeOperation,
-} from "@dreamboard/api-client";
+  mapUpsertBlobContentsByContentHash,
+  materializeSourceChangeOperations,
+  type SourceContentChangeOperation,
+} from "@dreamboard-games/api-client/source-revisions";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
-import { MANIFEST_FILE, RULE_FILE } from "../constants.js";
 import { resolveProjectContext } from "../config/resolve.js";
 import { updateProjectState } from "../config/project-config.js";
 import { parseSyncCommandArgs } from "../flags.js";
 import {
   collectLocalFiles,
+  computeManifestHash,
   getLocalDiff,
-  isAllowedGamePath,
   loadManifest,
   loadRule,
   writeSnapshot,
-  writeScaffoldFiles,
 } from "../services/project/local-files.js";
+import {
+  isSourceRevisionPath,
+  shouldAlwaysUpsertSourcePath,
+} from "../services/project/source-revision-paths.js";
 import {
   assertCliStaticScaffoldComplete,
   scaffoldStaticWorkspace,
 } from "../services/project/static-scaffold.js";
 import {
-  createAuthoringStateSdk,
-  createSourceRevisionSdk,
-  getAuthoringHeadSdk,
-  getLatestManifestIdSdk,
-  getLatestRuleIdSdk,
-  isManifestDifferentFromServer,
-  saveManifestSdk,
-  saveRuleSdk,
+  createGameRevisionSdk,
+  uploadProjectSourceBlobsSdk,
 } from "../services/api/index.js";
-import { formatApiError } from "../utils/errors.js";
-import { validateDynamicScaffoldResponse } from "../services/project/dynamic-scaffold-response.js";
 import {
   getProjectAuthoringState,
+  getProjectLocalMaintainerRegistry,
+  getProjectPendingAuthoringSync,
   updateProjectAuthoringState,
+  updateProjectLocalMaintainerRegistry,
 } from "../services/project/project-state.js";
+import type { ProjectConfig } from "../types.js";
+import { applyWorkspaceCodegen } from "../services/project/workspace-codegen.js";
+import {
+  didLocalMaintainerSnapshotChange,
+  ensureLocalMaintainerSnapshot,
+  isLocalMaintainerRegistryEnabled,
+} from "../services/project/local-maintainer-registry.js";
+import { reconcileWorkspaceDependencies } from "../services/project/workspace-dependencies.js";
+import { assertReducerContractPreflight } from "../services/project/reducer-contract-preflight.js";
+import { assertReducerBundleSmoke } from "../services/project/reducer-bundle-preflight.js";
+import { runLocalTypecheck } from "../services/project/local-typecheck.js";
+import { resolveRemoteProject } from "../services/project/remote-project.js";
+import { assertReleaseEnvironmentPortableDependencies } from "../services/project/dependency-portability.js";
 
-function isSourcePath(filePath: string): boolean {
-  return (
-    filePath !== MANIFEST_FILE &&
-    filePath !== RULE_FILE &&
-    isAllowedGamePath(filePath)
-  );
+async function runLoggedStep<T>(
+  message: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  consola.start(message);
+  return task();
 }
 
-function buildSourceChanges(options: {
-  mode: SourceChangeMode;
-  localFiles: Record<string, string>;
-  diff: { modified: string[]; added: string[]; deleted: string[] };
-}): SourceChangeOperation[] {
-  const { mode, localFiles, diff } = options;
+async function persistProjectConfig(options: {
+  projectRoot: string;
+  projectConfig: ProjectConfig;
+}): Promise<ProjectConfig> {
+  await updateProjectState(options.projectRoot, options.projectConfig);
+  return options.projectConfig;
+}
 
-  if (mode === "replace") {
-    return Object.entries(localFiles)
-      .filter(([filePath]) => isSourcePath(filePath))
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([path, content]) => ({
-        kind: "upsert",
-        path,
-        content,
-      }));
-  }
+async function finalizeLocalSync(options: {
+  projectRoot: string;
+  projectConfig: ProjectConfig;
+}): Promise<ProjectConfig> {
+  const { projectRoot, projectConfig } = options;
+  await scaffoldStaticWorkspace(projectRoot, "update", {
+    localMaintainerRegistry: getProjectLocalMaintainerRegistry(projectConfig),
+  });
+  await applyWorkspaceCodegen({
+    projectRoot,
+    manifest: await loadManifest(projectRoot),
+  });
 
-  const changes: SourceChangeOperation[] = [];
+  const finalizedProjectConfig = await persistProjectConfig({
+    projectRoot,
+    projectConfig,
+  });
+  await writeSnapshot(projectRoot);
+  return finalizedProjectConfig;
+}
 
-  for (const filePath of [...diff.modified, ...diff.added]
-    .filter(isSourcePath)
-    .sort()) {
-    const content = localFiles[filePath];
-    if (content !== undefined) {
-      changes.push({ kind: "upsert", path: filePath, content });
-    }
-  }
-
-  for (const filePath of diff.deleted.filter(isSourcePath).sort()) {
-    changes.push({ kind: "delete", path: filePath });
-  }
-
-  return changes;
+function buildSourceSnapshotChanges(
+  localFiles: Record<string, string>,
+): SourceContentChangeOperation[] {
+  return Object.entries(localFiles)
+    .filter(
+      ([filePath]) =>
+        isSourceRevisionPath(filePath) ||
+        shouldAlwaysUpsertSourcePath(filePath),
+    )
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([path, content]) => ({
+      kind: "upsert",
+      path,
+      content,
+    }));
 }
 
 export default defineCommand({
@@ -93,12 +113,8 @@ export default defineCommand({
   args: {
     force: {
       type: "boolean",
-      description: "Replace the full authored source tree",
-      default: false,
-    },
-    "update-sdk": {
-      type: "boolean",
-      description: "Refresh bundled SDK files while scaffolding",
+      description:
+        "Replace the full authored source tree, manifest, and rules, overwriting the remote head with the local copy even when the remote has moved",
       default: false,
     },
     yes: {
@@ -111,175 +127,218 @@ export default defineCommand({
   },
   async run({ args }) {
     const parsedArgs = parseSyncCommandArgs(args);
-    const { projectRoot, projectConfig } =
+    const { projectRoot, projectConfig, config } =
       await resolveProjectContext(parsedArgs);
+    let nextProjectConfig = projectConfig;
+    await assertReleaseEnvironmentPortableDependencies({
+      projectRoot,
+      projectConfig: nextProjectConfig,
+      environment: config.environment,
+    });
+    const localMaintainerEnabled = isLocalMaintainerRegistryEnabled(
+      config.apiBaseUrl,
+    );
+    const existingLocalMaintainerRegistry =
+      getProjectLocalMaintainerRegistry(projectConfig);
+    const refreshedLocalMaintainerRegistry = localMaintainerEnabled
+      ? await runLoggedStep("Checking local SDK snapshot...", () =>
+          ensureLocalMaintainerSnapshot(config.apiBaseUrl),
+        )
+      : await ensureLocalMaintainerSnapshot(config.apiBaseUrl);
+    const localMaintainerRegistry =
+      refreshedLocalMaintainerRegistry ??
+      (localMaintainerEnabled
+        ? (existingLocalMaintainerRegistry ?? null)
+        : null);
+    const localMaintainerSnapshotChanged = didLocalMaintainerSnapshotChange(
+      existingLocalMaintainerRegistry,
+      refreshedLocalMaintainerRegistry,
+    );
+    if (refreshedLocalMaintainerRegistry) {
+      nextProjectConfig = updateProjectLocalMaintainerRegistry(
+        nextProjectConfig,
+        refreshedLocalMaintainerRegistry,
+      );
+      consola.info(
+        localMaintainerSnapshotChanged
+          ? "Local SDK snapshot refreshed."
+          : "Using existing local SDK snapshot.",
+      );
+    } else if (localMaintainerRegistry) {
+      consola.info("Using workspace-pinned local SDK snapshot.");
+    }
+
+    await runLoggedStep("Refreshing static scaffold...", () =>
+      scaffoldStaticWorkspace(projectRoot, "update", {
+        localMaintainerRegistry,
+      }),
+    );
+    const localManifest = await loadManifest(projectRoot);
+    await runLoggedStep("Applying workspace codegen...", async () =>
+      applyWorkspaceCodegen({
+        projectRoot,
+        manifest: localManifest,
+      }),
+    );
+    const dependencyState = await runLoggedStep(
+      "Reconciling workspace dependencies...",
+      () => reconcileWorkspaceDependencies(projectRoot),
+    );
+    if (
+      dependencyState.packageManagerNormalized ||
+      dependencyState.lockfileGenerated ||
+      dependencyState.installed ||
+      localMaintainerSnapshotChanged
+    ) {
+      consola.info("Workspace dependencies reconciled.");
+    } else {
+      consola.info("Workspace dependencies already up to date.");
+    }
+    await runLoggedStep("Validating reducer contract...", () =>
+      assertReducerContractPreflight(projectRoot),
+    );
+    const typecheckResult = await runLoggedStep(
+      "Running local typecheck...",
+      () => runLocalTypecheck(projectRoot),
+    );
+    if (typecheckResult.skipped) {
+      if (typecheckResult.output) {
+        consola.warn(typecheckResult.output);
+      }
+    } else if (!typecheckResult.success) {
+      if (typecheckResult.output) {
+        consola.error(typecheckResult.output);
+      }
+      throw new Error(
+        "Local typecheck failed. Fix the diagnostics before syncing.",
+      );
+    }
+    await runLoggedStep("Smoke-testing reducer bundle...", async () =>
+      assertReducerBundleSmoke({
+        projectRoot,
+        manifest: localManifest,
+      }),
+    );
+    consola.success("Reducer bundle smoke test passed.");
+
+    const remoteProject = await runLoggedStep("Ensuring remote project...", () =>
+      resolveRemoteProject({
+        projectRoot,
+        projectConfig: nextProjectConfig,
+        config,
+      }),
+    );
+    nextProjectConfig = remoteProject.projectConfig;
 
     const localDiff = await getLocalDiff(projectRoot);
     await assertCliStaticScaffoldComplete(projectRoot, localDiff.deleted);
 
-    const localAuthoring = getProjectAuthoringState(projectConfig);
-    const remoteHead = await getAuthoringHeadSdk(projectConfig.gameId);
-    const remoteHeadId = remoteHead?.authoringStateId;
-    const localHeadId = localAuthoring.authoringStateId;
+    const localAuthoring = getProjectAuthoringState(nextProjectConfig);
+    const pendingSync = getProjectPendingAuthoringSync(nextProjectConfig);
+    const remoteHeadDigest = remoteProject.project.head?.revisionDigest;
+    const localHeadDigest =
+      localAuthoring.revisionDigest ?? nextProjectConfig.remoteHeadDigest;
 
-    if (remoteHeadId && localHeadId && remoteHeadId !== localHeadId) {
+    if (pendingSync && !parsedArgs.force) {
       throw new Error(
-        `Remote authored state has moved to ${remoteHeadId}. Run 'dreamboard pull' before syncing local changes.`,
+        "This workspace has an unfinished legacy sync checkpoint. Run 'dreamboard sync --force' to replace it with an atomic project revision.",
       );
     }
 
-    if (remoteHeadId && !localHeadId) {
-      throw new Error(
-        `This workspace has no authored base but the remote head is ${remoteHeadId}. Re-clone or run 'dreamboard pull --force' into a clean workspace.`,
-      );
+    if (
+      remoteHeadDigest &&
+      localHeadDigest &&
+      remoteHeadDigest !== localHeadDigest
+    ) {
+      if (parsedArgs.force) {
+        consola.warn(
+          `Remote project head has moved to ${remoteHeadDigest}. --force will overwrite it with this workspace's local copy.`,
+        );
+      } else {
+        throw new Error(
+          `Remote project head has moved to ${remoteHeadDigest}. Run 'dreamboard pull' before syncing local changes, or pass --force to overwrite the remote with the local copy.`,
+        );
+      }
+    }
+
+    if (remoteHeadDigest && !localHeadDigest) {
+      if (parsedArgs.force) {
+        consola.warn(
+          `This workspace has no authored base but the remote project head is ${remoteHeadDigest}. --force will overwrite it with this workspace's local copy.`,
+        );
+      } else {
+        throw new Error(
+          `This workspace has no authored base but the remote project head is ${remoteHeadDigest}. Re-clone, run 'dreamboard pull --force' into a clean workspace, or pass --force to overwrite the remote with the local copy.`,
+        );
+      }
     }
 
     const hasChanges =
       localDiff.modified.length > 0 ||
       localDiff.added.length > 0 ||
       localDiff.deleted.length > 0;
-    if (!hasChanges && localHeadId != null && remoteHeadId === localHeadId) {
+    const localManifestContentHash = computeManifestHash(localManifest);
+    const manifestOutOfSync =
+      localAuthoring.localManifestContentHash !== localManifestContentHash;
+    if (
+      !hasChanges &&
+      !parsedArgs.force &&
+      localHeadDigest != null &&
+      remoteHeadDigest === localHeadDigest &&
+      !pendingSync &&
+      !manifestOutOfSync
+    ) {
       consola.info("No local authored changes to sync.");
       return;
     }
 
-    const ruleChanged =
-      localDiff.modified.includes(RULE_FILE) ||
-      localDiff.added.includes(RULE_FILE);
-    const manifestChanged =
-      localDiff.modified.includes(MANIFEST_FILE) ||
-      localDiff.added.includes(MANIFEST_FILE);
-
-    let ruleId = localAuthoring.ruleId ?? remoteHead?.ruleId ?? undefined;
-    let manifestId =
-      localAuthoring.manifestId ?? remoteHead?.manifestId ?? undefined;
-    let manifestContentHash =
-      localAuthoring.manifestContentHash ??
-      remoteHead?.manifestContentHash ??
-      undefined;
-    let sourceRevisionId =
-      remoteHead?.sourceRevisionId ?? localAuthoring.sourceRevisionId;
-    let sourceTreeHash =
-      remoteHead?.sourceTreeHash ?? localAuthoring.sourceTreeHash;
-
-    if (ruleChanged) {
-      ruleId = (
-        await saveRuleSdk(projectConfig.gameId, await loadRule(projectRoot))
-      ).ruleId;
-    }
-
-    const manifestNeedsSave =
-      manifestChanged ||
-      !manifestId ||
-      (await isManifestDifferentFromServer(manifestId, manifestContentHash));
-    if (manifestNeedsSave) {
-      if (!ruleId) {
-        ruleId = await getLatestRuleIdSdk(projectConfig.gameId);
-      }
-      const saved = await saveManifestSdk(
-        projectConfig.gameId,
-        await loadManifest(projectRoot),
-        ruleId,
-      );
-      manifestId = saved.manifestId;
-      manifestContentHash = saved.contentHash;
-    }
-
     const localFiles = await collectLocalFiles(projectRoot);
-    const mode: SourceChangeMode =
-      parsedArgs.force || !sourceRevisionId ? "replace" : "incremental";
-    const sourceChanges = buildSourceChanges({
-      mode,
-      localFiles,
-      diff: localDiff,
-    });
-    if (sourceChanges.length > 0 || !sourceRevisionId) {
-      const sourceRevision = await createSourceRevisionSdk(
-        projectConfig.gameId,
-        {
-          ...(sourceRevisionId
-            ? { baseSourceRevisionId: sourceRevisionId }
-            : {}),
-          mode,
-          changes: sourceChanges,
-        },
-      );
-      sourceRevisionId = sourceRevision.id;
-      sourceTreeHash = sourceRevision.treeHash;
-    }
+    const sourceChanges = buildSourceSnapshotChanges(localFiles);
+    const { changes } = await materializeSourceChangeOperations(sourceChanges);
+    const uploadBlobs = mapUpsertBlobContentsByContentHash(
+      sourceChanges,
+      changes,
+    );
+    await uploadProjectSourceBlobsSdk(
+      nextProjectConfig.projectId,
+      Array.from(uploadBlobs.values()),
+    );
 
-    if (!ruleId) {
-      ruleId = await getLatestRuleIdSdk(projectConfig.gameId);
-    }
-    if (!manifestId) {
-      manifestId =
-        (await getLatestManifestIdSdk(projectConfig.gameId, ruleId)) ??
-        undefined;
-    }
-    if (
-      !manifestId ||
-      !manifestContentHash ||
-      !sourceRevisionId ||
-      !sourceTreeHash
-    ) {
-      throw new Error("Sync could not resolve a complete authored state.");
-    }
-
-    const authoringState = await createAuthoringStateSdk(projectConfig.gameId, {
-      ...(remoteHeadId ? { baseAuthoringStateId: remoteHeadId } : {}),
-      sourceRevisionId,
-      sourceTreeHash,
-      manifestId,
-      manifestContentHash,
-      ruleId,
-    });
-
-    const {
-      data: dynamicScaffold,
-      error: dynamicError,
-      response: dynamicResponse,
-    } = await scaffoldGameSourcesV3({
-      path: { gameId: projectConfig.gameId },
-      body: {
-        manifestId,
-        ruleId,
-        mode: "update",
-        seedMissingOnly: true,
+    const sourceFiles = changes
+      .filter((change) => change.kind === "upsert")
+      .map(({ path, contentHash, byteSize }) => ({
+        path,
+        contentHash,
+        byteSize,
+      }));
+    const revision = await createGameRevisionSdk({
+      projectId: nextProjectConfig.projectId,
+      request: {
+        ...(remoteHeadDigest ? { baseRevisionDigest: remoteHeadDigest } : {}),
+        source: { files: sourceFiles },
+        ruleText: await loadRule(projectRoot),
+        manifest: localManifest,
       },
     });
-    if (dynamicError || !dynamicScaffold) {
-      throw new Error(
-        formatApiError(
-          dynamicError,
-          dynamicResponse,
-          "Failed to scaffold dynamic files after sync",
-        ),
-      );
-    }
-
-    await writeScaffoldFiles(
+    nextProjectConfig = await persistProjectConfig({
       projectRoot,
-      validateDynamicScaffoldResponse(dynamicScaffold).allFiles,
-    );
-    await scaffoldStaticWorkspace(projectRoot, "update", {
-      updateSdk: parsedArgs["update-sdk"],
+      projectConfig: {
+        ...updateProjectAuthoringState(nextProjectConfig, {
+          revisionDigest: revision.revisionDigest,
+          sourceTreeHash: revision.sourceTreeHash,
+          manifestContentHash: revision.manifestContentHash,
+          localManifestContentHash,
+        }),
+        remoteHeadDigest: revision.revisionDigest,
+      },
+    });
+    nextProjectConfig = await finalizeLocalSync({
+      projectRoot,
+      projectConfig: nextProjectConfig,
     });
 
-    await updateProjectState(
-      projectRoot,
-      updateProjectAuthoringState(projectConfig, {
-        authoringStateId: authoringState.authoringStateId,
-        sourceRevisionId: authoringState.sourceRevisionId,
-        sourceTreeHash: authoringState.sourceTreeHash,
-        manifestId: authoringState.manifestId,
-        manifestContentHash: authoringState.manifestContentHash,
-        ruleId: authoringState.ruleId,
-      }),
-    );
-    await writeSnapshot(projectRoot);
-
     consola.success(
-      `Synced authored state ${authoringState.authoringStateId}. Run 'dreamboard compile' when you're ready.`,
+      `Synced revision ${revision.revisionDigest}. Run 'dreamboard compile' when you're ready.`,
     );
   },
 });

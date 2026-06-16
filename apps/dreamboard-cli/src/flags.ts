@@ -1,12 +1,9 @@
 import { z } from "zod";
-import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "./build-target.js";
 
-const configFlagsSchema = IS_PUBLISHED_BUILD
-  ? z.object({})
-  : z.object({
-      env: z.enum(["local", "dev", "prod"]).optional(),
-      token: z.string().optional(),
-    });
+const configFlagsSchema = z.object({
+  env: z.enum(["local", "staging", "prod"]).optional(),
+  token: z.string().optional(),
+});
 
 const ruleInputFlagsSchema = z.object({
   "rule-file": z.string().optional(),
@@ -38,7 +35,6 @@ const pullCommandArgsSchema = configFlagsSchema.extend({
 
 const syncCommandArgsSchema = configFlagsSchema.extend({
   force: z.boolean().default(false),
-  "update-sdk": z.boolean().default(false),
   yes: z.boolean().default(false),
 });
 
@@ -51,48 +47,41 @@ const statusCommandArgsSchema = configFlagsSchema.extend({
   json: z.boolean().default(false),
 });
 
-const runCommandArgsSchema = configFlagsSchema.extend({
-  scenario: z.string().optional(),
+const devCommandArgsSchema = configFlagsSchema.extend({
   seed: z.string().optional(),
+  "setup-profile": z.string().optional(),
   players: z.string().optional(),
   "player-count": z.string().optional(),
-  headless: z.boolean().default(true),
-  resume: z.boolean().default(true),
+  debug: z.boolean().default(false),
+  resume: z.string().optional(),
+  "from-scenario": z.string().optional(),
   "new-session": z.boolean().default(false),
-  until: z.enum(["YOUR_TURN", "GAME_ENDED", "ANY"]).default("YOUR_TURN"),
-  "observe-events": z.enum(["turns", "all"]).default("turns"),
-  "scenario-driver": z.enum(["api", "ui"]).default("api"),
-  "timeout-ms": z.string().optional(),
-  "max-events": z.string().optional(),
-  screenshot: z.boolean().default(false),
-  output: z.string().optional(),
-  delay: z.string().optional(),
-  width: z.string().optional(),
-  height: z.string().optional(),
+  open: z.boolean().default(false),
+  port: z.string().optional(),
+  host: z.union([z.string(), z.boolean()]).optional(),
+  "allowed-host": z.string().optional(),
 });
 
-const startCommandArgsSchema = configFlagsSchema.extend({
-  seed: z.string().optional(),
-  players: z.string().optional(),
+const joinCommandArgsSchema = configFlagsSchema.extend({
+  session: z.string().min(1).optional(),
+  player: z.string().min(1),
+  "raw-events": z.boolean().default(false),
 });
 
 const loginCommandArgsSchema = configFlagsSchema;
 
 const configCommandArgsSchema = configFlagsSchema.extend({
   action: z.string().optional().default("show"),
+  scope: z.enum(["global", "workspace"]).optional().default("global"),
 });
 
-const authCommandArgsSchema = IS_PUBLISHED_BUILD
-  ? z.object({
-      action: z.enum(["clear", "login"]),
-    })
-  : z.object({
-      action: z.enum(["set", "clear", "login", "env"]),
-      tokenValue: z.string().optional(),
-      token: z.string().optional(),
-      jwt: z.boolean().optional(),
-      env: z.enum(["local", "dev", "prod"]).optional(),
-    });
+const authCommandArgsSchema = z.object({
+  action: z.enum(["set", "clear", "login", "env", "status"]),
+  tokenValue: z.string().optional(),
+  token: z.string().optional(),
+  jwt: z.boolean().optional(),
+  env: z.enum(["local", "staging", "prod"]).optional(),
+});
 
 export type ConfigFlags = z.infer<typeof configFlagsSchema>;
 export type RuleInputFlags = z.infer<typeof ruleInputFlagsSchema>;
@@ -105,8 +94,8 @@ export type PullCommandArgs = z.infer<typeof pullCommandArgsSchema>;
 export type SyncCommandArgs = z.infer<typeof syncCommandArgsSchema>;
 export type CompileCommandArgs = z.infer<typeof compileCommandArgsSchema>;
 export type StatusCommandArgs = z.infer<typeof statusCommandArgsSchema>;
-export type RunCommandArgs = z.infer<typeof runCommandArgsSchema>;
-export type StartCommandArgs = z.infer<typeof startCommandArgsSchema>;
+export type DevCommandArgs = z.infer<typeof devCommandArgsSchema>;
+export type JoinCommandArgs = z.infer<typeof joinCommandArgsSchema>;
 export type LoginCommandArgs = z.infer<typeof loginCommandArgsSchema>;
 export type ConfigCommandArgs = z.infer<typeof configCommandArgsSchema>;
 export type AuthCommandArgs = z.infer<typeof authCommandArgsSchema>;
@@ -170,12 +159,12 @@ export function parseStatusCommandArgs(args: unknown): StatusCommandArgs {
   return parseArgs("status", statusCommandArgsSchema, args);
 }
 
-export function parseRunCommandArgs(args: unknown): RunCommandArgs {
-  return parseArgs("run", runCommandArgsSchema, args);
+export function parseDevCommandArgs(args: unknown): DevCommandArgs {
+  return parseArgs("dev", devCommandArgsSchema, args);
 }
 
-export function parseStartCommandArgs(args: unknown): StartCommandArgs {
-  return parseArgs("start", startCommandArgsSchema, args);
+export function parseJoinCommandArgs(args: unknown): JoinCommandArgs {
+  return parseArgs("join", joinCommandArgsSchema, args);
 }
 
 export function parseLoginCommandArgs(args: unknown): LoginCommandArgs {

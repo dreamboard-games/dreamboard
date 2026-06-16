@@ -5,19 +5,29 @@ import { resolveProjectContext } from "../config/resolve.js";
 import { parsePullCommandArgs } from "../flags.js";
 import {
   buildRemoteAlignedSnapshotFiles,
-  fetchLatestRemoteSources,
+  fetchLatestRemoteProjectSources,
   pullIntoDirectory,
   reconcileRemoteChangesIntoWorkspace,
 } from "../services/project/sync.js";
 import {
   collectLocalFiles,
   getLocalDiff,
+  loadManifest,
   writeSnapshotFromFiles,
 } from "../services/project/local-files.js";
 import {
   getProjectAuthoringState,
+  updateProjectLocalMaintainerRegistry,
   updateProjectAuthoringState,
 } from "../services/project/project-state.js";
+import { applyWorkspaceCodegen } from "../services/project/workspace-codegen.js";
+import {
+  ensureLocalMaintainerSnapshot,
+  readWorkspaceLocalMaintainerRegistry,
+} from "../services/project/local-maintainer-registry.js";
+import { scaffoldStaticWorkspace } from "../services/project/static-scaffold.js";
+import { installWorkspaceDependencies } from "../services/project/workspace-dependencies.js";
+import { resolveRemoteProject } from "../services/project/remote-project.js";
 
 export default defineCommand({
   meta: {
@@ -30,39 +40,117 @@ export default defineCommand({
       description: "Override conflicts",
       default: false,
     },
-    env: { type: "string", description: "Environment: local | dev | prod" },
-    token: { type: "string", description: "Auth token (Supabase JWT)" },
+    env: { type: "string", description: "Environment: local | staging | prod" },
+    token: {
+      type: "string",
+      description: "Auth token (Dreamboard bearer JWT)",
+    },
   },
   async run({ args }) {
     const parsedArgs = parsePullCommandArgs(args);
     const { projectRoot, projectConfig, config } =
       await resolveProjectContext(parsedArgs);
-    const localAuthoring = getProjectAuthoringState(projectConfig);
-    const latestRemote = await fetchLatestRemoteSources(projectConfig.gameId);
+    const remoteProject = await resolveRemoteProject({
+      projectRoot,
+      projectConfig,
+      config,
+    });
+    const nextProjectConfig = remoteProject.projectConfig;
+    const localMaintainerRegistry = await ensureLocalMaintainerSnapshot(
+      config.apiBaseUrl,
+    );
+    const localAuthoring = getProjectAuthoringState(nextProjectConfig);
+    const latestRemote = await fetchLatestRemoteProjectSources(
+      nextProjectConfig.projectId,
+    );
+
+    if (localAuthoring.pendingSync && !parsedArgs.force) {
+      throw new Error(
+        "This workspace is still finalizing a previous sync. Run 'dreamboard sync' again to finish it, or use 'dreamboard pull --force' to replace local files with remote state.",
+      );
+    }
 
     if (!latestRemote) {
       consola.info("Remote has no authored state yet.");
       return;
     }
 
-    if (!localAuthoring.authoringStateId) {
+    const localRevisionDigest = localAuthoring.revisionDigest;
+    const latestRevisionDigest =
+      latestRemote.revisionDigest ?? remoteProject.project.head?.revisionDigest;
+
+    if (!latestRevisionDigest) {
+      throw new Error(
+        "Remote has no project revision digest. Run 'dreamboard sync' first.",
+      );
+    }
+
+    if (!localRevisionDigest) {
       if (!parsedArgs.force) {
         throw new Error(
-          `This workspace has no authored base. Use 'dreamboard pull --force' to replace local files with remote authored state ${latestRemote.authoringStateId}.`,
+          `This workspace has no authored base revision. Use 'dreamboard pull --force' to replace local files with remote revision ${latestRevisionDigest}.`,
         );
       }
-      await pullIntoDirectory(config, projectRoot, projectConfig);
+      const pulledProjectConfig = await pullIntoDirectory(
+        config,
+        projectRoot,
+        nextProjectConfig,
+      );
+      const fallbackRegistryUrl = localMaintainerRegistry?.registryUrl;
+      const workspaceLocalMaintainerRegistry =
+        localMaintainerRegistry ??
+        (await readWorkspaceLocalMaintainerRegistry(
+          projectRoot,
+          fallbackRegistryUrl,
+        ));
+      await scaffoldStaticWorkspace(projectRoot, "update", {
+        localMaintainerRegistry: workspaceLocalMaintainerRegistry,
+      });
+      if (workspaceLocalMaintainerRegistry) {
+        await installWorkspaceDependencies(projectRoot);
+        await updateProjectState(
+          projectRoot,
+          updateProjectLocalMaintainerRegistry(
+            pulledProjectConfig,
+            workspaceLocalMaintainerRegistry,
+          ),
+        );
+      }
       consola.success("Pulled remote authored state into the workspace.");
       return;
     }
 
-    if (localAuthoring.authoringStateId === latestRemote.authoringStateId) {
-      consola.info("Remote authored state already matches this workspace.");
+    if (localRevisionDigest === latestRevisionDigest) {
+      consola.info("Remote project revision already matches this workspace.");
       return;
     }
 
     if (parsedArgs.force) {
-      await pullIntoDirectory(config, projectRoot, projectConfig);
+      const pulledProjectConfig = await pullIntoDirectory(
+        config,
+        projectRoot,
+        nextProjectConfig,
+      );
+      const fallbackRegistryUrl = localMaintainerRegistry?.registryUrl;
+      const workspaceLocalMaintainerRegistry =
+        localMaintainerRegistry ??
+        (await readWorkspaceLocalMaintainerRegistry(
+          projectRoot,
+          fallbackRegistryUrl,
+        ));
+      await scaffoldStaticWorkspace(projectRoot, "update", {
+        localMaintainerRegistry: workspaceLocalMaintainerRegistry,
+      });
+      if (workspaceLocalMaintainerRegistry) {
+        await installWorkspaceDependencies(projectRoot);
+        await updateProjectState(
+          projectRoot,
+          updateProjectLocalMaintainerRegistry(
+            pulledProjectConfig,
+            workspaceLocalMaintainerRegistry,
+          ),
+        );
+      }
       consola.success(
         "Replaced local files with the current remote authored state.",
       );
@@ -71,9 +159,9 @@ export default defineCommand({
 
     const reconcileResult = await reconcileRemoteChangesIntoWorkspace({
       projectRoot,
-      projectConfig,
-      baseAuthoringStateId: localAuthoring.authoringStateId,
-      latestAuthoringStateId: latestRemote.authoringStateId,
+      projectConfig: nextProjectConfig,
+      baseRevisionDigest: localRevisionDigest,
+      latestRevisionDigest,
     });
 
     if (reconcileResult.conflicts.length > 0) {
@@ -85,9 +173,27 @@ export default defineCommand({
       );
     }
 
-    await updateProjectState(
+    await applyWorkspaceCodegen({
       projectRoot,
-      updateProjectAuthoringState(projectConfig, {
+      manifest: await loadManifest(projectRoot),
+    });
+    const fallbackRegistryUrl = localMaintainerRegistry?.registryUrl;
+    const workspaceLocalMaintainerRegistry =
+      localMaintainerRegistry ??
+      (await readWorkspaceLocalMaintainerRegistry(
+        projectRoot,
+        fallbackRegistryUrl,
+      ));
+    await scaffoldStaticWorkspace(projectRoot, "update", {
+      localMaintainerRegistry: workspaceLocalMaintainerRegistry,
+    });
+    if (workspaceLocalMaintainerRegistry) {
+      await installWorkspaceDependencies(projectRoot);
+    }
+
+    const reconciledProjectConfig = updateProjectLocalMaintainerRegistry(
+      updateProjectAuthoringState(nextProjectConfig, {
+        revisionDigest: latestRevisionDigest,
         authoringStateId: reconcileResult.latest.authoringStateId,
         sourceRevisionId: reconcileResult.latest.sourceRevisionId,
         sourceTreeHash: reconcileResult.latest.treeHash,
@@ -100,7 +206,9 @@ export default defineCommand({
         ruleId:
           reconcileResult.latest.ruleId ?? projectConfig.authoring?.ruleId,
       }),
+      workspaceLocalMaintainerRegistry ?? undefined,
     );
+    await updateProjectState(projectRoot, reconciledProjectConfig);
 
     const reconciledLocalFiles = await collectLocalFiles(projectRoot);
     await writeSnapshotFromFiles(

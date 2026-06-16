@@ -1,7 +1,8 @@
+import { MANIFEST_TYPECHECK_CONFIG_FILE } from "../../constants.js";
 import { spawn } from "node:child_process";
-import { lstat, mkdir, symlink } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 export type LocalTypecheckResult = {
   success: boolean;
@@ -14,27 +15,25 @@ type TypecheckRunner = {
   argsPrefix: string[];
 };
 
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(MODULE_DIR, "../../../../..");
-const WORKSPACE_NODE_MODULES = path.join(REPO_ROOT, "node_modules");
-const UI_SDK_NODE_MODULES = path.join(
-  REPO_ROOT,
-  "packages",
-  "ui-sdk",
-  "node_modules",
-);
 const TYPESCRIPT_BIN_PATH_SEGMENTS = [
   "node_modules",
   "typescript",
   "bin",
   "tsc",
 ];
-const TYPESCRIPT_CLI = path.join(
-  WORKSPACE_NODE_MODULES,
-  "typescript",
-  "bin",
-  "tsc",
-);
+
+// TypeScript shipped with the CLI package itself; used as a fallback when the
+// user's workspace does not provide its own `typescript` install.
+const CLI_PACKAGE_TYPESCRIPT_CLI = resolveCliPackageTypescriptCli();
+
+function resolveCliPackageTypescriptCli(): string | null {
+  try {
+    const require = createRequire(import.meta.url);
+    return require.resolve("typescript/bin/tsc");
+  } catch {
+    return null;
+  }
+}
 
 function getProjectNodeModules(projectRoot: string): string {
   return path.join(projectRoot, "node_modules");
@@ -53,19 +52,6 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
-async function ensureSymlink(targetPath: string, linkPath: string) {
-  if (await pathExists(linkPath)) {
-    return;
-  }
-
-  await mkdir(path.dirname(linkPath), { recursive: true });
-  await symlink(
-    targetPath,
-    linkPath,
-    process.platform === "win32" ? "junction" : "dir",
-  );
-}
-
 async function ensureTypecheckDependencies(
   projectRoot: string,
 ): Promise<string | null> {
@@ -73,23 +59,7 @@ async function ensureTypecheckDependencies(
     return null;
   }
 
-  if (!(await pathExists(WORKSPACE_NODE_MODULES))) {
-    return `Skipping local typecheck: project dependencies are not installed at ${getProjectNodeModules(projectRoot)}, and workspace dependencies are not installed at ${WORKSPACE_NODE_MODULES}.`;
-  }
-  if (!(await pathExists(UI_SDK_NODE_MODULES))) {
-    return `Skipping local typecheck: project dependencies are not installed at ${getProjectNodeModules(projectRoot)}, and ui-sdk dependencies are not installed at ${UI_SDK_NODE_MODULES}.`;
-  }
-
-  await ensureSymlink(
-    WORKSPACE_NODE_MODULES,
-    getProjectNodeModules(projectRoot),
-  );
-  await ensureSymlink(
-    UI_SDK_NODE_MODULES,
-    path.join(projectRoot, "ui", "node_modules"),
-  );
-
-  return null;
+  return `Skipping local typecheck: workspace dependencies are not installed at ${getProjectNodeModules(projectRoot)}. Run \`dreamboard sync\` to reconcile workspace dependencies first.`;
 }
 
 async function resolveTypecheckRunner(
@@ -103,10 +73,13 @@ async function resolveTypecheckRunner(
     };
   }
 
-  if (await pathExists(TYPESCRIPT_CLI)) {
+  if (
+    CLI_PACKAGE_TYPESCRIPT_CLI &&
+    (await pathExists(CLI_PACKAGE_TYPESCRIPT_CLI))
+  ) {
     return {
       command: process.execPath,
-      argsPrefix: [TYPESCRIPT_CLI],
+      argsPrefix: [CLI_PACKAGE_TYPESCRIPT_CLI],
     };
   }
 
@@ -194,11 +167,23 @@ export async function runLocalTypecheck(
     };
   }
 
-  for (const projectPath of ["app/tsconfig.json", "ui/tsconfig.json"]) {
-    const result = await runTypecheckProject(runner, projectRoot, projectPath);
-    if (!result.success) {
-      return result;
-    }
+  // The three projects are independent (no cross-project references), so
+  // checking them in parallel roughly halves wall-clock time without changing
+  // correctness. The slowest project (typically `ui/tsconfig.json`) bounds the
+  // total cost.
+  const results = await Promise.all(
+    [
+      MANIFEST_TYPECHECK_CONFIG_FILE,
+      "app/tsconfig.json",
+      "ui/tsconfig.json",
+    ].map((projectPath) =>
+      runTypecheckProject(runner, projectRoot, projectPath),
+    ),
+  );
+
+  const firstFailure = results.find((result) => !result.success);
+  if (firstFailure) {
+    return firstFailure;
   }
 
   return {

@@ -1,17 +1,27 @@
 {
-  "name": "dreamboard-cli-public",
+  "name": "dreamboard",
+  "version": "0.0.1",
   "private": true,
-  "packageManager": "pnpm@10.4.1",
-  "engines": {
-    "node": ">=20"
-  },
+  "description": "Dreamboard public source repo: the dreamboard CLI, docs, skills, and public packages.",
   "scripts": {
     "build": "pnpm --dir apps/dreamboard-cli run build",
     "docs:broken-links": "pnpm mint broken-links",
     "docs:dev": "pnpm mint dev",
     "skills:sync-docs": "pnpm --dir apps/dreamboard-cli run sync:skill-docs",
     "docs:validate": "pnpm mint validate",
+    "typecheck": "pnpm --dir apps/dreamboard-cli run typecheck",
+    "test": "pnpm --dir apps/dreamboard-cli run test",
     "stage:publish": "pnpm --dir apps/dreamboard-cli run stage:publish",
     "pack:publish": "pnpm --dir apps/dreamboard-cli run pack:publish"
-  }
+  },
+  "packageManager": "pnpm@10.4.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "type": "module"
 }

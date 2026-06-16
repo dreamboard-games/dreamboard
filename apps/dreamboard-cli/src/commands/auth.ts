@@ -1,24 +1,60 @@
 import crypto from "node:crypto";
 import { defineCommand } from "citty";
 import consola from "consola";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { startCliAuthServer, openBrowser } from "../auth/auth-server.js";
-import { DEFAULT_LOGIN_TIMEOUT_MS, ENVIRONMENT_CONFIGS } from "../constants.js";
+import { startOAuthCallbackServer, openBrowser } from "../auth/auth-server.js";
 import {
+  buildClerkAuthorizationUrl,
+  createPkcePair,
+  exchangeClerkOAuthCode,
+} from "../auth/clerk-oauth.js";
+import { DEFAULT_LOGIN_TIMEOUT_MS } from "../constants.js";
+import {
+  getGlobalAuthPath,
   getGlobalConfigPath,
   loadGlobalConfig,
   saveGlobalConfig,
 } from "../config/global-config.js";
+import {
+  clearCredentials,
+  getActiveCredentialBackendName,
+  getStoredSession,
+  setAccessOnlySession,
+  setCredentials,
+} from "../config/credential-store.js";
+import {
+  getAuthTokenExpiry,
+  refreshResolvedAuthSession,
+  resolveConfig,
+} from "../config/resolve.js";
 import { parseAuthCommandArgs } from "../flags.js";
 import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
 
 async function loginWithBrowser(
-  webBaseUrl: string,
+  config: ReturnType<typeof resolveConfig>,
   quiet: boolean,
-): Promise<{ token: string; refreshToken: string | undefined }> {
+): Promise<{
+  token: string;
+  refreshToken: string;
+  expiresAt?: string;
+  tokenUrl: string;
+}> {
   const state = crypto.randomUUID();
-  const server = await startCliAuthServer(state, DEFAULT_LOGIN_TIMEOUT_MS);
-  const loginUrl = `${webBaseUrl.replace(/\/$/, "")}/cli-login?port=${server.port}&state=${state}`;
+  const pkce = createPkcePair();
+  const server = await startOAuthCallbackServer(
+    state,
+    DEFAULT_LOGIN_TIMEOUT_MS,
+  );
+  const loginUrl = buildClerkAuthorizationUrl({
+    config: {
+      issuer: config.clerkOAuthIssuer,
+      clientId: config.clerkOAuthClientId,
+      tokenUrl: config.clerkOAuthTokenUrl,
+      scope: config.clerkOAuthScope,
+    },
+    redirectUri: server.redirectUri,
+    state,
+    codeChallenge: pkce.challenge,
+  }).toString();
 
   if (!quiet) {
     consola.info("Opening browser for login...");
@@ -32,8 +68,23 @@ async function loginWithBrowser(
   }
 
   try {
-    const { token, refreshToken } = await server.waitForToken;
-    return { token, refreshToken: refreshToken ?? undefined };
+    const { code } = await server.waitForCode;
+    const tokenResponse = await exchangeClerkOAuthCode({
+      config: {
+        issuer: config.clerkOAuthIssuer,
+        clientId: config.clerkOAuthClientId,
+        tokenUrl: config.clerkOAuthTokenUrl,
+      },
+      code,
+      redirectUri: server.redirectUri,
+      codeVerifier: pkce.verifier,
+    });
+    return {
+      token: tokenResponse.accessToken,
+      refreshToken: tokenResponse.refreshToken,
+      expiresAt: tokenResponse.expiresAt,
+      tokenUrl: tokenResponse.tokenUrl,
+    };
   } finally {
     server.close();
   }
@@ -46,7 +97,7 @@ export default defineCommand({
       type: "positional",
       description: IS_PUBLISHED_BUILD
         ? "Action: clear | login"
-        : "Action: set | clear | login | env",
+        : "Action: set | clear | login | env | status",
       required: true,
     },
     ...(IS_PUBLISHED_BUILD
@@ -67,14 +118,14 @@ export default defineCommand({
           },
           env: {
             type: "string" as const,
-            description: "Environment: local | dev | prod",
+            description: "Environment: local | staging | prod",
           },
         }),
   },
   async run({ args }) {
     const parsedArgs = parseAuthCommandArgs(args);
     const action = parsedArgs.action;
-    const config = await loadGlobalConfig();
+    const globalConfig = await loadGlobalConfig();
 
     if (IS_PUBLISHED_BUILD && action !== "login" && action !== "clear") {
       throw new Error(
@@ -90,14 +141,17 @@ export default defineCommand({
       }
       const environment = parsedArgs.tokenValue ?? parsedArgs.env;
       if (!environment) {
-        throw new Error("Usage: dreamboard auth env <local|dev|prod>");
+        throw new Error("Usage: dreamboard auth env <local|staging|prod>");
       }
-      if (!["local", "dev", "prod"].includes(environment)) {
+      if (!["local", "staging", "prod"].includes(environment)) {
         throw new Error(
-          `Invalid environment '${environment}'. Valid options: local, dev, prod`,
+          `Invalid environment '${environment}'. Valid options: local, staging, prod`,
         );
       }
-      await saveGlobalConfig({ ...config, environment: environment as any });
+      await saveGlobalConfig({
+        ...globalConfig,
+        environment: environment as any,
+      });
       consola.success(`Environment set to '${environment}'.`);
       return;
     }
@@ -110,19 +164,20 @@ export default defineCommand({
       }
       const token = parsedArgs.tokenValue ?? parsedArgs.token ?? "";
       if (!token) throw new Error("Usage: dreamboard auth set <token>");
-      await saveGlobalConfig({ ...config, authToken: token });
-      consola.success("Auth token saved.");
+
+      // `auth set` is the power-user "paste a JWT" path. It has no
+      // refresh token by construction; calling `setAccessOnlySession`
+      // keeps the intent explicit at the storage layer rather than
+      // piggybacking on a partial `setCredentials` write.
+      await setAccessOnlySession(token);
+      consola.success(`Auth token saved to ${getGlobalAuthPath()}.`);
       return;
     }
 
     if (action === "clear") {
-      await saveGlobalConfig({
-        ...config,
-        authToken: undefined,
-        refreshToken: undefined,
-      });
+      await clearCredentials();
       consola.success(
-        `Stored Dreamboard session cleared from ${getGlobalConfigPath()}.`,
+        `Stored Dreamboard session cleared from ${getGlobalAuthPath()}.`,
       );
       return;
     }
@@ -131,47 +186,52 @@ export default defineCommand({
       const shouldPrintJwt = !IS_PUBLISHED_BUILD && parsedArgs.jwt === true;
       const environment = IS_PUBLISHED_BUILD
         ? PUBLISHED_ENVIRONMENT
-        : parsedArgs.env || config.environment || "dev";
-      const envConfig = ENVIRONMENT_CONFIGS[environment];
+        : parsedArgs.env || globalConfig.environment || "staging";
 
-      const supabaseUrl = envConfig?.supabaseUrl;
-      const supabaseAnonKey = envConfig?.supabaseAnonKey;
+      const storedSession = await getStoredSession();
+      let accessToken = storedSession?.accessToken;
+      let refreshToken = storedSession?.refreshToken;
+      let tokenExpiresAt = storedSession?.tokenExpiresAt;
+      let clerkOAuthTokenUrl = storedSession?.clerkOAuthTokenUrl;
+      let didRefreshStoredSession = false;
+      let didUseBrowserLogin = false;
+      const resolvedConfig = resolveConfig(
+        globalConfig,
+        { env: environment },
+        undefined,
+        storedSession,
+      );
 
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error(
-          `Missing Supabase config for environment '${environment}'. Check ENVIRONMENT_CONFIGS in constants.ts.`,
-        );
+      if (accessToken && refreshToken) {
+        try {
+          const refreshed = await refreshResolvedAuthSession(resolvedConfig);
+          accessToken = refreshed?.accessToken ?? accessToken;
+          refreshToken = refreshed?.refreshToken ?? refreshToken;
+          tokenExpiresAt = refreshed?.tokenExpiresAt ?? tokenExpiresAt;
+          clerkOAuthTokenUrl =
+            refreshed?.clerkOAuthTokenUrl ?? clerkOAuthTokenUrl;
+          didRefreshStoredSession = Boolean(refreshed);
+        } catch (error) {
+          consola.warn(
+            error instanceof Error
+              ? error.message
+              : "Stored Dreamboard CLI session refresh failed.",
+          );
+          accessToken = undefined;
+          refreshToken = undefined;
+        }
       }
 
-      const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
-      let accessToken = config.authToken;
-      let refreshToken = config.refreshToken;
-      let didRefreshStoredSession = false;
-
-      if (accessToken) {
-        if (refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (error) {
-            throw new Error(
-              `Stored session refresh failed: ${error.message}. Run 'dreamboard auth clear' and retry 'dreamboard auth login'.`,
-            );
-          }
-
-          accessToken = data.session?.access_token ?? accessToken;
-          refreshToken = data.session?.refresh_token ?? refreshToken;
-          didRefreshStoredSession = true;
-        }
-      } else {
+      if (!accessToken) {
         const browserLogin = await loginWithBrowser(
-          envConfig.webBaseUrl,
+          resolvedConfig,
           shouldPrintJwt,
         );
         accessToken = browserLogin.token;
         refreshToken = browserLogin.refreshToken;
+        tokenExpiresAt = browserLogin.expiresAt;
+        clerkOAuthTokenUrl = browserLogin.tokenUrl;
+        didUseBrowserLogin = true;
       }
 
       if (!accessToken) {
@@ -179,11 +239,23 @@ export default defineCommand({
       }
 
       await saveGlobalConfig({
-        ...config,
-        authToken: accessToken,
-        refreshToken: refreshToken,
+        ...globalConfig,
         environment: environment as any,
       });
+
+      if (refreshToken) {
+        await setCredentials({
+          accessToken,
+          refreshToken,
+          tokenExpiresAt,
+          clerkOAuthIssuer: resolvedConfig.clerkOAuthIssuer,
+          clerkOAuthClientId: resolvedConfig.clerkOAuthClientId,
+          clerkOAuthTokenUrl,
+          environment,
+        });
+      } else {
+        await setAccessOnlySession(accessToken);
+      }
 
       if (shouldPrintJwt) {
         process.stdout.write(
@@ -200,26 +272,109 @@ export default defineCommand({
         return;
       }
 
-      if (config.authToken && didRefreshStoredSession) {
+      if (didUseBrowserLogin) {
         consola.success(
-          `Stored auth session refreshed and saved to ${getGlobalConfigPath()}.`,
+          `Browser login successful. Session saved to ${getGlobalAuthPath()}`,
         );
-      } else if (config.authToken) {
+      } else if (storedSession?.accessToken && didRefreshStoredSession) {
         consola.success(
-          `Stored auth token found. Session data remains in ${getGlobalConfigPath()}.`,
+          `Stored auth session refreshed and saved to ${getGlobalAuthPath()}`,
         );
-      } else {
+      } else if (storedSession?.accessToken) {
         consola.success(
-          `Browser login successful. Session saved to ${getGlobalConfigPath()}.`,
+          `Stored auth token found. Session data remains in ${getGlobalAuthPath()}`,
         );
       }
+      return;
+    }
+
+    if (action === "status") {
+      const storedSession = await getStoredSession();
+      const resolvedConfig = resolveConfig(
+        globalConfig,
+        { env: parsedArgs.env },
+        undefined,
+        storedSession,
+      );
+      const environment =
+        parsedArgs.env || globalConfig.environment || "staging";
+      const authTokenExpiry = getAuthTokenExpiry(resolvedConfig.authToken);
+      const backendName = await getActiveCredentialBackendName();
+
+      consola.log(`Environment: ${environment}`);
+      consola.log(`Auth token source: ${resolvedConfig.authTokenSource}`);
+      consola.log(`Refresh token source: ${resolvedConfig.refreshTokenSource}`);
+      consola.log(
+        `Credential backend: ${backendName}${
+          backendName === "keychain"
+            ? " (OS keychain via @napi-rs/keyring)"
+            : ` (${getGlobalAuthPath()})`
+        }`,
+      );
+      const preference = globalConfig.credentialBackend;
+      if (preference) {
+        consola.log(`Credential backend preference (config): ${preference}`);
+      } else {
+        consola.log(
+          'Credential backend preference (config): file (default; set `"credentialBackend": "keychain"` in config.json to opt in)',
+        );
+      }
+      if (process.env.DREAMBOARD_CREDENTIAL_BACKEND) {
+        consola.log(
+          `Backend override: DREAMBOARD_CREDENTIAL_BACKEND=${process.env.DREAMBOARD_CREDENTIAL_BACKEND}`,
+        );
+      }
+      consola.log(`Config path: ${getGlobalConfigPath()}`);
+
+      if (!resolvedConfig.authToken) {
+        consola.warn("No Dreamboard session found.");
+        return;
+      }
+
+      if (authTokenExpiry) {
+        const isExpired = authTokenExpiry.getTime() <= Date.now();
+        consola.log(
+          `Access token expires at: ${authTokenExpiry.toISOString()} (${isExpired ? "expired" : "active"})`,
+        );
+
+        if (isExpired) {
+          if (!resolvedConfig.refreshToken) {
+            consola.warn(
+              "Access token is expired and no refresh token is available. Run `dreamboard login` to authenticate again.",
+            );
+            return;
+          }
+
+          const refreshed = await refreshResolvedAuthSession(resolvedConfig);
+
+          if (!refreshed?.accessToken) {
+            consola.warn(
+              "Access token is expired and refresh did not return a new session.",
+            );
+            return;
+          }
+
+          const refreshedExpiry = getAuthTokenExpiry(refreshed.accessToken);
+          consola.success("Access token was expired and has been refreshed.");
+          if (refreshedExpiry) {
+            consola.log(
+              `Refreshed access token expires at: ${refreshedExpiry.toISOString()}`,
+            );
+          }
+          return;
+        }
+      } else {
+        consola.log("Access token expiry: unavailable");
+      }
+
+      consola.success("Dreamboard session is active.");
       return;
     }
 
     throw new Error(
       IS_PUBLISHED_BUILD
         ? "Usage:\n  dreamboard auth clear\n  dreamboard auth login"
-        : "Usage:\n  dreamboard auth clear\n  dreamboard auth login [--env <local|dev|prod>] [--jwt]\n  dreamboard auth set <token>\n  dreamboard auth env <local|dev|prod>",
+        : "Usage:\n  dreamboard auth clear\n  dreamboard auth login [--env <local|staging|prod>] [--jwt]\n  dreamboard auth set <token>\n  dreamboard auth env <local|staging|prod>\n  dreamboard auth status [--env <local|staging|prod>]",
     );
   },
 });

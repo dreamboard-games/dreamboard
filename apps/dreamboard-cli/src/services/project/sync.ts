@@ -1,33 +1,47 @@
 import { unlink } from "node:fs/promises";
 import path from "node:path";
-import { getGameSources, type BoardManifest } from "@dreamboard/api-client";
+import type { GameTopologyManifest } from "@dreamboard-games/api-client";
 import { MANIFEST_FILE, RULE_FILE } from "../../constants.js";
 import type { ProjectConfig, ResolvedConfig } from "../../types.js";
 import { updateProjectState } from "../../config/project-config.js";
-import { getAuthoringHeadSdk } from "../api/authoring-state-api.js";
-import { updateProjectAuthoringState } from "./project-state.js";
-import { formatApiError } from "../../utils/errors.js";
+import {
+  getProjectRevisionSourcesSdk,
+  getProjectSourcesSdk,
+} from "../api/project-api.js";
+import {
+  clearProjectPendingAuthoringSync,
+  updateProjectAuthoringState,
+} from "./project-state.js";
 import { exists, writeTextFile } from "../../utils/fs.js";
 import {
   collectLocalFiles,
   removeExtraneousFiles,
+  loadManifest,
   writeManifest,
   writeRule,
   writeSnapshot,
   writeSourceFiles,
 } from "./local-files.js";
 import { isAllowedGamePath, isLibraryPath } from "./scaffold-ownership.js";
+import { applyWorkspaceCodegen } from "./workspace-codegen.js";
+import { installWorkspaceDependencies } from "./workspace-dependencies.js";
 
-const META_FILES = new Set([MANIFEST_FILE, RULE_FILE]);
+const META_FILES = new Set([RULE_FILE]);
+const LOCAL_PACKAGE_METADATA_FILES = new Set([
+  ".npmrc",
+  "package.json",
+  "pnpm-lock.yaml",
+]);
 
 export type RemoteProjectSources = {
-  authoringStateId: string;
+  authoringStateId?: string;
+  revisionDigest?: string;
   files: Record<string, string>;
   sourceRevisionId: string;
   treeHash: string;
   manifestId?: string;
   manifestContentHash?: string;
-  manifest?: BoardManifest;
+  manifest?: GameTopologyManifest;
   ruleId?: string;
   ruleText?: string;
 };
@@ -49,11 +63,6 @@ function normalizeRemoteFiles(
     | undefined,
 ): Record<string, string> {
   return response?.files ?? response?.sourceFiles ?? {};
-}
-
-function manifestToText(manifest: BoardManifest | undefined): string | null {
-  if (!manifest) return null;
-  return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
 function isMergeablePath(filePath: string): boolean {
@@ -78,11 +87,6 @@ function buildMergeableRemoteFiles(
     if (isMergeablePath(filePath)) {
       files[filePath] = content;
     }
-  }
-
-  const manifestText = manifestToText(sources.manifest);
-  if (manifestText !== null) {
-    files[MANIFEST_FILE] = manifestText;
   }
 
   if (typeof sources.ruleText === "string") {
@@ -166,27 +170,43 @@ function mergeFileContent(options: {
   };
 }
 
-async function fetchRemoteSources(
-  gameId: string,
-  authoringStateId: string,
+async function fetchRemoteRevisionSources(
+  projectId: string,
+  revisionDigest: string,
 ): Promise<RemoteProjectSources> {
-  const {
-    data: sources,
-    error: sourcesError,
-    response: sourcesResponse,
-  } = await getGameSources({
-    path: { gameId },
-    query: { authoringStateId },
+  const sources = await getProjectRevisionSourcesSdk({
+    projectId,
+    revisionDigest,
   });
 
-  if (sourcesError || !sources) {
-    throw new Error(
-      formatApiError(sourcesError, sourcesResponse, "Failed to get sources"),
-    );
-  }
+  return {
+    revisionDigest: sources.revisionDigest,
+    files: normalizeRemoteFiles(sources),
+    sourceRevisionId: sources.sourceRevisionId,
+    treeHash: sources.sourceTreeHash,
+    manifestContentHash: sources.manifestContentHash,
+    manifest: sources.manifest,
+    ruleText: sources.ruleText,
+  };
+}
 
+export async function fetchLatestRemoteSources(
+  gameId: string,
+): Promise<RemoteProjectSources | null> {
+  void gameId;
+  throw new Error("Legacy game source fetch is no longer supported.");
+}
+
+export async function fetchLatestRemoteProjectSources(
+  projectId: string,
+): Promise<RemoteProjectSources | null> {
+  const sources = await getProjectSourcesSdk(projectId);
+  if (!sources) {
+    return null;
+  }
   return {
     authoringStateId: sources.authoringStateId,
+    revisionDigest: undefined,
     files: normalizeRemoteFiles(sources),
     sourceRevisionId: sources.sourceRevisionId,
     treeHash: sources.treeHash,
@@ -198,22 +218,14 @@ async function fetchRemoteSources(
   };
 }
 
-export async function fetchLatestRemoteSources(
-  gameId: string,
-): Promise<RemoteProjectSources | null> {
-  const latest = await getAuthoringHeadSdk(gameId);
-  if (!latest?.authoringStateId) {
-    return null;
-  }
-  return fetchRemoteSources(gameId, latest.authoringStateId);
-}
-
 export async function pullIntoDirectory(
   config: ResolvedConfig,
   targetDir: string,
   projectConfig: ProjectConfig,
 ): Promise<ProjectConfig> {
-  const latest = await fetchLatestRemoteSources(projectConfig.gameId);
+  const latest = await fetchLatestRemoteProjectSources(
+    projectConfig.projectId,
+  );
   if (!latest) {
     throw new Error("No authoring state found for this game.");
   }
@@ -221,13 +233,23 @@ export async function pullIntoDirectory(
   await writeSourceFiles(targetDir, latest.files);
   await removeExtraneousFiles(targetDir, new Set(Object.keys(latest.files)));
 
-  if (latest.manifest) {
+  if (latest.manifest && !latest.files[MANIFEST_FILE]) {
     await writeManifest(targetDir, latest.manifest);
   }
 
-  if (latest.ruleText) {
+  if (typeof latest.ruleText === "string") {
     await writeRule(targetDir, latest.ruleText);
   }
+
+  if (await exists(path.join(targetDir, "package.json"))) {
+    await installWorkspaceDependencies(targetDir);
+  }
+
+  const manifestForCodegen = await loadManifest(targetDir);
+  await applyWorkspaceCodegen({
+    projectRoot: targetDir,
+    manifest: manifestForCodegen,
+  });
 
   const pulledProjectConfig = buildPulledProjectConfig(
     config,
@@ -246,12 +268,14 @@ export function buildPulledProjectConfig(
   latest: RemoteProjectSources,
 ): ProjectConfig {
   return updateProjectAuthoringState(
-    {
+    clearProjectPendingAuthoringSync({
       ...projectConfig,
+      remoteHeadDigest: latest.revisionDigest ?? projectConfig.remoteHeadDigest,
       apiBaseUrl: projectConfig.apiBaseUrl ?? config.apiBaseUrl,
       webBaseUrl: projectConfig.webBaseUrl ?? config.webBaseUrl,
-    },
+    }),
     {
+      revisionDigest: latest.revisionDigest ?? projectConfig.remoteHeadDigest,
       authoringStateId: latest.authoringStateId,
       sourceRevisionId: latest.sourceRevisionId,
       sourceTreeHash: latest.treeHash,
@@ -267,18 +291,18 @@ export function buildPulledProjectConfig(
 export async function reconcileRemoteChangesIntoWorkspace(options: {
   projectRoot: string;
   projectConfig: ProjectConfig;
-  baseAuthoringStateId: string;
-  latestAuthoringStateId: string;
+  baseRevisionDigest: string;
+  latestRevisionDigest: string;
 }): Promise<RemoteReconcileResult> {
   const {
     projectRoot,
     projectConfig,
-    baseAuthoringStateId,
-    latestAuthoringStateId,
+    baseRevisionDigest,
+    latestRevisionDigest,
   } = options;
   const [base, latest, localFiles] = await Promise.all([
-    fetchRemoteSources(projectConfig.gameId, baseAuthoringStateId),
-    fetchRemoteSources(projectConfig.gameId, latestAuthoringStateId),
+    fetchRemoteRevisionSources(projectConfig.projectId, baseRevisionDigest),
+    fetchRemoteRevisionSources(projectConfig.projectId, latestRevisionDigest),
     collectLocalFiles(projectRoot),
   ]);
 
@@ -341,8 +365,16 @@ export function buildRemoteAlignedSnapshotFiles(options: {
   localFiles: Record<string, string>;
   remoteUserFiles: Record<string, string>;
 }): Record<string, string> {
-  return {
+  const snapshotFiles = {
     ...options.localFiles,
     ...options.remoteUserFiles,
   };
+
+  for (const filePath of LOCAL_PACKAGE_METADATA_FILES) {
+    if (options.localFiles[filePath] !== undefined) {
+      snapshotFiles[filePath] = options.localFiles[filePath];
+    }
+  }
+
+  return snapshotFiles;
 }
