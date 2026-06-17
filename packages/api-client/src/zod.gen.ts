@@ -68,6 +68,22 @@ export const zProblemDetails = z.object({
     timestamp: z.optional(z.iso.datetime())
 });
 
+/**
+ * Short-lived Dreamboard user-token audience requested by the CLI.
+ */
+export const zTokenExchangeAudience = z.enum(['dreamboard-api', 'dreamboard-git']);
+
+export const zTokenExchangeRequest = z.object({
+    audience: zTokenExchangeAudience
+});
+
+export const zTokenExchangeResponse = z.object({
+    accessToken: z.string(),
+    tokenType: z.enum(['Bearer']),
+    audience: zTokenExchangeAudience,
+    expiresIn: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })
+});
+
 export const zCreateBillingCheckoutSessionRequest = z.object({
     planKey: z.optional(z.string()).default('designer'),
     successUrl: z.optional(z.string()),
@@ -107,33 +123,30 @@ export const zGameMetadata = z.object({
     difficulty: z.optional(z.int().gte(1).lte(5))
 });
 
-export const zGame = z.object({
-    id: z.uuid(),
-    projectId: z.uuid(),
-    slug: z.string(),
-    name: z.string().min(1).max(255),
-    description: z.optional(z.string()),
-    ruleText: z.optional(z.string()),
-    public: z.boolean().default(false),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
-    scriptId: z.optional(z.string()),
-    previewStorageKey: z.optional(z.string()),
-    initialProjectionKey: z.optional(z.string()),
-    metadata: z.optional(zGameMetadata),
-    verified: z.boolean().default(false),
-    verifiedAt: z.optional(z.iso.datetime())
+/**
+ * Portable exact authored head for a project. Populated after the atomic revision hard cut.
+ */
+export const zProjectHead = z.object({
+    revisionDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/)
 });
 
 /**
- * Request to create a new game
+ * Public project identity resolved within the caller's active owner scope. It never exposes the deployment-local game instance identifier.
  */
-export const zCreateGameRequest = z.object({
-    slug: z.optional(z.string()),
-    name: z.optional(z.string().max(200)),
-    description: z.optional(z.string().max(1000)),
-    ruleText: z.optional(z.string().max(50000)),
-    enhanceRule: z.optional(z.boolean()).default(false)
+export const zProject = z.object({
+    projectId: z.uuid(),
+    slug: z.string(),
+    name: z.string(),
+    description: z.optional(z.string()),
+    metadata: z.optional(zGameMetadata),
+    public: z.boolean().default(false),
+    previewStorageKey: z.optional(z.string()),
+    initialProjectionKey: z.optional(z.string()),
+    verified: z.boolean().default(false),
+    verifiedAt: z.optional(z.iso.datetime()),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    head: z.optional(zProjectHead)
 });
 
 /**
@@ -204,6 +217,57 @@ export const zGameSpecForm = z.object({
  */
 export const zExtractGameSpecResponse = z.object({
     gameSpec: zGameSpecForm
+});
+
+/**
+ * Request to ensure a portable project exists in the caller's active owner scope
+ */
+export const zEnsureProjectRequest = z.object({
+    slug: z.string().min(1).max(200),
+    name: z.string().min(1).max(200),
+    description: z.optional(z.string().max(1000)),
+    updateAlias: z.optional(z.boolean()).default(false)
+});
+
+export const zDeleteProjectResponse = z.object({
+    deleted: z.boolean()
+});
+
+/**
+ * Request to update project metadata in the caller's active owner scope.
+ */
+export const zUpdateProjectRequest = z.object({
+    slug: z.optional(z.string().min(1).max(200)),
+    name: z.optional(z.string().min(1).max(200)),
+    description: z.optional(z.string().max(1000)),
+    public: z.optional(z.boolean()),
+    metadata: z.optional(zGameMetadata)
+});
+
+/**
+ * Environment-local opaque Git repository binding for a project installation.
+ */
+export const zProjectRepository = z.object({
+    repoBindingId: z.uuid(),
+    cloneUrl: z.url(),
+    defaultBranch: z.string(),
+    headCommit: z.string()
+});
+
+/**
+ * Source file descriptor included in an atomic game revision
+ */
+export const zGameRevisionSourceFile = z.object({
+    path: z.string().min(1),
+    contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+    byteSize: z.int().gte(0).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+/**
+ * Complete source snapshot for an atomic game revision
+ */
+export const zCreateGameRevisionSource = z.object({
+    files: z.array(zGameRevisionSourceFile)
 });
 
 /**
@@ -407,6 +471,7 @@ export const zManualCardSetDefinition = z.object({
     name: z.string().min(1),
     type: z.enum(['manual']),
     cardSchema: zCardPropertySchema,
+    defaultHome: zComponentHomeSpec,
     cards: z.array(zBoardCard).min(0)
 });
 
@@ -844,63 +909,6 @@ export const zGameTopologyManifest = z.object({
     setupProfiles: z.optional(z.array(zSetupProfileSpec)).default([])
 });
 
-export const zUpdateGameRequest = z.object({
-    name: z.optional(z.string().min(1).max(255)),
-    description: z.optional(z.string()),
-    rule: z.optional(z.string()),
-    public: z.optional(z.boolean()),
-    manifest: z.optional(zGameTopologyManifest),
-    metadata: z.optional(zGameMetadata)
-});
-
-export const zDeleteGameResponse = z.object({
-    deleted: z.boolean()
-});
-
-/**
- * Request to ensure a portable project exists in the caller's active owner scope
- */
-export const zEnsureProjectRequest = z.object({
-    slug: z.string().min(1).max(200),
-    name: z.string().min(1).max(200),
-    description: z.optional(z.string().max(1000)),
-    updateAlias: z.optional(z.boolean()).default(false)
-});
-
-/**
- * Portable exact authored head for a project. Populated after the atomic revision hard cut.
- */
-export const zProjectHead = z.object({
-    revisionDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/)
-});
-
-/**
- * Public project identity resolved within the caller's active owner scope
- */
-export const zProject = z.object({
-    projectId: z.uuid(),
-    slug: z.string(),
-    name: z.string(),
-    description: z.optional(z.string()),
-    head: z.optional(zProjectHead)
-});
-
-/**
- * Source file descriptor included in an atomic game revision
- */
-export const zGameRevisionSourceFile = z.object({
-    path: z.string().min(1),
-    contentHash: z.string().regex(/^[a-f0-9]{64}$/),
-    byteSize: z.int().gte(0).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
-});
-
-/**
- * Complete source snapshot for an atomic game revision
- */
-export const zCreateGameRevisionSource = z.object({
-    files: z.array(zGameRevisionSourceFile)
-});
-
 /**
  * Atomically finalize source, rules, and manifest into one immutable project revision
  */
@@ -1088,6 +1096,14 @@ export const zListCompiledResultsResponse = z.object({
     results: z.array(zCompiledResult)
 });
 
+export const zUploadInitialProjectionRequest = z.object({
+    projectionJson: z.string()
+});
+
+export const zPreviewScreenshotJobResponse = z.object({
+    jobId: z.uuid()
+});
+
 /**
  * How the submitted change set should be applied against the base source revision.
  */
@@ -1236,36 +1252,6 @@ export const zGameSourcesResponse = z.object({
     ruleText: z.string()
 });
 
-export const zWorkshopRuleTextResponse = z.object({
-    ruleText: z.string()
-});
-
-export const zQueueCompiledResultJobRequest = z.object({
-    gameRevisionId: z.uuid(),
-    devFingerprint: z.optional(z.string())
-});
-
-export const zUploadInitialProjectionRequest = z.object({
-    projectionJson: z.string()
-});
-
-export const zPreviewScreenshotJobResponse = z.object({
-    jobId: z.uuid()
-});
-
-/**
- * Immutable authored source revision for a game.
- */
-export const zSourceRevision = z.object({
-    id: z.uuid(),
-    gameId: z.uuid(),
-    userId: z.uuid(),
-    parentSourceRevisionId: z.optional(z.uuid()),
-    treeHash: z.string(),
-    fileCount: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
-    createdAt: z.iso.datetime()
-});
-
 /**
  * Type of async backend job
  */
@@ -1307,6 +1293,10 @@ export const zJobSummary = z.object({
 export const zActiveJobResponse = z.object({
     activeJob: z.optional(zJobSummary),
     hasActiveJob: z.boolean()
+});
+
+export const zWorkshopRuleTextResponse = z.object({
+    ruleText: z.string()
 });
 
 /**
@@ -2097,6 +2087,66 @@ export const zBoardLayout = z.enum([
     'square'
 ]);
 
+export const zGame = z.object({
+    id: z.uuid(),
+    projectId: z.uuid(),
+    slug: z.string(),
+    name: z.string().min(1).max(255),
+    description: z.optional(z.string()),
+    ruleText: z.optional(z.string()),
+    public: z.boolean().default(false),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    scriptId: z.optional(z.string()),
+    previewStorageKey: z.optional(z.string()),
+    initialProjectionKey: z.optional(z.string()),
+    metadata: z.optional(zGameMetadata),
+    verified: z.boolean().default(false),
+    verifiedAt: z.optional(z.iso.datetime())
+});
+
+/**
+ * Request to create a new game
+ */
+export const zCreateGameRequest = z.object({
+    slug: z.optional(z.string()),
+    name: z.optional(z.string().max(200)),
+    description: z.optional(z.string().max(1000)),
+    ruleText: z.optional(z.string().max(50000)),
+    enhanceRule: z.optional(z.boolean()).default(false)
+});
+
+export const zUpdateGameRequest = z.object({
+    name: z.optional(z.string().min(1).max(255)),
+    description: z.optional(z.string()),
+    rule: z.optional(z.string()),
+    public: z.optional(z.boolean()),
+    manifest: z.optional(zGameTopologyManifest),
+    metadata: z.optional(zGameMetadata)
+});
+
+export const zDeleteGameResponse = z.object({
+    deleted: z.boolean()
+});
+
+/**
+ * Immutable authored source revision for a game.
+ */
+export const zSourceRevision = z.object({
+    id: z.uuid(),
+    gameId: z.uuid(),
+    userId: z.uuid(),
+    parentSourceRevisionId: z.optional(z.uuid()),
+    treeHash: z.string(),
+    fileCount: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    createdAt: z.iso.datetime()
+});
+
+export const zQueueCompiledResultJobRequest = z.object({
+    gameRevisionId: z.uuid(),
+    devFingerprint: z.optional(z.string())
+});
+
 export const zInputDomain = z.union([
     z.object({
         type: z.literal('cardTarget')
@@ -2307,19 +2357,14 @@ export const zHostSessionEventBatchResponse = z.object({
 });
 
 /**
- * Unique identifier for the game
+ * Portable project lineage identifier
  */
-export const zGameId = z.uuid();
+export const zProjectId = z.uuid();
 
 /**
  * URL-safe game slug
  */
 export const zGameSlug = z.string();
-
-/**
- * Portable project lineage identifier
- */
-export const zProjectId = z.uuid();
 
 /**
  * Portable authored revision digest
@@ -2335,6 +2380,11 @@ export const zSessionId = z.uuid();
  * Unique identifier for the player (e.g., 'player-1')
  */
 export const zPlayerId = z.string();
+
+/**
+ * Unique identifier for the game
+ */
+export const zGameId = z.uuid();
 
 export const zHealthCheckData = z.object({
     body: z.optional(z.never()),
@@ -2368,6 +2418,23 @@ export const zGetCurrentAuthUserData = z.object({
  * Current authenticated user identity
  */
 export const zGetCurrentAuthUserResponse = zCurrentAuthUserResponse;
+
+export const zExchangeAuthTokenData = z.object({
+    body: zTokenExchangeRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Exchanged Dreamboard user token
+ */
+export const zExchangeAuthTokenResponse = zTokenExchangeResponse;
+
+export const zGetAuthJwksData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
 
 export const zCreateBillingCheckoutSessionData = z.object({
     body: zCreateBillingCheckoutSessionRequest,
@@ -2413,27 +2480,16 @@ export const zReceiveStripeBillingWebhookData = z.object({
  */
 export const zReceiveStripeBillingWebhookResponse = z.void();
 
-export const zListGamesData = z.object({
+export const zListProjectsData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
     query: z.optional(z.never())
 });
 
 /**
- * Successfully retrieved games list
+ * Successfully retrieved project list
  */
-export const zListGamesResponse = z.array(zGame);
-
-export const zCreateGameData = z.object({
-    body: zCreateGameRequest,
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Game created successfully
- */
-export const zCreateGameResponse = zGame;
+export const zListProjectsResponse = z.array(zProject);
 
 export const zExtractGameSpecData = z.object({
     body: zExtractGameSpecRequest,
@@ -2446,59 +2502,44 @@ export const zExtractGameSpecData = z.object({
  */
 export const zExtractGameSpecResponse2 = zExtractGameSpecResponse;
 
-export const zDeleteGameData = z.object({
+export const zDeleteProjectData = z.object({
     body: z.optional(z.never()),
     path: z.object({
-        gameId: z.uuid()
+        projectId: z.uuid()
     }),
     query: z.optional(z.never())
 });
 
 /**
- * Game deleted successfully
+ * Project deleted
  */
-export const zDeleteGameResponse2 = zDeleteGameResponse;
+export const zDeleteProjectResponse2 = zDeleteProjectResponse;
 
-export const zGetGameData = z.object({
+export const zGetProjectData = z.object({
     body: z.optional(z.never()),
     path: z.object({
-        gameId: z.uuid()
+        projectId: z.uuid()
     }),
     query: z.optional(z.never())
 });
 
 /**
- * Successfully retrieved game
+ * Project found
  */
-export const zGetGameResponse = zGame;
+export const zGetProjectResponse = zProject;
 
-export const zUpdateGameData = z.object({
-    body: zUpdateGameRequest,
+export const zUpdateProjectData = z.object({
+    body: zUpdateProjectRequest,
     path: z.object({
-        gameId: z.uuid()
+        projectId: z.uuid()
     }),
     query: z.optional(z.never())
 });
 
 /**
- * Success message
+ * Project updated
  */
-export const zUpdateGameResponse = z.string();
-
-export const zGetGameBySlugData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        slug: z.string()
-    }),
-    query: z.optional(z.object({
-        includeDeleted: z.optional(z.boolean()).default(false)
-    }))
-});
-
-/**
- * Successfully retrieved game
- */
-export const zGetGameBySlugResponse = zGame;
+export const zUpdateProjectResponse = zProject;
 
 export const zEnsureProjectData = z.object({
     body: zEnsureProjectRequest,
@@ -2512,6 +2553,19 @@ export const zEnsureProjectData = z.object({
  * Existing project installation
  */
 export const zEnsureProjectResponse = zProject;
+
+export const zEnsureProjectRepositoryData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Repository binding ensured
+ */
+export const zEnsureProjectRepositoryResponse = zProjectRepository;
 
 export const zGetProjectBySlugData = z.object({
     body: z.optional(z.never()),
@@ -2624,6 +2678,45 @@ export const zGetProjectCompiledResultData = z.object({
  */
 export const zGetProjectCompiledResultResponse = zCompiledResult;
 
+export const zUploadProjectInitialProjectionData = z.object({
+    body: zUploadInitialProjectionRequest,
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Initial projection uploaded successfully
+ */
+export const zUploadProjectInitialProjectionResponse = z.void();
+
+export const zQueueProjectPreviewScreenshotData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Preview screenshot job queued
+ */
+export const zQueueProjectPreviewScreenshotResponse = zPreviewScreenshotJobResponse;
+
+export const zFetchProjectPreviewImageData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Preview image retrieved successfully
+ */
+export const zFetchProjectPreviewImageResponse = z.string();
+
 export const zEnsureProjectDevCompileData = z.object({
     body: zEnsureDevCompileRequest,
     path: z.object({
@@ -2676,6 +2769,19 @@ export const zGetProjectSourcesData = z.object({
  */
 export const zGetProjectSourcesResponse = zGameSourcesResponse;
 
+export const zGetProjectActiveJobData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Active job status (null if no active job)
+ */
+export const zGetProjectActiveJobResponse = zActiveJobResponse;
+
 export const zQueryWorkshopRulebookData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -2688,141 +2794,6 @@ export const zQueryWorkshopRulebookData = z.object({
  * Extracted rulebook text for the first valid candidate.
  */
 export const zQueryWorkshopRulebookResponse = zWorkshopRuleTextResponse;
-
-export const zGetLatestCompiledResultData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.object({
-        successOnly: z.optional(z.boolean()).default(false)
-    }))
-});
-
-/**
- * Latest compiled result found
- */
-export const zGetLatestCompiledResultResponse = zCompiledResult;
-
-export const zListCompiledResultsData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.object({
-        limit: z.optional(z.int().gte(1).lte(100)).default(10)
-    }))
-});
-
-/**
- * Compiled results retrieved successfully
- */
-export const zListCompiledResultsResponse2 = zListCompiledResultsResponse;
-
-export const zQueueCompiledResultJobData = z.object({
-    body: zQueueCompiledResultJobRequest,
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Compile job accepted
- */
-export const zQueueCompiledResultJobResponse2 = zQueueCompiledResultJobResponse;
-
-export const zUploadInitialProjectionData = z.object({
-    body: zUploadInitialProjectionRequest,
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Initial projection uploaded successfully
- */
-export const zUploadInitialProjectionResponse = z.void();
-
-export const zQueuePreviewScreenshotData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Preview screenshot job queued
- */
-export const zQueuePreviewScreenshotResponse = zPreviewScreenshotJobResponse;
-
-export const zFetchPreviewImageData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Preview image retrieved successfully
- */
-export const zFetchPreviewImageResponse = z.string();
-
-export const zGetCompiledResultData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        gameId: z.uuid(),
-        compiledResultId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Compiled result found
- */
-export const zGetCompiledResultResponse = zCompiledResult;
-
-export const zCreateSourceRevisionData = z.object({
-    body: zCreateSourceRevisionRequest,
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Source revision created
- */
-export const zCreateSourceRevisionResponse = zSourceRevision;
-
-export const zCreateSourceBlobUploadSessionData = z.object({
-    body: zCreateSourceBlobUploadSessionRequest,
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Upload session created
- */
-export const zCreateSourceBlobUploadSessionResponse = zSourceBlobUploadSession;
-
-export const zGetActiveJobData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Active job status (null if no active job)
- */
-export const zGetActiveJobResponse = zActiveJobResponse;
 
 export const zGetJobData = z.object({
     body: z.optional(z.never()),
@@ -2872,19 +2843,6 @@ export const zCancelGameRunData = z.object({
     query: z.optional(z.never())
 });
 
-export const zCreateSessionData = z.object({
-    body: zCreateSessionRequest,
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Session created successfully
- */
-export const zCreateSessionResponse2 = zCreateSessionResponse;
-
 export const zGetSessionLogBatchData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -2908,7 +2866,10 @@ export const zCreateGameplayCapabilityData = z.object({
         sessionId: z.uuid(),
         playerId: z.string()
     }),
-    query: z.optional(z.never())
+    query: z.optional(z.never()),
+    headers: z.optional(z.object({
+        'X-Dreamboard-Browser-Origin': z.optional(z.string())
+    }))
 });
 
 /**
@@ -3072,7 +3033,10 @@ export const zCreateDemoGameplayCapabilityData = z.object({
         sessionId: z.uuid(),
         playerId: z.string()
     }),
-    query: z.optional(z.never())
+    query: z.optional(z.never()),
+    headers: z.optional(z.object({
+        'X-Dreamboard-Browser-Origin': z.optional(z.string())
+    }))
 });
 
 /**
@@ -3092,19 +3056,6 @@ export const zFetchDemoUiBundleData = z.object({
  * HTML content of the UI bundle
  */
 export const zFetchDemoUiBundleResponse = z.string();
-
-export const zCreateSessionFromReducerSnapshotData = z.object({
-    body: zCreateSessionFromReducerSnapshotRequest,
-    path: z.object({
-        gameId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Session materialized successfully
- */
-export const zCreateSessionFromReducerSnapshotResponse = zHostSessionSnapshot;
 
 export const zCreateProjectSessionFromReducerSnapshotData = z.object({
     body: zCreateSessionFromReducerSnapshotRequest,

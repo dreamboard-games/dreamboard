@@ -1,7 +1,4 @@
-import {
-  createProjectSourceBlobUploadSession,
-  createSourceBlobUploadSession,
-} from "./sdk.gen.js";
+import { createProjectSourceBlobUploadSession } from "./sdk.gen.js";
 import type {
   SourceBlobUploadDescriptor,
   SourceBlobUploadSession,
@@ -21,7 +18,6 @@ export type SourceContentChangeOperation =
     };
 
 const textEncoder = new TextEncoder();
-const SOURCE_BLOB_UPLOAD_SESSION_BATCH_SIZE = 20;
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -259,84 +255,56 @@ async function uploadSourceBlobs(options: {
     return;
   }
 
-  for (const uploadBatch of chunkSourceBlobs(
-    Array.from(uniqueBlobs.values()),
-    SOURCE_BLOB_UPLOAD_SESSION_BATCH_SIZE,
-  )) {
-    const { data, error, response } = await requestUploadSession(
-      uploadBatch.map(({ contentHash, byteSize }) => ({
-        contentHash,
-        byteSize,
-      })),
-    );
+  const { data, error, response } = await requestUploadSession(
+    Array.from(uniqueBlobs.values(), ({ contentHash, byteSize }) => ({
+      contentHash,
+      byteSize,
+    })),
+  );
 
-    if (error || !data) {
-      throw new SourceBlobSessionRequestError(
-        "Failed to create source blob upload session",
-        error,
-        response,
+  if (error || !data) {
+    throw new SourceBlobSessionRequestError(
+      "Failed to create source blob upload session",
+      error,
+      response,
+    );
+  }
+  assertSourceBlobUploadSession(data, response);
+
+  for (const upload of data.uploads) {
+    if (upload.status !== "upload_required") {
+      continue;
+    }
+
+    const blob = uniqueBlobs.get(upload.contentHash);
+    if (!blob) {
+      throw new Error(
+        `Upload session referenced unknown source blob ${upload.contentHash}.`,
       );
     }
-    assertSourceBlobUploadSession(data, response);
+    if (!upload.uploadTarget) {
+      throw new Error(
+        `Upload target missing for source blob ${upload.contentHash}.`,
+      );
+    }
 
-    for (const upload of data.uploads) {
-      if (upload.status !== "upload_required") {
+    try {
+      await uploadSourceBlob(upload.uploadTarget, blob.content);
+      if (!(await confirmSourceBlobAlreadyExists({ requestUploadSession, blob }))) {
+        throw new Error(
+          `Source blob ${blob.contentHash} was uploaded but not registered.`,
+        );
+      }
+    } catch (error) {
+      if (
+        isDuplicateDirectUploadError(error) &&
+        (await confirmSourceBlobAlreadyExists({ requestUploadSession, blob }))
+      ) {
         continue;
       }
-
-      const blob = uniqueBlobs.get(upload.contentHash);
-      if (!blob) {
-        throw new Error(
-          `Upload session referenced unknown source blob ${upload.contentHash}.`,
-        );
-      }
-      if (!upload.uploadTarget) {
-        throw new Error(
-          `Upload target missing for source blob ${upload.contentHash}.`,
-        );
-      }
-
-      try {
-        await uploadSourceBlob(upload.uploadTarget, blob.content);
-        if (!(await confirmSourceBlobAlreadyExists({ requestUploadSession, blob }))) {
-          throw new Error(
-            `Source blob ${blob.contentHash} was uploaded but not registered.`,
-          );
-        }
-      } catch (error) {
-        if (
-          isDuplicateDirectUploadError(error) &&
-          (await confirmSourceBlobAlreadyExists({ requestUploadSession, blob }))
-        ) {
-          continue;
-        }
-        throw error;
-      }
+      throw error;
     }
   }
-}
-
-function chunkSourceBlobs<T>(blobs: T[], batchSize: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < blobs.length; index += batchSize) {
-    chunks.push(blobs.slice(index, index + batchSize));
-  }
-  return chunks;
-}
-
-export async function uploadGameSourceBlobs(options: {
-  gameId: string;
-  blobs: SourceBlobUploadInput[];
-}): Promise<void> {
-  const { gameId, blobs } = options;
-  return uploadSourceBlobs({
-    blobs,
-    requestUploadSession: (uploadBlobs) =>
-      createSourceBlobUploadSession({
-        path: { gameId },
-        body: { blobs: uploadBlobs },
-      }),
-  });
 }
 
 export async function uploadProjectSourceBlobs(options: {

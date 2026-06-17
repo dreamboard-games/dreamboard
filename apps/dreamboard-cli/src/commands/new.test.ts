@@ -62,7 +62,7 @@ mock.module("../services/project/local-maintainer-registry.js", () => ({
     fingerprint: "public",
     publishedAt: "2026-06-16T00:00:00.000Z",
     packages: {
-      "@dreamboard-games/sdk": "0.4.0-alpha.0",
+      "@dreamboard-games/sdk": "0.4.0-alpha.1",
     },
   }),
 }));
@@ -112,6 +112,6 @@ test("new command materializes a project-bound workspace", async () => {
   expect(materializeArgs.apiBaseUrl).toBe("https://api.example.com");
   expect(materializeArgs.webBaseUrl).toBe("https://web.example.com");
   expect(materializeArgs.localMaintainerRegistry?.packages).toEqual({
-    "@dreamboard-games/sdk": "0.4.0-alpha.0",
+    "@dreamboard-games/sdk": "0.4.0-alpha.1",
   });
 });

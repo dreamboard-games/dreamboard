@@ -41,7 +41,7 @@
   "dependencies": {
     "@dreamboard-games/api-client": "workspace:*",
     "@dreamboard-games/gameplay-authority-client": "0.1.0-alpha.1",
-    "@dreamboard-games/sdk": "0.4.0-alpha.0",
+    "@dreamboard-games/sdk": "0.4.0-alpha.1",
     "@dreamboard-games/ui-host-runtime": "0.1.0-alpha.2",
     "@tailwindcss/postcss": "^4.3.0",
     "@vitejs/plugin-react": "^4.7.0",

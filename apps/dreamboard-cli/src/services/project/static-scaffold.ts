@@ -114,7 +114,7 @@ const SDK_PACKAGE_PATHS = {
   "@dreamboard-games/sdk": ["packages", "sdk", "package.json"],
 } as const;
 const DEFAULT_SDK_DEPENDENCY_RANGES = {
-  "@dreamboard-games/sdk": "0.4.0-alpha.0",
+  "@dreamboard-games/sdk": "0.4.0-alpha.1",
 } as const;
 const SDK_DEPENDENCY_RANGES = {
   "@dreamboard-games/sdk": resolveSdkDependencyRange("@dreamboard-games/sdk"),

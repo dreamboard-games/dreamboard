@@ -3008,11 +3008,19 @@ export async function writeReducerNativeGeneratedFiles(options: {
       expect: (await loadTestingExpectApiFactory())(),
     });
     await context.game.start();
-    await base.definition.setup({
-      game: context.game,
-      players: context.players,
-      seat: context.seat,
-    });
+    try {
+      await base.definition.setup({
+        game: context.game,
+        players: context.players,
+        seat: context.seat,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Base '${base.definition.id}' setup failed with setupProfileId '${effectiveSetup.setupProfileId ?? "none"}': ${message}`,
+        { cause: error instanceof Error ? error : undefined },
+      );
+    }
     baseStates[baseStateKey(base.definition.id)] = {
       key: baseStateKey(base.definition.id),
       base: base.definition.id,

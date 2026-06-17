@@ -20,7 +20,7 @@ test("dependency profile tracks public Dreamboard packages only", async () => {
   const projectRoot = await createProject({
     dependencies: {
       dreamboard: "0.1.30-alpha.2",
-      "@dreamboard-games/sdk": "0.4.0-alpha.0",
+      "@dreamboard-games/sdk": "0.4.0-alpha.1",
       react: "^19.0.0",
     },
   });
@@ -29,7 +29,7 @@ test("dependency profile tracks public Dreamboard packages only", async () => {
 
   expect(profile.packages).toEqual({
     dreamboard: "0.1.30-alpha.2",
-    "@dreamboard-games/sdk": "0.4.0-alpha.0",
+    "@dreamboard-games/sdk": "0.4.0-alpha.1",
   });
 });
 
@@ -65,7 +65,7 @@ test("release portability rejects legacy @dreamboard package dependencies before
 test("release portability ignores stale local snapshot state when packages are public", async () => {
   const projectRoot = await createProject({
     dependencies: {
-      "@dreamboard-games/sdk": "0.4.0-alpha.0",
+      "@dreamboard-games/sdk": "0.4.0-alpha.1",
     },
   });
 

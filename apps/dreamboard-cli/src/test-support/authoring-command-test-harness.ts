@@ -948,7 +948,7 @@ mock.module("../utils/fs.js", () => ({
   readJsonFile: async () => ({
     dependencies: {
       dreamboard: "0.1.30-alpha.2",
-      "@dreamboard-games/sdk": "0.4.0-alpha.0",
+      "@dreamboard-games/sdk": "0.4.0-alpha.1",
     },
   }),
   writeTextFile: async () => undefined,
