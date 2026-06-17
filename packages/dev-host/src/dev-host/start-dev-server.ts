@@ -4,36 +4,31 @@ import os from "node:os";
 import react from "@vitejs/plugin-react";
 import tailwindcssPostcss from "@tailwindcss/postcss";
 import { createServer, type ViteDevServer } from "vite";
-import type { ResolvedConfig } from "../types.js";
 import { createDevApiProxyPlugin } from "./dev-api-proxy-plugin.js";
 import { createDevRuntimePlatform } from "./dev-runtime-platform.js";
 import { createVirtualDevModulesPlugin } from "./dev-virtual-modules-plugin.js";
 import { createDevLogRelayPlugin } from "./dev-log-relay-plugin.js";
 import { prepareFallbackStylesheet } from "./dev-fallback-stylesheet.js";
 import { createDevHmrGuardPlugin } from "./dev-hmr-guard-plugin.js";
-import type { DreamboardDevRuntimeConfig } from "./dev-runtime-config.js";
+import type {
+  DevHostHandleV1,
+  DevHostPlatform,
+  DevHostStartRequestV1,
+  DreamboardDevRuntimeConfig,
+} from "./contract.js";
 
 const require = createRequire(import.meta.url);
 const tailwindCssEntry = require.resolve("tailwindcss/index.css");
 
 export type { DreamboardDevRuntimeConfig } from "./dev-runtime-config.js";
 
-export async function startDreamboardDevServer(options: {
-  projectRoot: string;
-  sessionFilePath: string;
-  port?: number;
-  host?: string | boolean;
-  allowedHosts?: string[];
-  runtimeConfig: DreamboardDevRuntimeConfig;
-  config: ResolvedConfig;
-}): Promise<{
-  url: string;
-  networkUrls: string[];
-  close: () => Promise<void>;
-  server: ViteDevServer;
-}> {
-  const { projectRoot, port, host, allowedHosts, runtimeConfig, config } =
-    options;
+export const protocolVersion = 1 as const;
+
+export async function start(
+  options: DevHostStartRequestV1,
+  hostPlatform: DevHostPlatform,
+): Promise<DevHostHandleV1> {
+  const { projectRoot, port, host, allowedHosts, runtimeConfig } = options;
   const platform = createDevRuntimePlatform({
     importMetaUrl: import.meta.url,
     projectRoot,
@@ -45,7 +40,8 @@ export async function startDreamboardDevServer(options: {
   });
   const generatedFallbackStylesheetPath = prepareFallbackStylesheet({
     projectRoot,
-    repoRoot: platform.repoRoot,
+    generatedRoot: platform.packageRoot,
+    sdkRoot: platform.sdkRoot,
   });
 
   const server = await createServer({
@@ -59,11 +55,15 @@ export async function startDreamboardDevServer(options: {
         runtimeConfig,
         generatedFallbackStylesheetPath,
       }),
-      createDevApiProxyPlugin({ config }),
+      createDevApiProxyPlugin({
+        apiBaseUrl: options.apiBaseUrl,
+        platform: hostPlatform,
+      }),
       createDevLogRelayPlugin({
         sessionFilePath: options.sessionFilePath,
         runtimeConfig,
-        config,
+        apiBaseUrl: options.apiBaseUrl,
+        platform: hostPlatform,
         diagnosticsLevel: platform.diagnosticsLevel,
       }),
     ],
@@ -95,8 +95,14 @@ export async function startDreamboardDevServer(options: {
         rmSync(generatedFallbackStylesheetPath, { force: true });
       }
     },
-    server,
   };
+}
+
+export async function startDreamboardDevServer(
+  options: DevHostStartRequestV1,
+  platform: DevHostPlatform,
+): Promise<DevHostHandleV1> {
+  return start(options, platform);
 }
 
 function getNetworkUrls(

@@ -1,16 +1,27 @@
 import path from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import type {
   GameTopologyManifest,
   SetupProfileSpec,
 } from "@dreamboard-games/sdk/types";
-import { isPerPlayer, perPlayerSchema } from "@dreamboard-games/sdk/reducer";
-import {
-  type ReducerBundleContract,
-  type ReducerWire as Wire,
-} from "@dreamboard-games/sdk/reducer-contract";
-import { materializeManifestTable } from "@dreamboard-games/sdk/codegen";
 import { z } from "zod";
 import { importTypeScriptModule } from "../../utils/ts-module-loader.js";
+
+namespace Wire {
+  export type JsonValue =
+    | null
+    | boolean
+    | number
+    | string
+    | JsonValue[]
+    | { [key: string]: JsonValue };
+  export type ReducerSessionState = Record<string, unknown>;
+  export type SeatProjection = { view: unknown };
+  export type SeatProjectionBundle = {
+    seats?: Record<string, SeatProjection | undefined>;
+  };
+}
 
 // Opt in to SDK authoring warnings (e.g. concrete dependent-choice defaults).
 // Trusted reducer code cannot read process.env, so the SDK gates authoring
@@ -68,9 +79,97 @@ export type ReducerBundleSeatProjectionBundle = Wire.SeatProjectionBundle;
  * reducer runtime.
  */
 export type ReducerBundleLike = Pick<
-  ReducerBundleContract,
+  {
+    initialize(input: {
+      table: Wire.JsonValue;
+      playerIds: readonly string[];
+      rngSeed?: number | null;
+      setup?: unknown;
+    }): unknown | Promise<unknown>;
+    projectSeatsDynamic(input: {
+      state: unknown;
+      playerIds: readonly string[];
+    }): ReducerBundleSeatProjectionBundle;
+  },
   "initialize" | "projectSeatsDynamic"
 >;
+
+type PerPlayerValidationHelpers = {
+  isPerPlayer(value: unknown): boolean;
+  perPlayerSchema(
+    valueSchema: z.ZodTypeAny,
+    options: { players: readonly string[] },
+  ): z.ZodTypeAny;
+};
+
+type ProjectReducerPreflightModules = PerPlayerValidationHelpers & {
+  materializeManifestTable(input: {
+    manifest: GameTopologyManifest;
+    playerIds: readonly string[];
+    shuffleItems<Value>(values: readonly Value[]): Value[];
+  }): unknown;
+};
+
+function isStructuralPerPlayer(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { __perPlayer?: unknown }).__perPlayer === true &&
+    Array.isArray((value as { entries?: unknown }).entries)
+  );
+}
+
+function fallbackPerPlayerSchema(
+  valueSchema: z.ZodTypeAny,
+  options: { players: readonly string[] },
+): z.ZodTypeAny {
+  const playerSchema =
+    options.players.length > 0
+      ? z.enum(options.players as [string, ...string[]])
+      : z.string();
+  return z
+    .object({
+      __perPlayer: z.literal(true),
+      entries: z.array(z.tuple([playerSchema, valueSchema])),
+    })
+    .strict();
+}
+
+async function loadProjectReducerPreflightModules(
+  projectRoot: string,
+): Promise<ProjectReducerPreflightModules> {
+  const requireFromProject = createRequire(
+    path.join(projectRoot, "package.json"),
+  );
+  const reducerPath = requireFromProject.resolve("@dreamboard-games/sdk/reducer");
+  const reducerContractPath = requireFromProject.resolve(
+    "@dreamboard-games/sdk/reducer-contract",
+  );
+  const [reducerModule, reducerContractModule] = (await Promise.all([
+    import(pathToFileURL(reducerPath).href),
+    import(pathToFileURL(reducerContractPath).href),
+  ])) as [
+    Partial<PerPlayerValidationHelpers>,
+    { materializeManifestTable?: unknown },
+  ];
+
+  if (
+    typeof reducerModule.isPerPlayer !== "function" ||
+    typeof reducerModule.perPlayerSchema !== "function" ||
+    typeof reducerContractModule.materializeManifestTable !== "function"
+  ) {
+    throw new Error(
+      "Installed @dreamboard-games/sdk does not expose the reducer preflight helpers required by this CLI.",
+    );
+  }
+
+  return {
+    isPerPlayer: reducerModule.isPerPlayer,
+    perPlayerSchema: reducerModule.perPlayerSchema,
+    materializeManifestTable:
+      reducerContractModule.materializeManifestTable as ProjectReducerPreflightModules["materializeManifestTable"],
+  };
+}
 
 function buildPlayerIds(playerCount: number): string[] {
   const ids: string[] = [];
@@ -154,14 +253,18 @@ function summarizeError(error: unknown): { headline: string; detail?: string } {
 export function assertViewPerPlayerSeatsValid(
   view: unknown,
   expectedPlayerIds: readonly string[],
+  helpers: PerPlayerValidationHelpers = {
+    isPerPlayer: isStructuralPerPlayer,
+    perPlayerSchema: fallbackPerPlayerSchema,
+  },
   breadcrumb: string[] = [],
 ): string | null {
   if (view === null || view === undefined) {
     return null;
   }
 
-  if (isPerPlayer(view)) {
-    const schema = perPlayerSchema(z.unknown(), {
+  if (helpers.isPerPlayer(view)) {
+    const schema = helpers.perPlayerSchema(z.unknown(), {
       players: expectedPlayerIds as never,
     });
     const result = schema.safeParse(view);
@@ -180,6 +283,7 @@ export function assertViewPerPlayerSeatsValid(
       const result = assertViewPerPlayerSeatsValid(
         view[index],
         expectedPlayerIds,
+        helpers,
         [...breadcrumb, `[${index}]`],
       );
       if (result) return result;
@@ -191,10 +295,12 @@ export function assertViewPerPlayerSeatsValid(
     for (const [key, value] of Object.entries(
       view as Record<string, unknown>,
     )) {
-      const result = assertViewPerPlayerSeatsValid(value, expectedPlayerIds, [
-        ...breadcrumb,
-        key,
-      ]);
+      const result = assertViewPerPlayerSeatsValid(
+        value,
+        expectedPlayerIds,
+        helpers,
+        [...breadcrumb, key],
+      );
       if (result) return result;
     }
     return null;
@@ -227,9 +333,10 @@ export async function driveReducerBundleThroughScenarios(options: {
   manifest: GameTopologyManifest;
   bundle: ReducerBundleLike;
   scenarios: readonly ReducerBundleSmokeScenario[];
+  preflightModules: ProjectReducerPreflightModules;
   rngSeed?: number;
 }): Promise<ReducerBundleSmokeFailure[]> {
-  const { manifest, bundle, scenarios } = options;
+  const { manifest, bundle, scenarios, preflightModules } = options;
   const rngSeed = options.rngSeed ?? PREFLIGHT_RNG_SEED;
 
   const failures: ReducerBundleSmokeFailure[] = [];
@@ -249,7 +356,7 @@ export async function driveReducerBundleThroughScenarios(options: {
         // the bundle's strict JSON state schema would otherwise reject.
         const table: unknown = JSON.parse(
           JSON.stringify(
-            materializeManifestTable({
+            preflightModules.materializeManifestTable({
               manifest,
               playerIds,
               shuffleItems: identityShuffle,
@@ -325,7 +432,11 @@ export async function driveReducerBundleThroughScenarios(options: {
         });
         continue;
       }
-      const mismatch = assertViewPerPlayerSeatsValid(seat.view, playerIds);
+      const mismatch = assertViewPerPlayerSeatsValid(
+        seat.view,
+        playerIds,
+        preflightModules,
+      );
       if (mismatch) {
         failures.push({
           scenario,
@@ -382,7 +493,13 @@ export async function runReducerBundleSmoke(options: {
     );
   }
 
-  return driveReducerBundleThroughScenarios({ manifest, bundle, scenarios });
+  const preflightModules = await loadProjectReducerPreflightModules(projectRoot);
+  return driveReducerBundleThroughScenarios({
+    manifest,
+    bundle,
+    scenarios,
+    preflightModules,
+  });
 }
 
 function formatFailureLines(

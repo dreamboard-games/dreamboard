@@ -270,14 +270,14 @@ export function createRepoLocalPackageResolutionPlugin(
     name: "dreamboard-repo-local-package-resolution",
     setup(build) {
       build.onResolve({ filter: /^@dreamboard(?:-games)?\// }, (args) => {
-        const resolvedPath = resolveRepoLocalPackageSource(args.path, options);
-        if (resolvedPath) {
-          return { path: resolvedPath };
-        }
         // Prefer the workspace's own installed copy when present; returning
         // null lets esbuild perform its normal node_modules resolution.
         if (resolvableFromDirectory(args.path, args.resolveDir)) {
           return null;
+        }
+        const resolvedPath = resolveRepoLocalPackageSource(args.path, options);
+        if (resolvedPath) {
+          return { path: resolvedPath };
         }
         const bundledPath = resolveCliBundledPackage(args.path);
         if (bundledPath) {

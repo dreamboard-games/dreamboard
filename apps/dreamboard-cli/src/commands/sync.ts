@@ -183,7 +183,7 @@ export default defineCommand({
     await runLoggedStep("Applying workspace codegen...", async () =>
       applyWorkspaceCodegen({
         projectRoot,
-        manifest: localManifest,
+        manifest: localManifest as never,
       }),
     );
     const dependencyState = await runLoggedStep(
@@ -222,7 +222,7 @@ export default defineCommand({
     await runLoggedStep("Smoke-testing reducer bundle...", async () =>
       assertReducerBundleSmoke({
         projectRoot,
-        manifest: localManifest,
+        manifest: localManifest as never,
       }),
     );
     consola.success("Reducer bundle smoke test passed.");
@@ -323,7 +323,7 @@ export default defineCommand({
         ...(remoteHeadDigest ? { baseRevisionDigest: remoteHeadDigest } : {}),
         source: { files: sourceFiles },
         ruleText: await loadRule(projectRoot),
-        manifest: localManifest,
+        manifest: localManifest as never,
       },
     });
     nextProjectConfig = await persistProjectConfig({

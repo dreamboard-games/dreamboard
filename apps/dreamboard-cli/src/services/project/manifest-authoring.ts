@@ -5,10 +5,10 @@ import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { zGameTopologyManifest } from "@dreamboard-games/api-client";
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
-import { validateManifestAuthoring } from "@dreamboard-games/sdk/codegen";
 import { MANIFEST_FILE, MATERIALIZED_MANIFEST_FILE } from "../../constants.js";
 import { createRepoLocalPackageResolutionPlugin } from "../../utils/repo-local-package-resolution.js";
 import { hashContent } from "../../utils/crypto.js";
+import { loadProjectAuthoringAdapter } from "../project-authoring/loader.js";
 import {
   readWorkspaceTextFile,
   workspacePathExists,
@@ -28,7 +28,10 @@ function formatIssuePath(pathSegments: ReadonlyArray<string | number>): string {
     .join("")}`;
 }
 
-function formatManifestValidationError(manifest: unknown): string {
+async function formatManifestValidationError(
+  projectRoot: string,
+  manifest: unknown,
+): Promise<string> {
   const parsedManifest = zGameTopologyManifest.strict().safeParse(manifest);
   if (!parsedManifest.success) {
     const lines = parsedManifest.error.issues.map((issue) => {
@@ -44,7 +47,8 @@ function formatManifestValidationError(manifest: unknown): string {
     return `Invalid manifest:\n- ${lines.join("\n- ")}`;
   }
 
-  const validationResult = validateManifestAuthoring(
+  const { adapter } = await loadProjectAuthoringAdapter(projectRoot);
+  const validationResult = adapter.validateManifest(
     parsedManifest.data as GameTopologyManifest,
   );
   if (validationResult.errors.length > 0) {
@@ -135,7 +139,10 @@ async function evaluateManifestSource(
     );
   }
 
-  const validationError = formatManifestValidationError(moduleRecord.default);
+  const validationError = await formatManifestValidationError(
+    projectRoot,
+    moduleRecord.default,
+  );
   if (validationError) {
     throw new Error(validationError);
   }

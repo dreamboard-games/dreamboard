@@ -6,6 +6,8 @@
   "scripts": {
     "authoring:api-client-candidate": "pnpm --dir packages/api-client authoring:candidate",
     "build": "pnpm --dir apps/dreamboard-cli run build",
+    "check:authoring-version-authority": "pnpm --dir apps/dreamboard-cli run check:authoring-version-authority",
+    "dev-host:pack-smoke": "pnpm --filter=@dreamboard-games/dev-host run pack:publish",
     "docs:broken-links": "pnpm mint broken-links",
     "docs:dev": "pnpm mint dev",
     "skills:sync-docs": "pnpm --dir apps/dreamboard-cli run sync:skill-docs",
@@ -24,5 +26,8 @@
       "esbuild"
     ]
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "mint": "4.2.626"
+  }
 }

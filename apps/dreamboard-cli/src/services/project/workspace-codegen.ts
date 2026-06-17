@@ -1,9 +1,6 @@
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
-import {
-  generateAuthoritativeFiles,
-  generateSeedFiles,
-  isFrameworkOwnedSetupProfilesSeed,
-} from "@dreamboard-games/sdk/codegen";
+import { loadProjectAuthoringAdapter } from "../project-authoring/loader.js";
+import { validateGeneratedArtifacts } from "../project-authoring/validation.js";
 import {
   readWorkspaceTextFileIfExists,
   writeWorkspaceTextFile,
@@ -21,14 +18,38 @@ const STARTER_UI_SEED_FILES = new Set([
   "ui/styles.ts",
   "ui/ui-contract-typing-smoke.tsx",
 ]);
+const SETUP_PROFILES_SEED_MARKER = "Dreamboard generated setup profile seeds.";
+
+function isFrameworkOwnedSetupProfilesSeed(
+  content: string | null | undefined,
+): boolean {
+  if (content === null || content === undefined) {
+    return false;
+  }
+  const trimmed = content.trim();
+  return trimmed.length === 0 || trimmed.includes(SETUP_PROFILES_SEED_MARKER);
+}
 
 export async function applyWorkspaceCodegen(options: {
   projectRoot: string;
   manifest: GameTopologyManifest;
 }): Promise<WorkspaceCodegenWriteResult> {
   const { projectRoot, manifest } = options;
-  const authoritativeFiles = generateAuthoritativeFiles(manifest);
-  const seedFiles = generateSeedFiles(manifest);
+  const { adapter } = await loadProjectAuthoringAdapter(projectRoot);
+  const artifacts = validateGeneratedArtifacts([
+    ...adapter.generateWorkspaceArtifacts(manifest),
+    ...adapter.generateTestArtifacts({ manifest }),
+  ]);
+  const authoritativeFiles = new Map(
+    artifacts
+      .filter((artifact) => artifact.ownership !== "seed")
+      .map((artifact) => [artifact.path, artifact.content]),
+  );
+  const seedFiles = new Map(
+    artifacts
+      .filter((artifact) => artifact.ownership === "seed")
+      .map((artifact) => [artifact.path, artifact.content]),
+  );
 
   const written: string[] = [];
   const skipped: string[] = [];
@@ -41,7 +62,7 @@ export async function applyWorkspaceCodegen(options: {
     existingUiAppBeforeSeeds === null ||
     existingUiAppBeforeSeeds.trim().length === 0;
 
-  for (const [relativePath, content] of Object.entries(authoritativeFiles)) {
+  for (const [relativePath, content] of authoritativeFiles) {
     const existingContent = await readWorkspaceTextFileIfExists(
       projectRoot,
       relativePath,
@@ -52,7 +73,7 @@ export async function applyWorkspaceCodegen(options: {
     }
   }
 
-  for (const [relativePath, content] of Object.entries(seedFiles)) {
+  for (const [relativePath, content] of seedFiles) {
     const existingContent = await readWorkspaceTextFileIfExists(
       projectRoot,
       relativePath,

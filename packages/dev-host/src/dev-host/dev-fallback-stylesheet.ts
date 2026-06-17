@@ -5,14 +5,15 @@ import { normalizePath } from "vite";
 
 export function prepareFallbackStylesheet(options: {
   projectRoot: string;
-  repoRoot: string;
+  generatedRoot: string;
+  sdkRoot: string;
 }): string | null {
   const projectStylePath = path.resolve(options.projectRoot, "ui/style.css");
   if (existsSync(projectStylePath)) {
     return null;
   }
 
-  const generatedDir = path.resolve(options.repoRoot, ".dreamboard-dev");
+  const generatedDir = path.resolve(options.generatedRoot, ".dreamboard-dev");
   mkdirSync(generatedDir, { recursive: true });
 
   const fingerprint = createHash("sha256")
@@ -26,8 +27,8 @@ export function prepareFallbackStylesheet(options: {
   );
   const sharedStylesPath = normalizePath(
     path.resolve(
-      options.repoRoot,
-      "node_modules/@dreamboard-games/sdk/dist/ui/plugin-styles.css",
+      options.sdkRoot,
+      "dist/ui/plugin-styles.css",
     ),
   );
   const uiSourcePath = normalizePath(

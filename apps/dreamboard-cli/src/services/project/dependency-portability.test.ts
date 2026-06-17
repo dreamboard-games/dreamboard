@@ -7,6 +7,7 @@ import {
   assertReleaseEnvironmentPortableDependencies,
   buildSourceDependencyProfile,
 } from "./dependency-portability.js";
+import { AUTHORING_RELEASE_SET } from "../../release/authoring-release-set.js";
 
 const tempDirs: string[] = [];
 
@@ -20,7 +21,7 @@ test("dependency profile tracks public Dreamboard packages only", async () => {
   const projectRoot = await createProject({
     dependencies: {
       dreamboard: "0.1.30-alpha.2",
-      "@dreamboard-games/sdk": "0.4.0-alpha.1",
+      "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
       react: "^19.0.0",
     },
   });
@@ -29,7 +30,7 @@ test("dependency profile tracks public Dreamboard packages only", async () => {
 
   expect(profile.packages).toEqual({
     dreamboard: "0.1.30-alpha.2",
-    "@dreamboard-games/sdk": "0.4.0-alpha.1",
+    "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
   });
 });
 
@@ -65,7 +66,7 @@ test("release portability rejects legacy @dreamboard package dependencies before
 test("release portability ignores stale local snapshot state when packages are public", async () => {
   const projectRoot = await createProject({
     dependencies: {
-      "@dreamboard-games/sdk": "0.4.0-alpha.1",
+      "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
     },
   });
 

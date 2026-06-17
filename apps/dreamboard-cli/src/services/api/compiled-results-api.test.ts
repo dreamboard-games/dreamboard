@@ -168,7 +168,7 @@ beforeEach(() => {
   mockState.jobResponses = [];
 });
 
-test("findCompiledResultsForAuthoringState filters legacy authoring ids locally", async () => {
+test("findCompiledResultsForAuthoringState no-ops after game-scoped result list removal", async () => {
   mockState.listCompiledResultsResponse = {
     data: {
       results: [
@@ -188,21 +188,8 @@ test("findCompiledResultsForAuthoringState filters legacy authoring ids locally"
     authoringStateId: "authoring-state-2",
   });
 
-  expect(results).toEqual([
-    {
-      id: "compiled-result-2",
-      authoringStateId: "authoring-state-2",
-      success: true,
-    },
-  ]);
-  expect(mockState.listCompiledResultsCalls).toEqual([
-    {
-      path: { gameId: "game-1" },
-      query: {
-        limit: 100,
-      },
-    },
-  ]);
+  expect(results).toEqual([]);
+  expect(mockState.listCompiledResultsCalls).toEqual([]);
 });
 
 test("findProjectCompiledResultsForRevision filters project results by revision digest", async () => {

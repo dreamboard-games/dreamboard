@@ -121,14 +121,15 @@ Use `home` on cards, piece seeds, and die seeds to place authored inventory.
 
 ## `cardSets`
 
-`cardSets` define the cards that exist. They do not place cards into zones by themselves.
+`cardSets` define the cards that exist. `defaultHome` or per-card `home` places
+authored inventory into zones.
 
 ### `CardSetDefinition`
 
 | Variant | Required fields | Notes |
 | --- | --- | --- |
-| `type: "manual"` | `id`, `name`, `cardSchema`, `cards` | Define your own cards |
-| `type: "preset"` | `id`, `name` | Use a built-in set |
+| `type: "manual"` | `id`, `name`, `cardSchema`, `cards`, `defaultHome` | Define your own cards |
+| `type: "preset"` | `id`, `name`, `defaultHome` | Use a built-in set |
 
 Current supported preset ID: `standard_52_deck`.
 
@@ -153,6 +154,10 @@ Current supported preset ID: `standard_52_deck`.
       "type": "manual",
       "id": "project-cards",
       "name": "Project cards",
+      "defaultHome": {
+        "type": "zone",
+        "zoneId": "project-deck"
+      },
       "cardSchema": {
         "properties": {
           "cost": { "type": "integer" },
@@ -181,6 +186,9 @@ Current supported preset ID: `standard_52_deck`.
 ## `zones`
 
 Use `zones` for shared piles, per-player hands, pools, bags, and other table-level containers.
+`allowedCardSetIds` controls destination compatibility. `defaultHome` and
+per-card `home` control initial placement. Use reducer setup for dynamic
+distribution and shuffle.
 
 | Field | Required | Notes |
 | --- | --- | --- |

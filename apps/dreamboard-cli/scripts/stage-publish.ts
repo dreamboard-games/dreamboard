@@ -14,6 +14,7 @@ import {
   IGNORED_PUBLIC_SKILL_ENTRY_NAMES,
   resolvePublicSkillRoot,
 } from "./public-skill-utils.ts";
+import { AUTHORING_RELEASE_SET } from "../src/release/authoring-release-set.ts";
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -63,7 +64,7 @@ const packageJson: Record<string, unknown> = {
     },
     "./package.json": "./package.json",
   },
-  files: ["dist", "README.md", "skills"],
+  files: ["dist", "README.md", "release", "skills"],
   keywords: sourcePackage.keywords ?? [
     "dreamboard",
     "cli",
@@ -90,8 +91,10 @@ function buildPublishedDependencies(
 ): Record<string, string> {
   const dependencies = { ...sourceDependencies };
   if (dependencies["@dreamboard-games/api-client"]?.startsWith("workspace:")) {
-    dependencies["@dreamboard-games/api-client"] = "0.3.0-alpha.3";
+    dependencies["@dreamboard-games/api-client"] =
+      AUTHORING_RELEASE_SET.packages.apiClient.version;
   }
+  delete dependencies["@dreamboard-games/sdk"];
   return dependencies;
 }
 
@@ -146,6 +149,12 @@ await cp(path.join(packageRoot, "dist"), path.join(stageRoot, "dist"), {
   recursive: true,
   force: true,
 });
+await mkdir(path.join(stageRoot, "release"), { recursive: true });
+await writeFile(
+  path.join(stageRoot, "release", "authoring-release-set.json"),
+  `${JSON.stringify(AUTHORING_RELEASE_SET, null, 2)}\n`,
+  "utf8",
+);
 if (
   await pathExists(
     path.join(
