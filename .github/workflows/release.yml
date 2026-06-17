@@ -103,13 +103,23 @@ jobs:
 
       - name: Publish dev-host to npm
         run: |
-          npm publish packages/dev-host/.publish/package \
-            --tag "${{ steps.release_meta.outputs.npm_tag }}"
+          if npm view "@dreamboard-games/dev-host@${{ steps.release_meta.outputs.dev_host_version }}" version \
+            --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            echo "@dreamboard-games/dev-host@${{ steps.release_meta.outputs.dev_host_version }} already exists; skipping publish."
+          else
+            npm publish packages/dev-host/.publish/package \
+              --tag "${{ steps.release_meta.outputs.npm_tag }}"
+          fi
 
       - name: Publish CLI to npm
         run: |
-          npm publish apps/dreamboard-cli/.publish/package \
-            --tag "${{ steps.release_meta.outputs.npm_tag }}"
+          if npm view "@dreamboard-games/cli@${{ steps.release_meta.outputs.package_version }}" version \
+            --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            echo "@dreamboard-games/cli@${{ steps.release_meta.outputs.package_version }} already exists; skipping publish."
+          else
+            npm publish apps/dreamboard-cli/.publish/package \
+              --tag "${{ steps.release_meta.outputs.npm_tag }}"
+          fi
 
       - name: Create GitHub Release
         run: |
