@@ -32,16 +32,14 @@
  *    A newer `accessToken` key is also accepted for read to ease any
  *    future format bump.
  *
- * 5. Development builds may still use the file backend for local testing.
- *    Published builds require the OS keychain and fail closed when it is
- *    unavailable.
+ * 5. All builds default to the file backend. The OS keychain is an explicit
+ *    opt-in through config or `DREAMBOARD_CREDENTIAL_BACKEND=keychain`.
  */
 
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { PROJECT_DIR_NAME } from "../constants.js";
-import { IS_PUBLISHED_BUILD } from "../build-target.js";
 import {
   atomicWriteFile,
   withFileLock,
@@ -227,7 +225,7 @@ let migrationCompleted = false;
 let backendResolver: BackendResolver = defaultBackendResolver;
 
 /**
- * Development resolver precedence:
+ * Resolver precedence for all builds:
  *
  *   1. `DREAMBOARD_CREDENTIAL_BACKEND` env var (debugging / CI override).
  *        - "file"     -> force file
@@ -240,10 +238,7 @@ let backendResolver: BackendResolver = defaultBackendResolver;
  *        - "file" / unset / malformed -> file
  *   3. Default: file backend.
  *
- * Published builds skip this precedence, require keychain, and throw
- * CREDENTIAL_STORE_UNAVAILABLE instead of falling back to plaintext.
- *
- * In development, keychain is opt-in because on macOS the OS login-keychain prompts for
+ * Keychain is opt-in because on macOS the OS login-keychain prompts for
  * the user's password the first time a new binary tries to write to an
  * item, and re-prompts whenever the Node binary signature changes. We
  * would rather ship a zero-prompt default and let users who care about
@@ -256,20 +251,6 @@ async function defaultBackendResolver(): Promise<CredentialBackend> {
   const override = (process.env.DREAMBOARD_CREDENTIAL_BACKEND ?? "")
     .trim()
     .toLowerCase();
-  if (IS_PUBLISHED_BUILD) {
-    if (override && override !== "keychain" && override !== "auto") {
-      throw new CredentialStoreUnavailableError(
-        "published builds require the OS credential store",
-      );
-    }
-    const { tryKeychainBackend } = await import("./keychain-backend.js");
-    const keychain = await tryKeychainBackend();
-    if (keychain.available) {
-      return keychain.backend;
-    }
-    throw new CredentialStoreUnavailableError(keychain.reason);
-  }
-
   if (override === "file") {
     return fileCredentialBackend;
   }
@@ -318,7 +299,7 @@ async function readCredentialBackendPreference(): Promise<boolean> {
 
 /**
  * Override which backend is used. Tests use this to inject in-memory
- * backends; production code uses the default keychain-first resolver.
+ * backends; production code uses the file-default resolver.
  */
 export function setCredentialBackendResolver(resolver: BackendResolver): void {
   backendResolver = resolver;
@@ -335,9 +316,7 @@ export async function getCredentialBackend(): Promise<CredentialBackend> {
     // empty, so repeated migrations cannot stomp a newer keychain
     // session with a stale file session.
     if (!migrationCompleted && cachedBackend.name !== "file") {
-      await migrateFromFileBackendIfNeeded(cachedBackend, {
-        failClosed: IS_PUBLISHED_BUILD,
-      });
+      await migrateFromFileBackendIfNeeded(cachedBackend);
     }
     migrationCompleted = true;
   }

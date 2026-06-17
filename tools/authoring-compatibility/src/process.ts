@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 export type CommandResult = {
   stdout: string;
   stderr: string;
+  exitCode: number;
 };
 
 export async function spawnFile(
@@ -33,7 +34,7 @@ export async function spawnFile(
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0 || options.allowFailure) {
-        resolve({ stdout, stderr });
+        resolve({ stdout, stderr, exitCode: code ?? 1 });
         return;
       }
       reject(

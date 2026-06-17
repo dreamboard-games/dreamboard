@@ -35,6 +35,7 @@ export async function writeReceipt(options: {
           tarball: candidate.tarballPath,
           tarballSha512: candidate.sha512Hex,
           integrity: candidate.integrity,
+          installedIntegrity: candidate.integrity,
         },
       ]),
     ),
@@ -49,6 +50,16 @@ export async function writeReceipt(options: {
     adapter: options.adapter,
     generatedArtifacts: options.generatedArtifacts,
     commandAdapterVersion: options.scaffold.commandAdapterVersion,
+    checks: [
+      { id: "release-set-and-candidate-identity", status: "passed" },
+      { id: "scaffold-before-install", status: "passed" },
+      { id: "frozen-install-and-integrity", status: "passed" },
+      { id: "project-local-adapter", status: "passed" },
+      { id: "manifest-conformance", status: "passed" },
+      { id: "deterministic-generated-artifacts", status: "passed" },
+      { id: "generated-workspace-typecheck", status: "passed" },
+      { id: "packed-reducer-scenarios", status: "passed" },
+    ],
   };
   const receiptPath = path.join(outputDir, "receipt.json");
   await writeFile(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, "utf8");

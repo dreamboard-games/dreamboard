@@ -62,6 +62,9 @@ export type AuthoringReleaseSetLike = {
   registry?: Record<string, unknown>;
 };
 
+const EXACT_SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
 const EXPECTED_NAMES: Record<CandidateKey, string> = {
   sdk: "@dreamboard-games/sdk",
   apiClient: "@dreamboard-games/api-client",
@@ -87,6 +90,12 @@ export async function loadCandidateSet(
     ),
   ) as Record<CandidateKey, CandidatePackage>;
   const releaseSet = await readCliReleaseSet(packages.cli);
+  const computedReleaseSetId = releaseSetId(releaseSet);
+  if (releaseSet.releaseSetId !== computedReleaseSetId) {
+    throw new Error(
+      `CLI release set digest ${releaseSet.releaseSetId} did not recompute as ${computedReleaseSetId}.`,
+    );
+  }
 
   if (
     input.expectedReleaseSetId &&
@@ -121,7 +130,7 @@ export async function loadCandidateSet(
   }
 
   assertPackageDependenciesMatchReleaseSet(packages, releaseSet);
-  assertProvenance(input, releaseSet);
+  await assertProvenance(input, releaseSet, packages);
 
   return { input, packages, releaseSet };
 }
@@ -224,10 +233,11 @@ function assertPackageDependenciesMatchReleaseSet(
   }
 }
 
-function assertProvenance(
+async function assertProvenance(
   input: AuthoringCompatibilityCandidateV1,
   releaseSet: AuthoringReleaseSetLike,
-) {
+  packages: Record<CandidateKey, CandidatePackage>,
+): Promise<void> {
   const versions = Object.values(releaseSet.packages).map(
     (entry) => `${entry.name}@${entry.version}`,
   );
@@ -238,14 +248,42 @@ function assertProvenance(
         `Public channel cannot contain local version ${localVersion}.`,
       );
     }
-    if (
-      releaseSet.registry?.kind &&
-      releaseSet.registry.kind !== "public-npm"
-    ) {
+    if (releaseSet.registry?.kind !== "public-npm") {
       throw new Error(
         "Public channel release set must use public-npm registry.",
       );
     }
+    if (releaseSet.registry.portable !== true) {
+      throw new Error("Public channel release set must be portable.");
+    }
+    if (releaseSet.registry.receiptPath) {
+      throw new Error("Public channel release set cannot reference a local receipt.");
+    }
+    await Promise.all(
+      (Object.keys(packages) as CandidateKey[]).map(async (key) => {
+        const candidate = packages[key];
+        const packageName = encodeURIComponent(candidate.packageJson.name);
+        const response = await fetch(
+          `https://registry.npmjs.org/${packageName}/${candidate.packageJson.version}`,
+        );
+        if (!response.ok) {
+          throw new Error(
+            `Public candidate ${candidate.packageJson.name}@${candidate.packageJson.version} is not available from npm.`,
+          );
+        }
+        const metadata = (await response.json()) as {
+          dist?: { integrity?: string; tarball?: string };
+        };
+        if (
+          metadata.dist?.integrity !== candidate.integrity ||
+          !metadata.dist.tarball?.startsWith("https://registry.npmjs.org/")
+        ) {
+          throw new Error(
+            `Public candidate bytes for ${candidate.packageJson.name}@${candidate.packageJson.version} do not match npm.`,
+          );
+        }
+      }),
+    );
     return;
   }
 
@@ -254,15 +292,49 @@ function assertProvenance(
       "Maintainer-local channel requires maintainer-local registry metadata.",
     );
   }
+  if (releaseSet.registry.portable !== false) {
+    throw new Error("Maintainer-local release sets must be non-portable.");
+  }
+  const nonLocalVersion = versions.find((entry) => !entry.includes("-local."));
+  if (nonLocalVersion) {
+    throw new Error(
+      `Maintainer-local release sets require local snapshot versions, got ${nonLocalVersion}.`,
+    );
+  }
+  const receiptPath = releaseSet.registry.receiptPath;
+  if (typeof receiptPath !== "string" || receiptPath.trim().length === 0) {
+    throw new Error(
+      "Maintainer-local release sets require a retained registry receipt.",
+    );
+  }
+  const receiptStat = await stat(path.resolve(receiptPath)).catch(() => null);
+  if (!receiptStat?.isFile()) {
+    throw new Error(
+      `Maintainer-local registry receipt is unavailable at ${receiptPath}.`,
+    );
+  }
 }
 
 function isExactVersion(version: unknown): version is string {
-  return (
-    typeof version === "string" &&
-    version.trim().length > 0 &&
-    !version.startsWith("workspace:") &&
-    !version.startsWith("file:") &&
-    !version.startsWith("link:") &&
-    !/^[~^*]/.test(version)
-  );
+  return typeof version === "string" && EXACT_SEMVER.test(version);
+}
+
+function stableJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
+    .join(",")}}`;
+}
+
+function releaseSetId(releaseSet: AuthoringReleaseSetLike): string {
+  const withoutId = { ...releaseSet } as Omit<
+    AuthoringReleaseSetLike,
+    "releaseSetId"
+  > & { releaseSetId?: string };
+  delete withoutId.releaseSetId;
+  return `sha256:${createHash("sha256")
+    .update(stableJson(withoutId))
+    .digest("hex")}`;
 }

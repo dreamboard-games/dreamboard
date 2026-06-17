@@ -15,6 +15,9 @@ type PackageJson = {
 
 type PackageKey = "sdk" | "apiClient" | "devHost";
 
+const EXACT_SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -32,17 +35,22 @@ async function readPackageJson(filePath: string): Promise<PackageJson> {
 }
 
 function requireExactVersion(name: string, version: unknown): string {
-  if (
-    typeof version !== "string" ||
-    version.trim().length === 0 ||
-    version.startsWith("workspace:") ||
-    version.startsWith("file:") ||
-    version.startsWith("link:") ||
-    /^[~^*]/.test(version)
-  ) {
+  if (typeof version !== "string" || !EXACT_SEMVER.test(version)) {
     throw new Error(`${name} must use an exact package version.`);
   }
   return version;
+}
+
+function requireExactPackageManager(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    !/^pnpm@(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(
+      value,
+    )
+  ) {
+    throw new Error("packageManager must use an exact pnpm version.");
+  }
+  return value;
 }
 
 function requirePublicVersion(name: string, version: string): void {
@@ -239,10 +247,7 @@ const releaseSetWithoutId: Omit<AuthoringReleaseSetV1, "releaseSetId"> = {
     ...(registryReceiptPath ? { receiptPath: registryReceiptPath } : {}),
   },
   ...(Object.keys(candidates).length > 0 ? { candidates } : {}),
-  packageManager: requireExactVersion(
-    "packageManager",
-    rootPackage.packageManager,
-  ),
+  packageManager: requireExactPackageManager(rootPackage.packageManager),
 };
 const releaseSet: AuthoringReleaseSetV1 = {
   ...releaseSetWithoutId,

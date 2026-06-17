@@ -24,6 +24,7 @@ export type ScaffoldProof = {
     apiClientVersions: string[];
     lockfileIntegrities: Record<string, boolean>;
     lockfileContainsCandidateIntegrities: boolean;
+    allCandidateIntegritiesPresent: boolean;
   };
   commandAdapterVersion: string;
 };
@@ -372,13 +373,15 @@ async function inspectInstalledPackages(options: {
         : lockfile.includes(candidate.integrity),
     ]),
   );
+  const allCandidateIntegritiesPresent =
+    Object.values(lockfileIntegrities).every(Boolean);
   return {
     sdkVersion: sdkPackageJson.version,
     devHostVersion: devHostPackageJson.version,
     apiClientVersions,
     lockfileIntegrities,
-    lockfileContainsCandidateIntegrities:
-      Object.values(lockfileIntegrities).every(Boolean),
+    lockfileContainsCandidateIntegrities: allCandidateIntegritiesPresent,
+    allCandidateIntegritiesPresent,
   };
 }
 
