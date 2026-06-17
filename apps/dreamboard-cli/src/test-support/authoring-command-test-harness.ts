@@ -1,4 +1,5 @@
 import { beforeEach, mock } from "bun:test";
+import { AUTHORING_RELEASE_SET } from "../release/authoring-release-set.js";
 import type {
   ApiError,
   GlobalConfig,
@@ -948,7 +949,7 @@ mock.module("../utils/fs.js", () => ({
   readJsonFile: async () => ({
     dependencies: {
       dreamboard: "0.1.30-alpha.2",
-      "@dreamboard-games/sdk": "0.4.0-alpha.1",
+      "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
     },
   }),
   writeTextFile: async () => undefined,

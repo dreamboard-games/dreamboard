@@ -96,6 +96,32 @@ type DevAuthorWarning = {
   source: DevLogEnvelope["source"];
 };
 
+type BrowserTestBridgeSnapshot = {
+  sessionId: string | null;
+  shortCode: string | null;
+  version: number;
+  currentPhase: string | null;
+  controllingPlayerId: string | null;
+  controllablePlayerIds: string[];
+  view: unknown;
+  availableInteractions: string[];
+};
+
+type BrowserTestBridge = {
+  snapshot(): Promise<BrowserTestBridgeSnapshot>;
+  submitInteraction(
+    playerId: string,
+    interactionId: string,
+    params: unknown,
+  ): Promise<void>;
+};
+
+declare global {
+  interface Window {
+    __dreamboardTestBridge__?: BrowserTestBridge;
+  }
+}
+
 let devAuthorWarnings: DevAuthorWarning[] = [];
 
 const store = createUnifiedSessionStore({
@@ -193,6 +219,7 @@ function installProxyAuthErrorInterceptor(): void {
 const restoreConsoleRelay = installConsoleRelay("host");
 const removeWindowErrorRelay = installWindowErrorRelay("host");
 installSseRelay();
+installBrowserTestBridge();
 window.addEventListener("message", handlePluginLogMessage);
 window.addEventListener("pagehide", disposeHostRuntime);
 window.addEventListener("beforeunload", disposeHostRuntime);
@@ -765,6 +792,43 @@ function installSseRelay(): void {
   });
 }
 
+function installBrowserTestBridge(): void {
+  const snapshot = (): BrowserTestBridgeSnapshot => {
+    const state = store.getState();
+    const gameplay = state.getRenderableGameplay();
+    return {
+      sessionId: unifiedSessionSelectors.sessionId(state),
+      shortCode: unifiedSessionSelectors.shortCode(state),
+      version: gameplay?.version ?? 0,
+      currentPhase: gameplay?.currentPhase ?? null,
+      controllingPlayerId: unifiedSessionSelectors.controllingPlayerId(state),
+      controllablePlayerIds: [
+        ...unifiedSessionSelectors.controllablePlayerIds(state),
+      ],
+      view: gameplay?.view ?? null,
+      availableInteractions: (gameplay?.availableInteractions ?? []).map(
+        (interaction) => interaction.interactionId,
+      ),
+    };
+  };
+
+  window.__dreamboardTestBridge__ = {
+    snapshot: async () => snapshot(),
+    submitInteraction: (playerId, interactionId, params) => {
+      const sessionId = unifiedSessionSelectors.sessionId(store.getState());
+      if (!sessionId) {
+        throw new Error("Browser test bridge has no active session.");
+      }
+      return store.getState().submitInteraction({
+        sessionId,
+        playerId,
+        interactionId,
+        params,
+      });
+    },
+  };
+}
+
 function getMessageRecipient(message: unknown): unknown {
   return message && typeof message === "object" && "toUser" in message
     ? (message as { toUser?: unknown }).toUser
@@ -947,6 +1011,7 @@ function disposeHostRuntime(): void {
   removeWindowErrorRelay();
   restoreConsoleRelay();
   window.removeEventListener("message", handlePluginLogMessage);
+  delete window.__dreamboardTestBridge__;
   window.removeEventListener("pagehide", disposeHostRuntime);
   window.removeEventListener("beforeunload", disposeHostRuntime);
   unsubscribeStoreRender();

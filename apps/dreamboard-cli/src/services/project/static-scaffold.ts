@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readdir, readFile, rmdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
-import { IS_PUBLISHED_BUILD } from "../../build-target.js";
+import { AUTHORING_RELEASE_SET } from "../../release/authoring-release-set.js";
 import { REDUCER_TESTING_TYPES_WRAPPER_CONTENT } from "../../templates/testing-types-content.js";
 import {
   MANIFEST_TYPECHECK_CONFIG_FILE,
@@ -12,7 +12,6 @@ import {
 } from "../../constants.js";
 import type { LocalMaintainerRegistryConfig } from "../../types.js";
 import { ensureDir } from "../../utils/fs.js";
-import { resolveCliRepoRoot } from "../../utils/repo-root.js";
 import { materializeManifest } from "./manifest-authoring.js";
 import { isDynamicSeedPath } from "./scaffold-ownership.js";
 import {
@@ -110,14 +109,11 @@ export default defineScenario({
 });
 `;
 const STATIC_ASSET_ROOT = resolveStaticAssetRoot();
-const SDK_PACKAGE_PATHS = {
-  "@dreamboard-games/sdk": ["packages", "sdk", "package.json"],
-} as const;
-const DEFAULT_SDK_DEPENDENCY_RANGES = {
-  "@dreamboard-games/sdk": "0.4.0-alpha.1",
-} as const;
 const SDK_DEPENDENCY_RANGES = {
-  "@dreamboard-games/sdk": resolveSdkDependencyRange("@dreamboard-games/sdk"),
+  "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
+} as const;
+const DEV_HOST_DEPENDENCY_RANGES = {
+  "@dreamboard-games/dev-host": AUTHORING_RELEASE_SET.packages.devHost.version,
 } as const;
 
 const FRAMEWORK_SCRIPTS = {
@@ -727,10 +723,12 @@ async function buildRootPackageJson(
   };
   const frameworkDevDependencies = {
     ...SHARED_DEV_DEPENDENCIES,
+    ...DEV_HOST_DEPENDENCY_RANGES,
   };
   const nextPackageJson: RootPackageJsonShape = {
     ...existingPackageJsonWithoutLegacyVersion,
     private: true,
+    packageManager: AUTHORING_RELEASE_SET.packageManager,
     scripts: {
       ...(existingPackageJson?.scripts ?? {}),
       ...FRAMEWORK_SCRIPTS,
@@ -780,130 +778,6 @@ function buildUiPackageJson(): string {
     null,
     2,
   )}\n`;
-}
-
-function readPackageVersion(
-  packageJsonPath: string,
-  packageName: string,
-): string | null {
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
-    version?: unknown;
-  };
-
-  if (
-    typeof packageJson.version !== "string" ||
-    packageJson.version.trim().length === 0
-  ) {
-    return null;
-  }
-
-  return `^${packageJson.version.trim()}`;
-}
-
-function findNearestPackageJsonPath(
-  importMetaUrl: string = import.meta.url,
-): string | null {
-  let current = path.dirname(fileURLToPath(importMetaUrl));
-
-  while (true) {
-    const candidate = path.join(current, "package.json");
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return null;
-    }
-    current = parent;
-  }
-}
-
-function isSourceCheckoutCliPackageJsonPath(
-  packageJsonPath: string,
-  importMetaUrl: string = import.meta.url,
-): boolean {
-  try {
-    return (
-      path.resolve(packageJsonPath) ===
-      path.join(
-        resolveCliRepoRoot(importMetaUrl),
-        "apps",
-        "dreamboard-cli",
-        "package.json",
-      )
-    );
-  } catch {
-    return false;
-  }
-}
-
-function readPackagedSdkDependencyRange(
-  packageName: keyof typeof SDK_PACKAGE_PATHS,
-  importMetaUrl: string = import.meta.url,
-): string | null {
-  const packageJsonPath = findNearestPackageJsonPath(importMetaUrl);
-  if (!packageJsonPath) {
-    return null;
-  }
-
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
-    dependencies?: Record<string, unknown>;
-  };
-
-  const packagedRange = packageJson.dependencies?.[packageName];
-  if (
-    typeof packagedRange !== "string" ||
-    packagedRange.trim().length === 0 ||
-    packagedRange.startsWith("workspace:") ||
-    packagedRange.startsWith("link:") ||
-    (packagedRange.startsWith("file:") &&
-      !IS_PUBLISHED_BUILD &&
-      isSourceCheckoutCliPackageJsonPath(packageJsonPath, importMetaUrl))
-  ) {
-    return null;
-  }
-
-  return packagedRange.trim();
-}
-
-/**
- * Local Verdaccio snapshot pins (`x.y.z-local.<timestamp>.<fingerprint>`) are
- * only resolvable on the maintainer machine that published them. Scaffolded
- * workspaces must always start from a registry-publishable version, so
- * normalize any inherited snapshot pin to its public base version.
- */
-function stripLocalSnapshotSuffix(range: string): string {
-  return range.replace(/-local\..*$/, "");
-}
-
-export function resolveSdkDependencyRange(
-  packageName: keyof typeof SDK_PACKAGE_PATHS,
-  importMetaUrl: string = import.meta.url,
-): string {
-  const packagedRange = readPackagedSdkDependencyRange(
-    packageName,
-    importMetaUrl,
-  );
-  if (packagedRange) {
-    return stripLocalSnapshotSuffix(packagedRange);
-  }
-
-  try {
-    const repoRoot = resolveCliRepoRoot(importMetaUrl);
-    const packageJsonPath = path.join(
-      repoRoot,
-      ...SDK_PACKAGE_PATHS[packageName],
-    );
-    const repoRange = readPackageVersion(packageJsonPath, packageName);
-    if (repoRange) {
-      return stripLocalSnapshotSuffix(repoRange);
-    }
-  } catch {
-    // Published installs do not include the monorepo layout.
-  }
-
-  return DEFAULT_SDK_DEPENDENCY_RANGES[packageName];
 }
 
 function normalizeImportPath(relativePath: string): string {

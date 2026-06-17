@@ -26,10 +26,12 @@ import {
   createPersistedDevSession,
   parseDevSeed,
 } from "../utils/dev-session.js";
+import { extractUserIdFromJwt } from "../utils/jwt.js";
 import { resolvePlayerCount } from "../utils/player-count.js";
 import { isStaleContractArtifactError } from "../utils/errors.js";
 import { openBrowser } from "../auth/auth-server.js";
-import { startDreamboardDevServer } from "../dev-host/start-dev-server.js";
+import { loadProjectDevHost } from "../services/dev-host/loader.js";
+import { createCliDevHostPlatform } from "../services/dev-host/platform.js";
 import {
   createSessionFromScenario,
   generateReducerNativeArtifacts,
@@ -485,31 +487,35 @@ export default defineCommand({
     }
     const allowedHosts = parseAllowedHosts(parsedArgs["allowed-host"]);
 
-    const devServer = await startDreamboardDevServer({
-      projectRoot,
-      sessionFilePath,
-      port: preferredPort,
-      host: parseDevHost(parsedArgs.host),
-      allowedHosts,
-      config,
-      runtimeConfig: {
+    const loadedDevHost = await loadProjectDevHost(projectRoot);
+    const devServer = await loadedDevHost.module.start(
+      {
+        projectRoot,
+        sessionFilePath,
         apiBaseUrl: config.apiBaseUrl,
-        userId: extractUserIdFromJwt(effectiveAuthToken ?? null),
-        gameId: runSession.gameId,
-        compiledResultId: devCompile.id,
-        setupProfileId: runSession.setupProfileId ?? null,
-        playerCount: resolvedPlayerCount,
-        debug: parsedArgs.debug,
-        slug: effectiveProjectConfig.slug,
-        autoStartGame: !resumedExistingSession && !scenarioSeededSession,
-        initialSession: {
-          sessionId: runSession.sessionId,
-          shortCode: runSession.shortCode,
+        port: preferredPort,
+        host: parseDevHost(parsedArgs.host),
+        allowedHosts,
+        runtimeConfig: {
+          apiBaseUrl: config.apiBaseUrl,
+          userId: extractUserIdFromJwt(effectiveAuthToken ?? null),
           gameId: runSession.gameId,
-          seed: runSession.seed ?? null,
+          compiledResultId: devCompile.id,
+          setupProfileId: runSession.setupProfileId ?? null,
+          playerCount: resolvedPlayerCount,
+          debug: parsedArgs.debug,
+          slug: effectiveProjectConfig.slug,
+          autoStartGame: !resumedExistingSession && !scenarioSeededSession,
+          initialSession: {
+            sessionId: runSession.sessionId,
+            shortCode: runSession.shortCode,
+            gameId: runSession.gameId,
+            seed: runSession.seed ?? null,
+          },
         },
       },
-    });
+      createCliDevHostPlatform(config),
+    );
 
     clearPreflightOutput();
     console.log(
@@ -963,24 +969,4 @@ export async function waitForTermination(
     process.on("SIGINT", handleSigint);
     process.on("SIGTERM", handleSigterm);
   });
-}
-
-function extractUserIdFromJwt(token: string | null): string | null {
-  if (!token) {
-    return null;
-  }
-
-  const parts = token.split(".");
-  if (parts.length < 2) {
-    return null;
-  }
-
-  try {
-    const payload = JSON.parse(
-      Buffer.from(parts[1]!, "base64url").toString("utf8"),
-    ) as Record<string, unknown>;
-    return typeof payload.sub === "string" ? payload.sub : null;
-  } catch {
-    return null;
-  }
 }

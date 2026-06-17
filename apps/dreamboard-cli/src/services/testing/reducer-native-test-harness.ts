@@ -28,11 +28,13 @@ import {
 } from "@dreamboard-games/sdk/reducer";
 import {
   ReducerWireZod as ReducerContractZod,
+  materializeManifestTable,
   type ReducerWire as Wire,
 } from "@dreamboard-games/sdk/reducer-contract";
-import { materializeManifestTable } from "@dreamboard-games/sdk/codegen";
 import type { ProjectConfig, ResolvedConfig } from "../../types.js";
-import { ensureDir, exists } from "../../utils/fs.js";
+import { ensureDir, exists, writeJsonFile } from "../../utils/fs.js";
+import { createPersistedDevSession } from "../../utils/dev-session.js";
+import { extractUserIdFromJwt } from "../../utils/jwt.js";
 import {
   readWorkspaceTextFileIfExists,
   resolveWorkspacePath,
@@ -56,6 +58,8 @@ import {
   configurePlaywrightBrowsersPath,
   waitForGameReady,
 } from "../../ui/playwright-runner.js";
+import { loadProjectDevHost } from "../dev-host/loader.js";
+import { createCliDevHostPlatform } from "../dev-host/platform.js";
 import { resolveSetupProfileSelection } from "../workflows/resolve-setup-profile.js";
 import {
   isStaleContractArtifactError,
@@ -3356,33 +3360,18 @@ export async function runReducerNativeScenarios(options: {
     ),
   );
 
-  let browser: Browser | null = null;
-  let page: Page | null = null;
   let browserBridge: BrowserBridgeClient | null = null;
   let browserDriver: BrowserRunnerDriver | null = null;
 
   if (options.runner === "browser") {
-    const webBaseUrl = options.webBaseUrl ?? options.projectConfig.webBaseUrl;
-    if (!webBaseUrl) {
-      throw new Error(
-        "Browser runner requires a local webBaseUrl. Start the local web stack and configure the project for env local.",
-      );
-    }
     browserDriver = await loadBrowserDriver(options.projectRoot);
-    const opened = await openBrowserPage(
-      `${webBaseUrl}/_dev`,
-      options.resolvedConfig,
-    );
-    browser = opened.browser;
-    page = opened.page;
   }
 
-  try {
-    let passed = 0;
-    let failed = 0;
-    const results: ReducerNativeScenarioResult[] = [];
+  let passed = 0;
+  let failed = 0;
+  const results: ReducerNativeScenarioResult[] = [];
 
-    for (const scenario of runnerScenarios) {
+  for (const scenario of runnerScenarios) {
       const base = basesById.get(scenario.definition.from);
       if (!base) {
         throw new Error(
@@ -3408,6 +3397,9 @@ export async function runReducerNativeScenarios(options: {
         );
       }
 
+      let scenarioBrowser: Browser | null = null;
+      let scenarioDevHost: { url: string; close(): Promise<void> } | null =
+        null;
       try {
         const resolvedBase = resolveBaseDefinition(base, basesById);
         const effectiveSetup = resolveEffectiveBaseSetup({
@@ -3493,7 +3485,7 @@ export async function runReducerNativeScenarios(options: {
           };
         }
 
-        if (options.runner === "browser" && page) {
+        if (options.runner === "browser") {
           const compiledResultId =
             options.compiledResultId ??
             options.projectConfig.compile?.latestSuccessful?.resultId;
@@ -3529,10 +3521,56 @@ export async function runReducerNativeScenarios(options: {
           if (startError || !started) {
             throw new Error("Failed to start browser-runner session.");
           }
-          await page.goto(
-            `${options.webBaseUrl ?? options.projectConfig.webBaseUrl}/_dev/play/${started.context.shortCode}`,
-            { waitUntil: "domcontentloaded" },
+          const devDir = path.join(
+            options.projectRoot,
+            PROJECT_DIR_NAME,
+            "dev",
           );
+          await ensureDir(devDir);
+          const sessionFilePath = path.join(devDir, "session.json");
+          await writeJsonFile(
+            sessionFilePath,
+            createPersistedDevSession({ sessionId: session.sessionId }),
+          );
+          const devHostPlatform = createCliDevHostPlatform(
+            options.resolvedConfig,
+          );
+          const bearer = await devHostPlatform.resolveBearer();
+          if (bearer.kind === "permanent_invalid") {
+            throw new Error(bearer.message);
+          }
+          const loadedDevHost = await loadProjectDevHost(options.projectRoot);
+          scenarioDevHost = await loadedDevHost.module.start(
+            {
+              projectRoot: options.projectRoot,
+              sessionFilePath,
+              apiBaseUrl: options.resolvedConfig.apiBaseUrl,
+              runtimeConfig: {
+                apiBaseUrl: options.resolvedConfig.apiBaseUrl,
+                userId: extractUserIdFromJwt(bearer.token),
+                gameId: options.projectConfig.gameId,
+                compiledResultId,
+                setupProfileId: effectiveSetup.setupProfileId ?? null,
+                playerCount: resolvedBase.players,
+                debug: options.debug ?? false,
+                slug: options.projectConfig.slug,
+                autoStartGame: false,
+                initialSession: {
+                  sessionId: session.sessionId,
+                  shortCode: started.context.shortCode,
+                  gameId: options.projectConfig.gameId,
+                  seed: resolvedBase.seed,
+                },
+              },
+            },
+            devHostPlatform,
+          );
+          const opened = await openBrowserPage(
+            scenarioDevHost.url,
+            options.resolvedConfig,
+          );
+          scenarioBrowser = opened.browser;
+          const page = opened.page;
           await waitForGameReady(page);
           browserBridge = await createBrowserBridgeClient(page);
           await browserDriver?.onReady?.(browserBridge);
@@ -3607,13 +3645,16 @@ export async function runReducerNativeScenarios(options: {
                 })
               : `Scenario '${scenario.definition.id}' failed.`,
         });
+      } finally {
+        browserBridge = null;
+        if (scenarioBrowser) {
+          await scenarioBrowser.close();
+        }
+        if (scenarioDevHost) {
+          await scenarioDevHost.close();
+        }
       }
-    }
-
-    return { passed, failed, results };
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
+
+  return { passed, failed, results };
 }

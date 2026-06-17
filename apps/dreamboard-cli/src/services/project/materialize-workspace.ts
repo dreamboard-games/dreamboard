@@ -52,13 +52,13 @@ export async function materializeWorkspaceProject(
   await scaffoldStaticWorkspace(targetDir, "new", {
     localMaintainerRegistry: input.localMaintainerRegistry,
   });
+  if (input.installDependencies ?? true) {
+    await installWorkspaceDependencies(targetDir);
+  }
   await applyWorkspaceCodegen({
     projectRoot: targetDir,
     manifest: input.manifest,
   });
-  if (input.installDependencies ?? true) {
-    await installWorkspaceDependencies(targetDir);
-  }
 
   const authoringConfig =
     input.ruleId && input.manifestId && input.manifestContentHash

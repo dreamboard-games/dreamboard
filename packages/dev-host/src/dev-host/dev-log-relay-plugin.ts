@@ -1,12 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { unlink } from "node:fs/promises";
+import { readFile, stat, unlink, writeFile } from "node:fs/promises";
 import consola from "consola";
 import type { Plugin } from "vite";
-import type { ResolvedConfig } from "../types.js";
-import { createPersistedDevSession } from "../utils/dev-session.js";
-import { exists, readJsonFile, writeJsonFile } from "../utils/fs.js";
-import { isStaleContractArtifactError } from "../utils/errors.js";
-import { resolveDevBearer } from "./dev-api-proxy-plugin.js";
+import type { DevHostPlatform } from "./contract.js";
 import {
   shouldRelayDevLog,
   type DevDiagnosticsLevel,
@@ -21,7 +17,8 @@ const STALE_DEV_SESSION_RESET_NOTICE =
 export function createDevLogRelayPlugin(options: {
   sessionFilePath: string;
   runtimeConfig: DreamboardDevRuntimeConfig;
-  config: ResolvedConfig;
+  apiBaseUrl: string;
+  platform: DevHostPlatform;
   diagnosticsLevel: DevDiagnosticsLevel;
 }): Plugin {
   return {
@@ -74,7 +71,8 @@ export function createDevLogRelayPlugin(options: {
         createSnapshotSessionHandler({
           sessionFilePath: options.sessionFilePath,
           runtimeConfig: options.runtimeConfig,
-          config: options.config,
+          apiBaseUrl: options.apiBaseUrl,
+          platform: options.platform,
         }),
       );
       server.middlewares.use(
@@ -82,7 +80,8 @@ export function createDevLogRelayPlugin(options: {
         createNewSessionHandler({
           sessionFilePath: options.sessionFilePath,
           runtimeConfig: options.runtimeConfig,
-          config: options.config,
+          apiBaseUrl: options.apiBaseUrl,
+          platform: options.platform,
         }),
       );
       server.middlewares.use(
@@ -90,7 +89,8 @@ export function createDevLogRelayPlugin(options: {
         createStartSessionHandler({
           sessionFilePath: options.sessionFilePath,
           runtimeConfig: options.runtimeConfig,
-          config: options.config,
+          apiBaseUrl: options.apiBaseUrl,
+          platform: options.platform,
         }),
       );
     },
@@ -100,7 +100,8 @@ export function createDevLogRelayPlugin(options: {
 export function createSnapshotSessionHandler(options: {
   sessionFilePath: string;
   runtimeConfig: DreamboardDevRuntimeConfig;
-  config: ResolvedConfig;
+  apiBaseUrl: string;
+  platform: DevHostPlatform;
 }): (req: IncomingMessage, res: ServerResponse) => void {
   return (req, res) => {
     void handleSnapshotSessionRequest(req, res, options);
@@ -110,7 +111,8 @@ export function createSnapshotSessionHandler(options: {
 export function createNewSessionHandler(options: {
   sessionFilePath: string;
   runtimeConfig: DreamboardDevRuntimeConfig;
-  config: ResolvedConfig;
+  apiBaseUrl: string;
+  platform: DevHostPlatform;
 }): (req: IncomingMessage, res: ServerResponse) => void {
   return (req, res) => {
     void handleNewSessionRequest(req, res, options);
@@ -120,7 +122,8 @@ export function createNewSessionHandler(options: {
 export function createStartSessionHandler(options: {
   sessionFilePath: string;
   runtimeConfig: DreamboardDevRuntimeConfig;
-  config: ResolvedConfig;
+  apiBaseUrl: string;
+  platform: DevHostPlatform;
 }): (req: IncomingMessage, res: ServerResponse) => void {
   return (req, res) => {
     void handleStartSessionRequest(req, res, options);
@@ -133,7 +136,8 @@ async function handleSnapshotSessionRequest(
   options: {
     sessionFilePath: string;
     runtimeConfig: DreamboardDevRuntimeConfig;
-    config: ResolvedConfig;
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
   },
 ): Promise<void> {
   if (req.method !== "GET") {
@@ -147,7 +151,7 @@ async function handleSnapshotSessionRequest(
     let snapshot: unknown;
     try {
       snapshot = await fetchBackendJson(
-        options.config,
+        options,
         appendQuery(`/api/sessions/${session.sessionId}/snapshot`, {
           playerId: requestedPlayerId,
         }),
@@ -158,7 +162,7 @@ async function handleSnapshotSessionRequest(
       }
       session = await resetDisposableSessionPointer(options);
       snapshot = await fetchBackendJson(
-        options.config,
+        options,
         appendQuery(`/api/sessions/${session.sessionId}/snapshot`, {
           playerId: requestedPlayerId,
         }),
@@ -169,13 +173,13 @@ async function handleSnapshotSessionRequest(
       isStartableLobbySnapshot(snapshot)
     ) {
       snapshot = await fetchBackendJson(
-        options.config,
+        options,
         `/api/sessions/${session.sessionId}/start`,
         { method: "POST" },
       );
       if (requestedPlayerId) {
         snapshot = await fetchBackendJson(
-          options.config,
+          options,
           appendQuery(`/api/sessions/${session.sessionId}/snapshot`, {
             playerId: requestedPlayerId,
           }),
@@ -195,7 +199,8 @@ async function handleNewSessionRequest(
   options: {
     sessionFilePath: string;
     runtimeConfig: DreamboardDevRuntimeConfig;
-    config: ResolvedConfig;
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
   },
 ): Promise<void> {
   if (req.method !== "POST") {
@@ -210,7 +215,7 @@ async function handleNewSessionRequest(
       throw new Error("Seed must be a safe integer.");
     }
     const created = await fetchBackendJson(
-      options.config,
+      options,
       `/api/games/${options.runtimeConfig.gameId}/sessions`,
       {
         method: "POST",
@@ -228,7 +233,7 @@ async function handleNewSessionRequest(
       "sessionId",
     );
     let snapshot = await fetchBackendJson(
-      options.config,
+      options,
       `/api/sessions/${sessionId}/snapshot`,
     );
     if (
@@ -236,7 +241,7 @@ async function handleNewSessionRequest(
       isStartableLobbySnapshot(snapshot)
     ) {
       snapshot = await fetchBackendJson(
-        options.config,
+        options,
         `/api/sessions/${sessionId}/start`,
         {
           method: "POST",
@@ -256,7 +261,8 @@ async function handleStartSessionRequest(
   options: {
     sessionFilePath: string;
     runtimeConfig: DreamboardDevRuntimeConfig;
-    config: ResolvedConfig;
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
   },
 ): Promise<void> {
   if (req.method !== "POST") {
@@ -269,7 +275,7 @@ async function handleStartSessionRequest(
     let snapshot: unknown;
     try {
       snapshot = await fetchBackendJson(
-        options.config,
+        options,
         `/api/sessions/${session.sessionId}/start`,
         { method: "POST" },
       );
@@ -279,7 +285,7 @@ async function handleStartSessionRequest(
       }
       session = await resetDisposableSessionPointer(options);
       snapshot = await fetchBackendJson(
-        options.config,
+        options,
         `/api/sessions/${session.sessionId}/start`,
         { method: "POST" },
       );
@@ -339,11 +345,13 @@ async function loadCurrentSession(options: {
   sessionFilePath: string;
   runtimeConfig: DreamboardDevRuntimeConfig;
 }): Promise<ActiveSession> {
-  if (!(await exists(options.sessionFilePath))) {
+  if (!(await pathExists(options.sessionFilePath))) {
     return options.runtimeConfig.initialSession;
   }
 
-  const payload = await readJsonFile<unknown>(options.sessionFilePath);
+  const payload = JSON.parse(
+    await readFile(options.sessionFilePath, "utf8"),
+  ) as unknown;
   const session = parsePersistedSessionPointer(payload, options.runtimeConfig);
   if (!session) {
     throw new Error("Session file did not contain a valid session pointer.");
@@ -355,9 +363,10 @@ async function persistSessionId(
   sessionFilePath: string,
   sessionId: string,
 ): Promise<void> {
-  await writeJsonFile(
+  await writeFile(
     sessionFilePath,
-    createPersistedDevSession({ sessionId }),
+    `${JSON.stringify({ sessionId }, null, 2)}\n`,
+    "utf8",
   );
 }
 
@@ -371,19 +380,22 @@ async function resetDisposableSessionPointer(options: {
 }
 
 async function fetchBackendJson(
-  config: ResolvedConfig,
+  connection: {
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
+  },
   path: string,
   options: {
     method?: "GET" | "POST";
     body?: Record<string, unknown>;
   } = {},
 ): Promise<unknown> {
-  const bearer = await resolveDevBearer(config);
+  const bearer = await connection.platform.resolveBearer();
   if (bearer.kind === "permanent_invalid") {
     throw new HttpError(401, bearer.message);
   }
 
-  const response = await fetch(`${config.apiBaseUrl}${path}`, {
+  const response = await fetch(`${connection.apiBaseUrl}${path}`, {
     method: options.method ?? "GET",
     headers: {
       ...(bearer.token ? { authorization: `Bearer ${bearer.token}` } : {}),
@@ -439,6 +451,46 @@ function respondJson(
 
 function statusForError(error: unknown): number {
   return error instanceof HttpError ? error.statusCode : 500;
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function isStaleContractArtifactError(error: unknown): boolean {
+  const code = getObjectStringProperty(error, "code");
+  if (code === "STALE_CONTRACT_ARTIFACT") {
+    return true;
+  }
+  const name = getObjectStringProperty(error, "name");
+  if (name === "StaleContractArtifactError") {
+    return true;
+  }
+  const message = getObjectStringProperty(error, "message");
+  return message
+    ? message.includes("STALE_CONTRACT_ARTIFACT") ||
+        message.includes("StaleContractArtifactError") ||
+        message.toLowerCase().includes("stale contract artifact")
+    : false;
+}
+
+function getObjectStringProperty(
+  value: unknown,
+  property: string,
+): string | undefined {
+  return value &&
+    typeof value === "object" &&
+    typeof (value as Record<string, unknown>)[property] === "string"
+    ? ((value as Record<string, unknown>)[property] as string)
+    : undefined;
 }
 
 class HttpError extends Error {

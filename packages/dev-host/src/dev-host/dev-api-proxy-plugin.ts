@@ -2,19 +2,18 @@
  * Reverse-proxy plugin for the `dreamboard dev` Vite server.
  *
  * Every `/api/*` request the browser makes is intercepted here, run
- * through the CLI token manager when needed, then forwarded to the configured upstream
- * backend with an `Authorization: Bearer <Dreamboard API JWT>` header injected
- * on the wire. The access and refresh tokens never reach the browser.
+ * through the CLI-supplied credential platform when needed, then forwarded to
+ * the configured upstream backend with an `Authorization: Bearer <Dreamboard API
+ * JWT>` header injected on the wire. The access and refresh tokens never reach
+ * the browser.
  *
  * Failure contract:
  * - Permanent refresh failure (stored refresh token invalid) responds
  *   with `401 { error: "session_invalid", message }` so the browser can
  *   show a "Run dreamboard login" overlay instead of surfacing a
  *   confusing upstream 401.
- * - Transient refresh failure (network blip) falls back to the snapshot
- *   access token in `ResolvedConfig` when we still have one - this lets
- *   a short outage degrade to "existing token" behavior instead of
- *   blocking the iframe outright.
+ * - Transient refresh failure responds with a structured proxy failure instead
+ *   of exposing credential material to browser code.
  * - Upstream connection failure responds with `502 { error:
  *   "upstream_unavailable", message }`.
  *
@@ -27,28 +26,18 @@ import https from "node:https";
 import { EventEmitter } from "node:events";
 import consola from "consola";
 import type { Plugin } from "vite";
-import { createUserTokenManager } from "../auth/user-token-manager.js";
-import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
-import type { ResolvedConfig } from "../types.js";
+import type { DevHostPlatform, DevHostResolvedBearer } from "./contract.js";
 
 const BROWSER_ORIGIN_HEADER = "X-Dreamboard-Browser-Origin";
 
-export type ResolvedBearerOk = {
-  readonly kind: "ok";
-  readonly token: string | null;
-};
-export type ResolvedBearerPermanentFailure = {
-  readonly kind: "permanent_invalid";
-  readonly message: string;
-};
-export type ResolvedBearer = ResolvedBearerOk | ResolvedBearerPermanentFailure;
+export type ResolvedBearer = DevHostResolvedBearer;
 
 export interface DevApiProxyPluginDeps {
   /**
    * Hook point for tests: resolve the bearer token (or a permanent
    * failure) synchronously once per request.
    */
-  resolveBearer?: (config: ResolvedConfig) => Promise<ResolvedBearer>;
+  resolveBearer?: () => Promise<ResolvedBearer>;
   /**
    * Hook point for tests: construct the underlying proxy. Allows
    * injecting an in-memory proxy that talks to a fake upstream.
@@ -74,11 +63,12 @@ type ProxyErrorListener = (
 ) => void;
 
 export function createDevApiProxyPlugin(options: {
-  config: ResolvedConfig;
+  apiBaseUrl: string;
+  platform: DevHostPlatform;
   deps?: DevApiProxyPluginDeps;
 }): Plugin {
-  const { config, deps } = options;
-  const target = config.apiBaseUrl;
+  const { deps } = options;
+  const target = options.apiBaseUrl;
 
   return {
     name: "dreamboard-dev-api-proxy",
@@ -98,7 +88,8 @@ export function createDevApiProxyPlugin(options: {
         }
       });
 
-      const resolveBearer = deps?.resolveBearer ?? resolveDevBearer;
+      const resolveBearer =
+        deps?.resolveBearer ?? (() => options.platform.resolveBearer());
 
       // NOTE: we intentionally do NOT mount this middleware on `/api`.
       // Connect-style `middlewares.use(path, handler)` strips the mount
@@ -111,7 +102,7 @@ export function createDevApiProxyPlugin(options: {
           next();
           return;
         }
-        void handleApiRequest({ req, res, config, proxy, resolveBearer });
+        void handleApiRequest({ req, res, proxy, resolveBearer });
       });
 
       server.httpServer?.once("close", () => {
@@ -124,13 +115,12 @@ export function createDevApiProxyPlugin(options: {
 async function handleApiRequest(options: {
   req: IncomingMessage;
   res: ServerResponse;
-  config: ResolvedConfig;
   proxy: DevApiProxy;
-  resolveBearer: (config: ResolvedConfig) => Promise<ResolvedBearer>;
+  resolveBearer: () => Promise<ResolvedBearer>;
 }): Promise<void> {
-  const { req, res, config, proxy, resolveBearer } = options;
+  const { req, res, proxy, resolveBearer } = options;
   try {
-    const bearer = await resolveBearer(config);
+    const bearer = await resolveBearer();
     if (bearer.kind === "permanent_invalid") {
       respondSessionInvalid(res, bearer.message);
       return;
@@ -237,36 +227,6 @@ export function createForwardHeaders(
   }
 
   return headers;
-}
-
-export async function resolveDevBearer(
-  config: ResolvedConfig,
-): Promise<ResolvedBearer> {
-  const localHarnessToken = resolveLocalHarnessAccessToken(config);
-  if (localHarnessToken) {
-    return { kind: "ok", token: localHarnessToken };
-  }
-
-  // Env/flag-provided tokens are not owned by `CredentialStore` and must
-  // not be rotated. Forward them as-is.
-  if (!usesStoredSession(config)) {
-    return { kind: "ok", token: config.authToken ?? null };
-  }
-
-  if (!config.refreshToken) {
-    return {
-      kind: "permanent_invalid",
-      message:
-        "Stored Dreamboard session is expired or invalid. Run `dreamboard login` to authenticate again.",
-    };
-  }
-
-  const resolved = await createUserTokenManager(config).resolveApiToken();
-  return { kind: "ok", token: resolved?.token ?? null };
-}
-
-function usesStoredSession(config: ResolvedConfig): boolean {
-  return config.refreshTokenSource === "global";
 }
 
 function respondSessionInvalid(res: ServerResponse, message: string): void {

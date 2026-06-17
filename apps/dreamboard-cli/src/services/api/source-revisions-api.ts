@@ -1,13 +1,10 @@
 import {
-  createSourceRevision,
   type CreateSourceRevisionRequest,
-  queueCompiledResultJob,
   type QueueCompiledResultJobResponse,
   type SourceRevision,
 } from "@dreamboard-games/api-client";
 import {
   SourceBlobSessionRequestError,
-  uploadGameSourceBlobs,
   uploadProjectSourceBlobs,
   type SourceBlobUploadInput,
 } from "@dreamboard-games/api-client/source-revisions";
@@ -19,40 +16,18 @@ export async function createSourceRevisionSdk(
   gameId: string,
   request: CreateSourceRevisionRequest,
 ): Promise<SourceRevision> {
-  const response = await createSourceRevision({
-    path: { gameId },
-    body: request,
-  });
-
-  if (response.error || !response.data) {
-    throw toDreamboardApiError(
-      response.error,
-      response.response,
-      "Failed to create source revision",
-    );
-  }
-
-  return response.data;
+  void gameId;
+  void request;
+  throw new Error("Game-scoped source revisions are no longer supported.");
 }
 
 export async function uploadSourceBlobsSdk(
   gameId: string,
   blobs: SourceBlobUploadInput[],
 ): Promise<void> {
-  try {
-    for (const batch of chunkSourceBlobs(blobs)) {
-      await uploadGameSourceBlobs({ gameId, blobs: batch });
-    }
-  } catch (error) {
-    if (error instanceof SourceBlobSessionRequestError) {
-      throw toDreamboardApiError(
-        error.apiError as Parameters<typeof toDreamboardApiError>[0],
-        error.response,
-        error.message,
-      );
-    }
-    throw error;
-  }
+  void gameId;
+  void blobs;
+  throw new Error("Game-scoped source blob uploads are no longer supported.");
 }
 
 export async function uploadProjectSourceBlobsSdk(
@@ -93,17 +68,6 @@ export async function queueCompiledResultJobSdk(options: {
   gameId: string;
   authoringStateId: string;
 }): Promise<QueueCompiledResultJobResponse> {
-  const { gameId, authoringStateId } = options;
-  const { data, error, response } = await queueCompiledResultJob({
-    path: { gameId },
-    body: {
-      gameRevisionId: authoringStateId,
-    },
-  });
-
-  if (error || !data) {
-    throw toDreamboardApiError(error, response, "Failed to create compile job");
-  }
-
-  return data;
+  void options;
+  throw new Error("Game-scoped compile jobs are no longer supported.");
 }

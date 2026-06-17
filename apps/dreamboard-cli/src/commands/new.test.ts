@@ -1,4 +1,5 @@
 import { expect, mock, test } from "bun:test";
+import { AUTHORING_RELEASE_SET } from "../release/authoring-release-set.js";
 
 const ensureProjectSdk = mock(async () => ({
   projectId: "project-1",
@@ -62,7 +63,7 @@ mock.module("../services/project/local-maintainer-registry.js", () => ({
     fingerprint: "public",
     publishedAt: "2026-06-16T00:00:00.000Z",
     packages: {
-      "@dreamboard-games/sdk": "0.4.0-alpha.1",
+      "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
     },
   }),
 }));
@@ -112,6 +113,6 @@ test("new command materializes a project-bound workspace", async () => {
   expect(materializeArgs.apiBaseUrl).toBe("https://api.example.com");
   expect(materializeArgs.webBaseUrl).toBe("https://web.example.com");
   expect(materializeArgs.localMaintainerRegistry?.packages).toEqual({
-    "@dreamboard-games/sdk": "0.4.0-alpha.1",
+    "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
   });
 });

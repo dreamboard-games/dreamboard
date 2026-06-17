@@ -1,10 +1,7 @@
 import {
-  getCompiledResult,
   getJob,
-  getLatestCompiledResult,
   getProjectCompiledResult,
   listProjectCompiledResults,
-  listCompiledResults,
   queueProjectRevisionCompile,
   type CompiledResult,
   type JobDetailResponse,
@@ -65,15 +62,13 @@ async function findFallbackCompiledResultForJob(options: {
   job: Pick<JobDetailResponse, "createdAt">;
 }): Promise<CompiledResult | null> {
   const { gameId, projectId, job } = options;
-  const results = projectId
-    ? await listProjectCompiledResults({
-        path: { projectId },
-        query: { limit: 100 },
-      })
-    : await listCompiledResults({
-        path: { gameId: gameId! },
-        query: { limit: 100 },
-      });
+  if (!projectId) {
+    return null;
+  }
+  const results = await listProjectCompiledResults({
+    path: { projectId },
+    query: { limit: 100 },
+  });
   if (results.error || !results.data) {
     return null;
   }
@@ -102,57 +97,25 @@ async function findFallbackCompiledResultForJob(options: {
 export async function findLatestSuccessfulCompiledResult(
   gameId: string,
 ): Promise<CompiledResult | null> {
-  const { data } = await getLatestCompiledResult({
-    path: { gameId },
-    query: { successOnly: true },
-  });
-  return data ?? null;
+  void gameId;
+  return null;
 }
 
 export async function findCompiledResultsForAuthoringState(options: {
   gameId: string;
   authoringStateId: string;
 }): Promise<CompiledResult[]> {
-  const { gameId, authoringStateId } = options;
-  const { data, error, response } = await listCompiledResults({
-    path: { gameId },
-    query: {
-      limit: 100,
-    },
-  });
-  if (error || !data) {
-    throw toDreamboardApiError(
-      error,
-      response,
-      "Failed to list compiled results",
-    );
-  }
-  return data.results.filter(
-    (result) =>
-      result.revisionDigest === authoringStateId ||
-      (result as { authoringStateId?: string }).authoringStateId ===
-        authoringStateId,
-  );
+  void options;
+  return [];
 }
 
 export async function getCompiledResultSdk(
   gameId: string,
   compiledResultId: string,
 ): Promise<CompiledResult> {
-  const { data, error, response } = await getCompiledResult({
-    path: {
-      gameId,
-      compiledResultId,
-    },
-  });
-  if (error || !data) {
-    throw toDreamboardApiError(
-      error,
-      response,
-      "Failed to fetch compiled result",
-    );
-  }
-  return data;
+  void gameId;
+  void compiledResultId;
+  throw new Error("Game-scoped compiled result lookup is no longer supported.");
 }
 
 export async function findProjectCompiledResultsForRevision(options: {

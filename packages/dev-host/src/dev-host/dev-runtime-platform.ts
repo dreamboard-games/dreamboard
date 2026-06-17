@@ -17,8 +17,8 @@ export interface DevRuntimePlatformOptions {
 
 export interface DevRuntimePlatform {
   devHostRoot: string;
-  repoRoot: string;
-  cliRoot: string;
+  packageRoot: string;
+  sdkRoot: string;
   diagnosticsLevel: ReturnType<typeof resolveDevDiagnosticsLevel>;
   viteLogLevel: "info" | "warn";
   serverConfig: ServerOptions;
@@ -31,30 +31,32 @@ export function createDevRuntimePlatform(
   options: DevRuntimePlatformOptions,
 ): DevRuntimePlatform {
   const devHostRoot = resolveDevHostRoot(options.importMetaUrl);
-  const cliRoot = resolveCliRoot(options.importMetaUrl);
-  const repoRoot = resolveRepoRoot(cliRoot);
-  const require = createRequire(options.importMetaUrl);
+  const packageRoot = resolveCurrentPackageRoot(options.importMetaUrl);
+  const packageRequire = createRequire(options.importMetaUrl);
+  const projectRequire = createRequire(
+    path.join(options.projectRoot, "package.json"),
+  );
   const diagnosticsLevel = resolveDevDiagnosticsLevel(options.debug);
-  const sdkRoot = resolvePackageRoot(
-    require,
-    cliRoot,
+  const sdkRoot = resolveInstalledPackageRoot(
+    projectRequire,
+    packageRoot,
     "@dreamboard-games/sdk",
-    "@dreamboard-games/sdk",
-    "node_modules/@dreamboard-games/sdk",
   );
   const apiClientClientGen = resolvePackageSubpath(
-    require,
-    cliRoot,
-    "@dreamboard-games/api-client/client.gen",
+    packageRequire,
+    packageRoot,
     "@dreamboard-games/api-client/client.gen",
     "node_modules/@dreamboard-games/api-client/dist/client.gen.js",
   );
-  const uiHostRuntimeRoot = resolveUiHostRuntimeRoot(require, cliRoot);
+  const uiHostRuntimeRoot = resolveUiHostRuntimeRoot(
+    packageRequire,
+    packageRoot,
+  );
 
   return {
     devHostRoot,
-    repoRoot,
-    cliRoot,
+    packageRoot,
+    sdkRoot,
     diagnosticsLevel,
     viteLogLevel: diagnosticsLevel === "verbose" ? "info" : "warn",
     serverConfig: {
@@ -70,7 +72,7 @@ export function createDevRuntimePlatform(
         "Access-Control-Allow-Methods": "GET, OPTIONS",
       },
       fs: {
-        allow: [options.projectRoot, repoRoot],
+        allow: [options.projectRoot, packageRoot, sdkRoot, uiHostRuntimeRoot],
       },
     },
     resolveDedupe: ["react", "react-dom", "@dreamboard-games/sdk"],
@@ -78,8 +80,8 @@ export function createDevRuntimePlatform(
       {
         find: /^react$/,
         replacement: resolveCliDependency(
-          require,
-          cliRoot,
+          packageRequire,
+          packageRoot,
           "react",
           "node_modules/react/index.js",
         ),
@@ -87,8 +89,8 @@ export function createDevRuntimePlatform(
       {
         find: /^react\/jsx-runtime$/,
         replacement: resolveCliDependency(
-          require,
-          cliRoot,
+          packageRequire,
+          packageRoot,
           "react/jsx-runtime",
           "node_modules/react/jsx-runtime.js",
         ),
@@ -96,8 +98,8 @@ export function createDevRuntimePlatform(
       {
         find: /^react\/jsx-dev-runtime$/,
         replacement: resolveCliDependency(
-          require,
-          cliRoot,
+          packageRequire,
+          packageRoot,
           "react/jsx-dev-runtime",
           "node_modules/react/jsx-dev-runtime.js",
         ),
@@ -105,8 +107,8 @@ export function createDevRuntimePlatform(
       {
         find: /^react-dom$/,
         replacement: resolveCliDependency(
-          require,
-          cliRoot,
+          packageRequire,
+          packageRoot,
           "react-dom",
           "node_modules/react-dom/index.js",
         ),
@@ -114,8 +116,8 @@ export function createDevRuntimePlatform(
       {
         find: /^react-dom\/client$/,
         replacement: resolveCliDependency(
-          require,
-          cliRoot,
+          packageRequire,
+          packageRoot,
           "react-dom/client",
           "node_modules/react-dom/client.js",
         ),
@@ -172,10 +174,10 @@ export function createDevRuntimePlatform(
       {
         find: /^@dreamboard-games\/sdk\/ui\/plugin-styles\.css$/,
         replacement: resolveCliDependency(
-          require,
-          cliRoot,
+          projectRequire,
+          sdkRoot,
           "@dreamboard-games/sdk/ui/plugin-styles.css",
-          "node_modules/@dreamboard-games/sdk/dist/ui/plugin-styles.css",
+          "dist/ui/plugin-styles.css",
         ),
       },
       {
@@ -234,75 +236,65 @@ function createProjectOnlyWatchIgnored(
 
 function resolveUiHostRuntimeRoot(
   require: NodeJS.Require,
-  cliRoot: string,
+  packageRoot: string,
 ): string {
   try {
     return path.dirname(
       require.resolve("@dreamboard-games/ui-host-runtime/package.json"),
     );
   } catch {
-    return path.resolve(cliRoot, "dist/runtime-packages/ui-host-runtime");
+    return path.resolve(packageRoot, "dist/runtime-packages/ui-host-runtime");
   }
 }
 
-function resolvePackageRoot(
+function resolveInstalledPackageRoot(
   require: NodeJS.Require,
-  cliRoot: string,
+  fallbackRoot: string,
   specifier: string,
-  publicSpecifier: string,
-  fallbackRelativePath: string,
 ): string {
   try {
     return path.dirname(require.resolve(`${specifier}/package.json`));
   } catch {
-    try {
-      return path.dirname(require.resolve(`${publicSpecifier}/package.json`));
-    } catch {
-      return path.resolve(cliRoot, "..", "..", fallbackRelativePath);
-    }
+    return path.resolve(fallbackRoot, "node_modules", specifier);
   }
 }
 
 function resolvePackageSubpath(
   require: NodeJS.Require,
-  cliRoot: string,
+  packageRoot: string,
   specifier: string,
-  publicSpecifier: string,
   fallbackRelativePath: string,
 ): string {
   try {
     return require.resolve(specifier);
   } catch {
-    try {
-      return require.resolve(publicSpecifier);
-    } catch {
-      return path.resolve(cliRoot, fallbackRelativePath);
-    }
+    return path.resolve(packageRoot, fallbackRelativePath);
   }
 }
 
 function resolveCliDependency(
   require: NodeJS.Require,
-  cliRoot: string,
+  packageRoot: string,
   specifier: string,
   fallbackRelativePath: string,
 ): string {
   try {
     return require.resolve(specifier);
   } catch {
-    return path.resolve(cliRoot, fallbackRelativePath);
+    return path.resolve(packageRoot, fallbackRelativePath);
   }
 }
 
 function resolveDevHostRoot(importMetaUrl: string): string {
   const currentDir = path.dirname(fileURLToPath(importMetaUrl));
-  const packagedDirCandidate = path.resolve(currentDir, "dev-host");
-  if (existsSync(packagedDirCandidate)) return packagedDirCandidate;
-  const sourceDirCandidate = path.resolve(currentDir, "../src/dev-host");
+  const sourceDirCandidate = path.resolve(
+    resolveCurrentPackageRoot(importMetaUrl),
+    "src/dev-host",
+  );
   return existsSync(sourceDirCandidate) ? sourceDirCandidate : currentDir;
 }
 
-function resolveCliRoot(importMetaUrl: string): string {
+function resolveCurrentPackageRoot(importMetaUrl: string): string {
   let currentDir = path.dirname(fileURLToPath(importMetaUrl));
 
   while (true) {
@@ -313,22 +305,6 @@ function resolveCliRoot(importMetaUrl: string): string {
     const parentDir = path.dirname(currentDir);
     if (parentDir === currentDir) {
       return path.resolve(resolveDevHostRoot(importMetaUrl), "../..");
-    }
-    currentDir = parentDir;
-  }
-}
-
-function resolveRepoRoot(cliRoot: string): string {
-  let currentDir = cliRoot;
-
-  while (true) {
-    if (existsSync(path.join(currentDir, "pnpm-workspace.yaml"))) {
-      return currentDir;
-    }
-
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) {
-      return cliRoot;
     }
     currentDir = parentDir;
   }
