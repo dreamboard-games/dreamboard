@@ -37,8 +37,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@dreamboard-games/sdk':
-        specifier: 0.4.0-alpha.3
-        version: 0.4.0-alpha.3(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3)
+        specifier: 0.4.0-alpha.4
+        version: 0.4.0-alpha.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3)
       '@types/bun':
         specifier: latest
         version: 1.3.14
@@ -90,8 +90,8 @@ importers:
         specifier: workspace:*
         version: link:../api-client
       '@dreamboard-games/sdk':
-        specifier: 0.4.0-alpha.3
-        version: 0.4.0-alpha.3(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3)
+        specifier: 0.4.0-alpha.4
+        version: 0.4.0-alpha.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3)
       '@dreamboard-games/ui-host-runtime':
         specifier: 0.1.0-alpha.2
         version: 0.1.0-alpha.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -300,8 +300,8 @@ packages:
       react: ^19.0.0
       zod: 4.4.3
 
-  '@dreamboard-games/sdk@0.4.0-alpha.3':
-    resolution: {integrity: sha512-Pdc/zRGD74HD2norkjce/4fQtbLYAi5goP2eZVT3RJy/bp9cpNuBBs3GsmTJDepkMIEUAdCdYDFtMet3MmusYQ==}
+  '@dreamboard-games/sdk@0.4.0-alpha.4':
+    resolution: {integrity: sha512-by+8fMmys8dz/inSAYsiouQre6zYwmHALtJIocGrhjzJ2zWTf9GRozVrnC6JP0P5W1WmRduGry+em4/MwEDCrQ==}
     peerDependencies:
       framer-motion: ^11.0.0 || ^12.0.0
       react: ^19.0.0
@@ -6029,7 +6029,7 @@ snapshots:
       - immer
       - use-sync-external-store
 
-  '@dreamboard-games/sdk@0.4.0-alpha.3(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3)':
+  '@dreamboard-games/sdk@0.4.0-alpha.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(framer-motion@11.18.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(immer@9.0.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3)':
     dependencies:
       '@radix-ui/react-accordion': 1.2.14(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
