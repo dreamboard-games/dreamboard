@@ -279,13 +279,6 @@ export const zPlayersDefinition = z.object({
     optimalPlayers: z.optional(z.int().gte(1).lte(10))
 });
 
-export const zPresetCardSetDefinition = z.object({
-    id: z.string().min(1),
-    presetId: z.string().min(1),
-    name: z.string().min(1),
-    type: z.enum(['preset'])
-});
-
 /**
  * Arbitrary authored JSON value.
  */
@@ -445,6 +438,14 @@ export const zComponentHomeSpec = z.union([
         type: z.literal('slot')
     }).and(zSlotHomeSpec)
 ]);
+
+export const zPresetCardSetDefinition = z.object({
+    id: z.string().min(1),
+    presetId: z.string().min(1),
+    name: z.string().min(1),
+    type: z.enum(['preset']),
+    defaultHome: zComponentHomeSpec
+});
 
 /**
  * Default authored visibility for a component instance

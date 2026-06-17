@@ -2749,11 +2749,15 @@ components:
           enum: 
             - preset
           description: Type of card set source
+        defaultHome:
+          $ref: "#/components/schemas/ComponentHomeSpec"
+          description: Default initial home for cards materialized from the preset
       required: 
         - id
         - presetId
         - name
         - type
+        - defaultHome
     JsonValue: 
       description: Arbitrary authored JSON value.
       oneOf: 
