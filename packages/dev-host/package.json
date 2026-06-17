@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/dev-host",
-  "version": "0.1.30-alpha.17",
+  "version": "0.1.30-alpha.18",
   "description": "Project-local Dreamboard development host.",
   "repository": {
     "type": "git",

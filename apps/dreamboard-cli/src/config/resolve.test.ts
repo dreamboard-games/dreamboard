@@ -1,5 +1,8 @@
-import { afterEach, expect, test } from "bun:test";
-import { resolveConfig } from "./resolve.js";
+import { afterEach, expect, mock, test } from "bun:test";
+import {
+  loadProjectContextCredentials,
+  resolveConfig,
+} from "./resolve.js";
 
 const OAUTH_ENV_KEYS = [
   "DREAMBOARD_CLERK_OAUTH_ISSUER",
@@ -89,4 +92,15 @@ test("stored OAuth config remains authoritative for an existing refresh token", 
   expect(config.clerkOAuthTokenUrl).toBe(
     "https://stored.example.test/oauth/token",
   );
+});
+
+test("no-auth project context does not initialize credential storage", async () => {
+  const loadCredentials = mock(async () => {
+    throw new Error("credential store must not be accessed");
+  });
+
+  expect(
+    await loadProjectContextCredentials(false, loadCredentials),
+  ).toBeUndefined();
+  expect(loadCredentials).not.toHaveBeenCalled();
 });

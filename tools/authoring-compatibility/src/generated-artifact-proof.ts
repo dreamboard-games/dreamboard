@@ -10,12 +10,7 @@ export type GeneratedArtifactProof = {
   secondHash: string;
   byteIdenticalRerun: boolean;
   typecheck: "passed";
-  reducerScenarios:
-    | "passed"
-    | {
-        status: "blocked";
-        reason: string;
-      };
+  reducerScenarios: "passed";
 };
 
 export async function proveGeneratedArtifacts(
@@ -55,40 +50,41 @@ export async function proveGeneratedArtifacts(
 async function proveReducerScenarios(
   scaffold: ScaffoldProof,
 ): Promise<GeneratedArtifactProof["reducerScenarios"]> {
-  const dreamboardBin = path.join(
+  const verifierEntry = path.join(
     scaffold.commandRoot,
     "node_modules",
-    ".bin",
-    "dreamboard",
+    "@dreamboard-games",
+    "cli",
+    "dist",
+    "agent-verifier",
+    "agent-workspace-verifier.mjs",
   );
-  const generate = await spawnFile(
-    dreamboardBin,
-    ["test", "generate", "--env", "local"],
-    { cwd: scaffold.frozenProjectRoot, allowFailure: true },
+  const localProofEnv = {
+    ...process.env,
+    DREAMBOARD_AGENT_TOKEN: "authoring-compatibility-local-proof",
+  };
+  const verification = await spawnFile(
+    process.execPath,
+    [verifierEntry, "cloud-local", "--env", "local"],
+    {
+      cwd: scaffold.frozenProjectRoot,
+      env: localProofEnv,
+      allowFailure: true,
+    },
   );
-  if (
-    `${generate.stdout}\n${generate.stderr}`.includes("ERR_MODULE_NOT_FOUND")
-  ) {
-    return {
-      status: "blocked",
-      reason:
-        "packed dreamboard test still statically imports @dreamboard-games/sdk from the CLI package instead of resolving it from the project",
-    };
-  }
-  const run = await spawnFile(
-    dreamboardBin,
-    ["test", "run", "--env", "local", "--runner", "reducer"],
-    { cwd: scaffold.frozenProjectRoot, allowFailure: true },
-  );
-  const combined = `${run.stdout}\n${run.stderr}`;
+  const combined = `${verification.stdout}\n${verification.stderr}`;
   if (combined.includes("ERR_MODULE_NOT_FOUND")) {
-    return {
-      status: "blocked",
-      reason:
-        "packed dreamboard test still statically imports @dreamboard-games/sdk from the CLI package instead of resolving it from the project",
-    };
+    throw new Error(
+      "Packed dreamboard test could not resolve reducer helpers from the active project SDK package.",
+    );
   }
-  if (combined.includes("FAIL") || combined.includes("failed")) {
+  if (
+    verification.exitCode !== 0 ||
+    combined.includes("FAIL") ||
+    combined.includes("failed") ||
+    !combined.includes("reducer-native base state") ||
+    !combined.includes("cloud-local verification passed")
+  ) {
     throw new Error(`Reducer scenario proof failed.\n${combined}`);
   }
   return "passed";

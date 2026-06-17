@@ -36,7 +36,7 @@ export async function applyWorkspaceCodegen(options: {
 }): Promise<WorkspaceCodegenWriteResult> {
   const { projectRoot, manifest } = options;
   const { adapter } = await loadProjectAuthoringAdapter(projectRoot);
-  const artifacts = validateGeneratedArtifacts([
+  const artifacts = validateGeneratedArtifacts(adapter, [
     ...adapter.generateWorkspaceArtifacts(manifest),
     ...adapter.generateTestArtifacts({ manifest }),
   ]);

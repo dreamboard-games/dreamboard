@@ -26,8 +26,20 @@ export async function proveAdapter(
   const output = await runProjectProbe(
     scaffold.frozenProjectRoot,
     `
+    import { createHash } from "node:crypto";
     import { projectAuthoringAdapter } from "@dreamboard-games/sdk/authoring";
     import sdkPackage from "@dreamboard-games/sdk/package.json" with { type: "json" };
+    const stableJson = (value) => {
+      if (value === undefined) return "null";
+      if (value === null || typeof value !== "object") return JSON.stringify(value);
+      if (Array.isArray(value)) return "[" + value.map(stableJson).join(",") + "]";
+      return "{" + Object.entries(value)
+        .filter(([, entry]) => entry !== undefined)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => JSON.stringify(key) + ":" + stableJson(entry))
+        .join(",") + "}";
+    };
+    const sha256 = (value) => createHash("sha256").update(value).digest("hex");
     const cases = projectAuthoringAdapter.manifestConformanceCases;
     let valid = 0;
     let invalid = 0;
@@ -42,10 +54,16 @@ export async function proveAdapter(
       else invalid += 1;
       if (entry.expected.valid && entry.expected.materializedSha256) {
         const materialized = projectAuthoringAdapter.materializeManifest(entry.manifest);
-        if (materialized.sha256 !== entry.expected.materializedSha256) {
+        if (sha256(stableJson(materialized)) !== entry.expected.materializedSha256) {
           materializedDigestMismatches.push(entry.id);
         }
       }
+    }
+    if (materializedDigestMismatches.length > 0) {
+      throw new Error(
+        "Materialized fixture digest mismatch: " +
+          materializedDigestMismatches.join(", "),
+      );
     }
     if (projectAuthoringAdapter.metadata.sdkVersion !== sdkPackage.version) {
       throw new Error("Adapter metadata SDK version does not match package metadata.");

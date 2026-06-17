@@ -55,16 +55,6 @@ function assertResolvedInsidePackage(options: {
   }
 }
 
-function isAuthoringMetadataVersionCompatible(options: {
-  metadataVersion: string;
-  packageVersion: string;
-}): boolean {
-  if (options.metadataVersion === options.packageVersion) {
-    return true;
-  }
-  return options.packageVersion.startsWith(`${options.metadataVersion}-local.`);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -202,12 +192,7 @@ export async function loadProjectAuthoringAdapter(
   const adapter = validateProjectAuthoringAdapter(
     moduleRecord.projectAuthoringAdapter ?? moduleRecord.default,
   );
-  if (
-    !isAuthoringMetadataVersionCompatible({
-      metadataVersion: adapter.metadata.sdkVersion,
-      packageVersion: packageJson.version,
-    })
-  ) {
+  if (adapter.metadata.sdkVersion !== packageJson.version) {
     throw new ProjectAuthoringError(
       "SDK_METADATA_MISMATCH",
       `SDK authoring adapter reports version ${adapter.metadata.sdkVersion}, but package metadata is ${packageJson.version}.`,

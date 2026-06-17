@@ -533,6 +533,13 @@ function usesStoredSession(config: ResolvedConfig): boolean {
   return config.refreshTokenSource === "global";
 }
 
+export async function loadProjectContextCredentials(
+  requireAuth: boolean,
+  loadCredentials = getStoredSession,
+): Promise<Awaited<ReturnType<typeof getStoredSession>> | undefined> {
+  return requireAuth ? loadCredentials() : undefined;
+}
+
 /**
  * Common init pattern used by pull, push, status, update, run commands:
  * find project root, load config, resolve config, require auth,
@@ -554,13 +561,14 @@ export async function resolveProjectContext(
   }
 
   const projectConfig = await loadProjectConfig(projectRoot);
+  const requireAuthForContext = opts?.requireAuth !== false;
   const [globalConfig, credentials] = await Promise.all([
     loadGlobalConfig(),
-    getStoredSession(),
+    loadProjectContextCredentials(requireAuthForContext),
   ]);
   const config = resolveConfig(globalConfig, flags, projectConfig, credentials);
 
-  if (opts?.requireAuth !== false) {
+  if (requireAuthForContext) {
     requireAuth(config);
     await configureClient(config);
   }

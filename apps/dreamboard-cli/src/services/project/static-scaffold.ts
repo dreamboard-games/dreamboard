@@ -97,14 +97,11 @@ export default defineScenario({
     "Sanity check that the scaffolded workspace boots into its initial phase.",
   from: "initial-turn",
   when: async () => undefined,
-  then: ({ expect, interactions, players, state }) => {
+  then: ({ expect, players, state }) => {
     const playerIds = players();
     expect(playerIds).toHaveLength(playerIds.length);
     expect(playerIds.length).toBeGreaterThanOrEqual(1);
     expect(state()).toBe("setup");
-    for (const playerId of playerIds) {
-      expect(interactions(playerId)).toEqual([]);
-    }
   },
 });
 `;
@@ -370,7 +367,7 @@ async function writeInitialScenario(
   if (
     existing === null ||
     existing.trim().length === 0 ||
-    existing === INITIAL_SCENARIO_CONTENT
+    existing.startsWith(GENERATED_SCENARIO_PREFIX)
   ) {
     await writeWorkspaceTextFile(
       projectRoot,

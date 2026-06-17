@@ -1,9 +1,9 @@
 /**
  * OS keychain-backed `CredentialBackend` built on top of `@napi-rs/keyring`.
  *
- * Keychain is the required storage backend for published builds. Development
- * builds can still opt in with `credentialBackend: "keychain"` in
- * `~/.dreamboard/config.json` (see `credential-store.ts` for the resolver).
+ * Keychain is an optional storage backend. Users can opt in with
+ * `credentialBackend: "keychain"` in `~/.dreamboard/config.json`
+ * (see `credential-store.ts` for the resolver).
  * When enabled, it gives us:
  * - A refresh token encrypted at rest by the OS (Keychain on macOS,
  *   Credential Vault on Windows, Secret Service on Linux).
@@ -11,9 +11,8 @@
  *   `~/.dreamboard/auth.json` to scrape the token.
  *
  * This module is loaded optionally: `@napi-rs/keyring` is declared as an
- * `optionalDependencies` entry. Published builds fail closed when the native
- * binary or OS keyring is unavailable; development builds may still use the
- * file backend.
+ * `optionalDependencies` entry. If the native binary or OS keyring is
+ * unavailable, the resolver falls back to the file backend.
  *
  * One-time migration: when the active backend is keychain and `auth.json` still
  * has tokens, `credential-store.ts` copies them into the keychain, verifies the

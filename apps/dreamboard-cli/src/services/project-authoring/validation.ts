@@ -27,8 +27,25 @@ function isValidGeneratedPath(relativePath: string): boolean {
     .some((segment) => segment.length === 0 || segment === "." || segment === "..");
 }
 
+const ALLOWED_GENERATED_PREFIXES = [
+  "app/",
+  "shared/",
+  "test/generated/",
+  "ui/",
+] as const;
+
+function isAllowedGeneratedPath(relativePath: string): boolean {
+  return ALLOWED_GENERATED_PREFIXES.some((prefix) =>
+    relativePath.startsWith(prefix),
+  );
+}
+
 function assertGeneratedPath(pathValue: unknown, label: string): string {
-  if (typeof pathValue !== "string" || !isValidGeneratedPath(pathValue)) {
+  if (
+    typeof pathValue !== "string" ||
+    !isValidGeneratedPath(pathValue) ||
+    !isAllowedGeneratedPath(pathValue)
+  ) {
     throw new ProjectAuthoringError(
       "GENERATED_PATH_CONTRACT_INVALID",
       `${label} must be a normalized relative workspace path.`,
@@ -143,10 +160,36 @@ export function validateProjectAuthoringAdapter(
     }
     seen.add(normalized);
   }
+  if (
+    adapter.generatedPathPatterns !== undefined &&
+    !Array.isArray(adapter.generatedPathPatterns)
+  ) {
+    throw new ProjectAuthoringError(
+      "GENERATED_PATH_CONTRACT_INVALID",
+      "SDK authoring adapter generatedPathPatterns must be an array.",
+    );
+  }
+  for (const [index, pattern] of (
+    adapter.generatedPathPatterns ?? []
+  ).entries()) {
+    if (
+      !isRecord(pattern) ||
+      typeof pattern.prefix !== "string" ||
+      typeof pattern.suffix !== "string" ||
+      !isValidGeneratedPath(`${pattern.prefix}placeholder${pattern.suffix}`) ||
+      !isAllowedGeneratedPath(`${pattern.prefix}placeholder${pattern.suffix}`)
+    ) {
+      throw new ProjectAuthoringError(
+        "GENERATED_PATH_CONTRACT_INVALID",
+        `generatedPathPatterns[${index}] must describe a normalized allowlisted workspace path.`,
+      );
+    }
+  }
   return adapter as ProjectAuthoringAdapterV1;
 }
 
 export function validateGeneratedArtifacts(
+  adapter: ProjectAuthoringAdapterV1,
   artifacts: readonly unknown[],
 ): readonly GeneratedArtifactV1[] {
   const seen = new Set<string>();
@@ -156,6 +199,20 @@ export function validateGeneratedArtifacts(
       throw new ProjectAuthoringError(
         "GENERATED_PATH_CONTRACT_INVALID",
         `Generated artifact path '${artifact.path}' was emitted more than once.`,
+      );
+    }
+    const declared =
+      adapter.generatedPaths.includes(artifact.path) ||
+      (adapter.generatedPathPatterns ?? []).some(
+        (pattern) =>
+          artifact.path.startsWith(pattern.prefix) &&
+          artifact.path.endsWith(pattern.suffix) &&
+          artifact.path.length > pattern.prefix.length + pattern.suffix.length,
+      );
+    if (!declared) {
+      throw new ProjectAuthoringError(
+        "GENERATED_PATH_CONTRACT_INVALID",
+        `Generated artifact path '${artifact.path}' is not declared by the SDK authoring adapter.`,
       );
     }
     seen.add(artifact.path);

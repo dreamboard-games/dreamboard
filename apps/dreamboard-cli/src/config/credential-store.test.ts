@@ -18,20 +18,31 @@ const {
   _resetCredentialStoreForTests,
   getCredentialBackend,
   getStoredSession,
-  CredentialStoreUnavailableError,
 } = await import("./credential-store.ts");
 
-test("published credential backend fails closed when keyring is unavailable", async () => {
+test("published builds default to the file credential backend", async () => {
   _resetCredentialStoreForTests();
   tryKeychainBackend.mockClear();
 
-  await expect(getCredentialBackend()).rejects.toThrow(
-    CredentialStoreUnavailableError,
-  );
-  await expect(getCredentialBackend()).rejects.toThrow(
-    "OS keyring unavailable in test",
-  );
-  expect(tryKeychainBackend).toHaveBeenCalledTimes(2);
+  await expect(getCredentialBackend()).resolves.toMatchObject({
+    name: "file",
+  });
+  expect(tryKeychainBackend).not.toHaveBeenCalled();
+});
+
+test("published builds only probe keychain after explicit opt-in", async () => {
+  _resetCredentialStoreForTests();
+  tryKeychainBackend.mockClear();
+  process.env.DREAMBOARD_CREDENTIAL_BACKEND = "keychain";
+
+  try {
+    await expect(getCredentialBackend()).resolves.toMatchObject({
+      name: "file",
+    });
+    expect(tryKeychainBackend).toHaveBeenCalledTimes(1);
+  } finally {
+    delete process.env.DREAMBOARD_CREDENTIAL_BACKEND;
+  }
 });
 
 test("agent token bypasses stored session lookup in published builds", async () => {
