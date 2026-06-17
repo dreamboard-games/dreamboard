@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build API client
+        run: pnpm --dir packages/api-client build
+
       - name: Stage dev-host package
         run: pnpm --dir packages/dev-host stage:publish
 
