@@ -13,6 +13,7 @@ on:
         default: beta
         type: choice
         options:
+          - alpha
           - beta
           - latest
 
@@ -52,24 +53,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Stage publish package
-        run: pnpm pack:publish
+      - name: Stage dev-host package
+        run: pnpm --dir packages/dev-host stage:publish
+
+      - name: Stage CLI package
+        run: pnpm stage:publish
 
       - name: Validate release metadata
         id: release_meta
         run: |
-          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ]; then
+          npm_tag="${{ inputs.npm_tag }}"
+          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ] && [ "${npm_tag}" != "alpha" ]; then
             echo "Releases must run from ${DEFAULT_BRANCH}, got ${GITHUB_REF_NAME}." >&2
             exit 1
           fi
 
           package_version="$(node -p "require('./apps/dreamboard-cli/.publish/package/package.json').version")"
+          dev_host_version="$(node -p "require('./packages/dev-host/.publish/package/package.json').version")"
           expected_tag="v${package_version}"
           release_tag="${{ inputs.release_tag }}"
-          npm_tag="${{ inputs.npm_tag }}"
 
           if [ "${release_tag}" != "${expected_tag}" ]; then
             echo "Release tag ${release_tag} does not match expected tag ${expected_tag}." >&2
+            exit 1
+          fi
+
+          if [ "${dev_host_version}" != "${package_version}" ]; then
+            echo "Dev-host version ${dev_host_version} does not match CLI version ${package_version}." >&2
             exit 1
           fi
 
@@ -81,10 +91,16 @@ jobs:
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "npm_tag=$npm_tag" >> "$GITHUB_OUTPUT"
           echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
+          echo "dev_host_version=$dev_host_version" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Publish to npm
+      - name: Publish dev-host to npm
+        run: |
+          npm publish packages/dev-host/.publish/package \
+            --tag "${{ steps.release_meta.outputs.npm_tag }}"
+
+      - name: Publish CLI to npm
         run: |
           npm publish apps/dreamboard-cli/.publish/package \
             --tag "${{ steps.release_meta.outputs.npm_tag }}"
@@ -99,7 +115,7 @@ jobs:
             --generate-notes
           )
 
-          if [ "${{ steps.release_meta.outputs.npm_tag }}" = "beta" ]; then
+          if [ "${{ steps.release_meta.outputs.npm_tag }}" != "latest" ]; then
             release_args+=(--prerelease)
           fi
 
@@ -111,6 +127,7 @@ jobs:
         run: |
           {
             echo "Published \`dreamboard@${{ steps.release_meta.outputs.package_version }}\`"
+            echo "Published \`@dreamboard-games/dev-host@${{ steps.release_meta.outputs.dev_host_version }}\`"
             echo
             echo "- release tag: \`${{ steps.release_meta.outputs.release_tag }}\`"
             echo "- npm tag: \`${{ steps.release_meta.outputs.npm_tag }}\`"
