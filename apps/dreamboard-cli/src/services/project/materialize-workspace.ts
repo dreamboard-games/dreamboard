@@ -54,11 +54,11 @@ export async function materializeWorkspaceProject(
   });
   if (input.installDependencies ?? true) {
     await installWorkspaceDependencies(targetDir);
+    await applyWorkspaceCodegen({
+      projectRoot: targetDir,
+      manifest: input.manifest,
+    });
   }
-  await applyWorkspaceCodegen({
-    projectRoot: targetDir,
-    manifest: input.manifest,
-  });
 
   const authoringConfig =
     input.ruleId && input.manifestId && input.manifestContentHash

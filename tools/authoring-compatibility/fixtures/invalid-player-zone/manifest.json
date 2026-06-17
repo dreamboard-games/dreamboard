@@ -1,0 +1,46 @@
+{
+  "players": {
+    "minPlayers": 2,
+    "maxPlayers": 2,
+    "optimalPlayers": 2
+  },
+  "cardSets": [
+    {
+      "id": "cards",
+      "name": "Cards",
+      "type": "manual",
+      "cardSchema": {
+        "properties": {}
+      },
+      "defaultHome": {
+        "type": "zone",
+        "zoneId": "hand"
+      },
+      "cards": [
+        {
+          "type": "secret",
+          "name": "Secret",
+          "count": 1,
+          "properties": {}
+        }
+      ]
+    }
+  ],
+  "zones": [
+    {
+      "id": "hand",
+      "name": "Hand",
+      "scope": "perPlayer",
+      "allowedCardSetIds": ["cards"]
+    }
+  ],
+  "boardTemplates": [],
+  "boards": [],
+  "pieceTypes": [],
+  "pieceSeeds": [],
+  "dieTypes": [],
+  "dieSeeds": [],
+  "resources": [],
+  "setupOptions": [],
+  "setupProfiles": []
+}

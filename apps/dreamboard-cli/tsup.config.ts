@@ -1,7 +1,11 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/internal.ts"],
+  entry: [
+    "src/index.ts",
+    "src/internal.ts",
+    "src/authoring-compatibility-internal.ts",
+  ],
   format: ["esm"],
   platform: "node",
   target: "node24",

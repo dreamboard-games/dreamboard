@@ -7,6 +7,7 @@ import {
   readFile,
   readdir,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -43,6 +44,17 @@ function sha512(bytes) {
     sha512: createHash("sha512").update(bytes).digest("hex"),
     integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
   };
+}
+
+async function gitDirArg() {
+  try {
+    if ((await stat(path.join(repoRoot, ".here"))).isDirectory()) {
+      return ".here";
+    }
+  } catch {
+    // Fall back to the standard checkout layout.
+  }
+  return ".git";
 }
 
 await rm(outputDir, { recursive: true, force: true });
@@ -127,7 +139,12 @@ try {
       let rejected = 0;
       for (const fixture of projectAuthoringAdapter.manifestConformanceCases) {
         const result = zGameTopologyManifest.safeParse(fixture.manifest);
-        if (result.success !== fixture.expected.transportValid) {
+        const expectedTransportValid =
+          fixture.expected.transportValid ??
+          !fixture.expected.diagnosticCodes?.includes(
+            "MANUAL_CARD_SET_DEFAULT_HOME_REQUIRED",
+          );
+        if (result.success !== expectedTransportValid) {
           throw new Error(fixture.id + " packed Zod transport mismatch");
         }
         if (result.success) accepted += 1;
@@ -233,6 +250,7 @@ try {
     await readFile(path.join(packageRoot, "package.json"), "utf8"),
   );
   const tarballBytes = await readFile(apiClientTarball);
+  const gitDir = await gitDirArg();
   const receipt = {
     schemaVersion: 1,
     package: {
@@ -252,7 +270,7 @@ try {
       revision: run("git", [
         "-c",
         "core.fsmonitor=false",
-        "--git-dir=.here",
+        `--git-dir=${gitDir}`,
         "--work-tree=.",
         "rev-parse",
         "HEAD",
@@ -261,7 +279,7 @@ try {
         run("git", [
           "-c",
           "core.fsmonitor=false",
-          "--git-dir=.here",
+          `--git-dir=${gitDir}`,
           "--work-tree=.",
           "status",
           "--short",
