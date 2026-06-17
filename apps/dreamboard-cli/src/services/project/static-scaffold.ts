@@ -115,6 +115,12 @@ const SDK_DEPENDENCY_RANGES = {
 const DEV_HOST_DEPENDENCY_RANGES = {
   "@dreamboard-games/dev-host": AUTHORING_RELEASE_SET.packages.devHost.version,
 } as const;
+const DREAMBOARD_PACKAGE_OVERRIDES = {
+  "@dreamboard-games/api-client":
+    AUTHORING_RELEASE_SET.packages.apiClient.version,
+  "@dreamboard-games/dev-host": AUTHORING_RELEASE_SET.packages.devHost.version,
+  "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
+} as const;
 
 const FRAMEWORK_SCRIPTS = {
   dev: "dreamboard dev",
@@ -760,6 +766,7 @@ function mergePnpmConfig(
     overrides: {
       ...existingOverrides,
       ...FRAMEWORK_PNPM_OVERRIDES,
+      ...DREAMBOARD_PACKAGE_OVERRIDES,
     },
   };
 }

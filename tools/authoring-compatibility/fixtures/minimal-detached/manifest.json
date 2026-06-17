@@ -1,0 +1,38 @@
+{
+  "players": {
+    "minPlayers": 2,
+    "maxPlayers": 2,
+    "optimalPlayers": 2
+  },
+  "cardSets": [
+    {
+      "id": "cards",
+      "name": "Cards",
+      "type": "manual",
+      "cardSchema": {
+        "properties": {}
+      },
+      "defaultHome": {
+        "type": "detached"
+      },
+      "cards": [
+        {
+          "type": "marker",
+          "name": "Marker",
+          "count": 1,
+          "properties": {}
+        }
+      ]
+    }
+  ],
+  "zones": [],
+  "boardTemplates": [],
+  "boards": [],
+  "pieceTypes": [],
+  "pieceSeeds": [],
+  "dieTypes": [],
+  "dieSeeds": [],
+  "resources": [],
+  "setupOptions": [],
+  "setupProfiles": []
+}

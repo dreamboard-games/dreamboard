@@ -58,13 +58,17 @@ const packageJson: Record<string, unknown> = {
   },
   exports: {
     ".": "./dist/index.js",
+    "./authoring-compatibility-internal": {
+      types: "./dist/authoring-compatibility-internal.d.ts",
+      default: "./dist/authoring-compatibility-internal.js",
+    },
     "./internal": {
       types: "./dist/internal.d.ts",
       default: "./dist/internal.js",
     },
     "./package.json": "./package.json",
   },
-  files: ["dist", "README.md", "release", "skills"],
+  files: ["dist", "README.md", "release", "scaffold", "skills"],
   keywords: sourcePackage.keywords ?? [
     "dreamboard",
     "cli",
@@ -149,6 +153,14 @@ await cp(path.join(packageRoot, "dist"), path.join(stageRoot, "dist"), {
   recursive: true,
   force: true,
 });
+await cp(
+  path.join(packageRoot, "src", "scaffold", "assets", "static"),
+  path.join(stageRoot, "scaffold", "assets", "static"),
+  {
+    recursive: true,
+    force: true,
+  },
+);
 await mkdir(path.join(stageRoot, "release"), { recursive: true });
 await writeFile(
   path.join(stageRoot, "release", "authoring-release-set.json"),
@@ -165,8 +177,9 @@ if (
     ),
   )
 ) {
-  (packageJson.exports as Record<string, unknown>)["./agent-workspace-verifier"] =
-    "./dist/agent-verifier/agent-workspace-verifier.mjs";
+  (packageJson.exports as Record<string, unknown>)[
+    "./agent-workspace-verifier"
+  ] = "./dist/agent-verifier/agent-workspace-verifier.mjs";
 }
 await cp(
   path.join(packageRoot, "README.md"),

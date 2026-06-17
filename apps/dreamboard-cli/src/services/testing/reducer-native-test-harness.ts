@@ -1,5 +1,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import {
   existsSync,
   mkdirSync,
@@ -22,15 +24,7 @@ import {
   startGame,
   type HostPlayerGameplayView,
 } from "@dreamboard-games/api-client";
-import {
-  contractFingerprint,
-  createReducerBundle,
-} from "@dreamboard-games/sdk/reducer";
-import {
-  ReducerWireZod as ReducerContractZod,
-  materializeManifestTable,
-  type ReducerWire as Wire,
-} from "@dreamboard-games/sdk/reducer-contract";
+import type { ReducerWire as Wire } from "@dreamboard-games/sdk/reducer-contract";
 import type { ProjectConfig, ResolvedConfig } from "../../types.js";
 import { ensureDir, exists, writeJsonFile } from "../../utils/fs.js";
 import { createPersistedDevSession } from "../../utils/dev-session.js";
@@ -96,6 +90,46 @@ const SDK_UI_RUNTIME_EXTERNALS = [
   "react-dom",
   "vaul",
 ] as const;
+
+type ReducerRuntimeLike = {
+  initialize(input: {
+    table: unknown;
+    playerIds: readonly string[];
+    rngSeed?: number | null;
+    setup?: unknown;
+  }): unknown | Promise<unknown>;
+  hydrate(input: { state: Record<string, unknown> }): void;
+  unsafeState(): unknown;
+  snapshot(): unknown;
+  projectSeatsDynamic(input: { playerIds: readonly string[] }): unknown;
+  projectSeatViewDynamic(input: { playerId: string }): unknown;
+  dispatch(input: { input: Record<string, unknown> }): Promise<{
+    kind: string;
+    errorCode?: string;
+    message?: string;
+  }>;
+  explainInteraction?(input: {
+    playerId: string;
+    interactionId: string;
+  }): unknown;
+};
+
+type ReducerBundleLike = {
+  createInProcessRuntime(): ReducerRuntimeLike;
+};
+
+type ProjectReducerNativeModules = {
+  createReducerBundle(game: unknown): ReducerBundleLike;
+  contractFingerprint(game: unknown): { value: string };
+  materializeManifestTable(input: {
+    manifest: GameTopologyManifest;
+    playerIds: readonly string[];
+    shuffleItems<Value>(values: readonly Value[]): Value[];
+  }): unknown;
+  createExpectApi(options?: {
+    matchSnapshot?: (name: string | undefined, actual: unknown) => void;
+  }): ExpectApi;
+};
 
 type TestRunnerName = "reducer" | "remote" | "browser";
 
@@ -397,27 +431,76 @@ type GameplaySnapshot = {
   availableInteractions: string[];
 };
 
-let testingExpectApiFactoryPromise:
-  | Promise<
-      (options?: {
-        matchSnapshot?: (name: string | undefined, actual: unknown) => void;
-      }) => ExpectApi
-    >
-  | undefined;
+const projectReducerNativeModules = new Map<
+  string,
+  Promise<ProjectReducerNativeModules>
+>();
 
-async function loadTestingExpectApiFactory(): Promise<
-  (options?: {
-    matchSnapshot?: (name: string | undefined, actual: unknown) => void;
-  }) => ExpectApi
-> {
-  testingExpectApiFactoryPromise ??=
-    import("@dreamboard-games/sdk/testing").then(
-      (module) =>
-        module.createExpectApi as (options?: {
-          matchSnapshot?: (name: string | undefined, actual: unknown) => void;
-        }) => ExpectApi,
-    );
-  return testingExpectApiFactoryPromise;
+function resolveProjectSdkModule(
+  projectRoot: string,
+  specifier: string,
+): string {
+  const requireFromProject = createRequire(
+    path.join(projectRoot, "package.json"),
+  );
+  return requireFromProject.resolve(specifier);
+}
+
+async function importProjectSdkModule<T>(
+  projectRoot: string,
+  specifier: string,
+): Promise<T> {
+  const modulePath = resolveProjectSdkModule(projectRoot, specifier);
+  return (await import(pathToFileURL(modulePath).href)) as T;
+}
+
+async function loadProjectReducerNativeModules(
+  projectRoot: string,
+): Promise<ProjectReducerNativeModules> {
+  const cacheKey = path.resolve(projectRoot);
+  const cached = projectReducerNativeModules.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const promise = Promise.all([
+    importProjectSdkModule<{
+      createReducerBundle?: unknown;
+      contractFingerprint?: unknown;
+    }>(cacheKey, "@dreamboard-games/sdk/reducer"),
+    importProjectSdkModule<{
+      materializeManifestTable?: unknown;
+    }>(cacheKey, "@dreamboard-games/sdk/reducer-contract"),
+    importProjectSdkModule<{ createExpectApi?: unknown }>(
+      cacheKey,
+      "@dreamboard-games/sdk/testing",
+    ),
+  ]).then(([reducerModule, reducerContractModule, testingModule]) => {
+    if (
+      typeof reducerModule.createReducerBundle !== "function" ||
+      typeof reducerModule.contractFingerprint !== "function" ||
+      typeof reducerContractModule.materializeManifestTable !== "function" ||
+      typeof testingModule.createExpectApi !== "function"
+    ) {
+      throw new Error(
+        "Installed @dreamboard-games/sdk does not expose the reducer-native test helpers required by this CLI.",
+      );
+    }
+
+    return {
+      createReducerBundle:
+        reducerModule.createReducerBundle as ProjectReducerNativeModules["createReducerBundle"],
+      contractFingerprint:
+        reducerModule.contractFingerprint as ProjectReducerNativeModules["contractFingerprint"],
+      materializeManifestTable:
+        reducerContractModule.materializeManifestTable as ProjectReducerNativeModules["materializeManifestTable"],
+      createExpectApi:
+        testingModule.createExpectApi as ProjectReducerNativeModules["createExpectApi"],
+    };
+  });
+
+  projectReducerNativeModules.set(cacheKey, promise);
+  return promise;
 }
 
 function createSubmissionError(
@@ -1017,16 +1100,15 @@ function summarizeTableValidationError(
 }
 
 class ShadowReducerRuntime {
-  private readonly bundle: ReturnType<typeof createReducerBundle>;
-  private readonly runtime: ReturnType<
-    ReturnType<typeof createReducerBundle>["createInProcessRuntime"]
-  >;
+  private readonly bundle: ReducerBundleLike;
+  private readonly runtime: ReducerRuntimeLike;
   private readonly playerIds: string[];
   private readonly historyRecords: HistoryRecord[] = [];
   private version = 0;
   private started = false;
 
   constructor(
+    private readonly modules: ProjectReducerNativeModules,
     private readonly manifest: GameTopologyManifest,
     private readonly gameModuleDefault: unknown,
     private readonly createInitialTable: GeneratedInitialTableFactory | null,
@@ -1044,7 +1126,7 @@ class ShadowReducerRuntime {
         "app/game.ts must export a reducer-native game definition.",
       );
     }
-    this.bundle = createReducerBundle(gameModuleDefault as never);
+    this.bundle = this.modules.createReducerBundle(gameModuleDefault);
     this.runtime = this.bundle.createInProcessRuntime();
     this.playerIds = Array.from(
       { length: players },
@@ -1069,7 +1151,7 @@ class ShadowReducerRuntime {
           playerIds: this.playerIds,
           shuffleItems,
         }) ??
-          materializeManifestTable({
+          this.modules.materializeManifestTable({
             manifest: this.manifest,
             playerIds: this.playerIds,
             shuffleItems,
@@ -1406,56 +1488,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function formatIssuePath(
-  label: string,
-  path: ReadonlyArray<PropertyKey>,
-): string {
-  let formatted = label;
-  for (const segment of path) {
-    formatted +=
-      typeof segment === "number" ? `[${segment}]` : `.${String(segment)}`;
-  }
-  return formatted;
-}
-
-function parseWirePayload<T>(
-  methodName: string,
-  value: unknown,
-  label: string,
-  schema: {
-    safeParse: (input: unknown) =>
-      | { success: true; data: unknown }
-      | {
-          success: false;
-          error: {
-            issues: Array<{
-              path: Array<PropertyKey>;
-              message: string;
-            }>;
-          };
-        };
-  },
-): T {
-  const parsed = schema.safeParse(value);
-  if (parsed.success) {
-    return parsed.data as T;
-  }
-  const firstIssue = parsed.error.issues[0];
-  const formattedPath = formatIssuePath(label, firstIssue?.path ?? []);
-  throw new Error(
-    `Reducer bundle returned invalid payload for '${methodName}': ${formattedPath} ${firstIssue?.message ?? "failed schema validation"}.`,
-  );
-}
-
 export function assertDispatchResultWireContract(
   result: unknown,
 ): Wire.DispatchResult {
-  return parseWirePayload(
-    "dispatch",
-    result,
-    "DispatchResult",
-    ReducerContractZod.DispatchResultSchema,
-  );
+  if (typeof result !== "object" || result === null) {
+    throw new Error(
+      "Reducer bundle returned invalid payload for 'dispatch': DispatchResult must be an object.",
+    );
+  }
+  return result as Wire.DispatchResult;
 }
 
 async function createBrowserBridgeClient(
@@ -2182,13 +2223,14 @@ export async function materializeScenarioReducerState(options: {
     return cached;
   }
 
-  const [gameModule, manifestContractModule] = await Promise.all([
+  const [gameModule, manifestContractModule, modules] = await Promise.all([
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "app", "game.ts"),
     ),
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "shared", "manifest-contract.ts"),
     ),
+    loadProjectReducerNativeModules(options.projectRoot),
   ]);
 
   const createInitialTable =
@@ -2202,6 +2244,7 @@ export async function materializeScenarioReducerState(options: {
     basesById,
   });
   const shadow = new ShadowReducerRuntime(
+    modules,
     manifest,
     gameModule.default,
     createInitialTable,
@@ -2215,7 +2258,7 @@ export async function materializeScenarioReducerState(options: {
   const context = await createScenarioContext({
     runner: "reducer",
     shadow,
-    expect: (await loadTestingExpectApiFactory())(),
+    expect: modules.createExpectApi(),
   });
 
   shadow.clearHistory();
@@ -2287,6 +2330,7 @@ export async function replayScenarioThroughBackend(options: {
     manifest,
     gameModule,
     manifestContractModule,
+    modules,
   ] = await Promise.all([
     loadTypedBases(options.projectRoot),
     loadTypedScenarios(options.projectRoot, {}),
@@ -2298,6 +2342,7 @@ export async function replayScenarioThroughBackend(options: {
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "shared", "manifest-contract.ts"),
     ),
+    loadProjectReducerNativeModules(options.projectRoot),
   ]);
 
   const matchingScenarios = scenarios.filter(
@@ -2352,6 +2397,7 @@ export async function replayScenarioThroughBackend(options: {
     basesById,
   });
   const shadow = new ShadowReducerRuntime(
+    await loadProjectReducerNativeModules(options.projectRoot),
     manifest,
     gameModule.default,
     createInitialTable,
@@ -2408,7 +2454,9 @@ export async function replayScenarioThroughBackend(options: {
   const context = await createScenarioContext({
     runner: "reducer",
     shadow,
-    expect: (await loadTestingExpectApiFactory())(),
+    expect: (
+      await loadProjectReducerNativeModules(options.projectRoot)
+    ).createExpectApi(),
     live: {
       sessionId: session.sessionId,
       version: 0,
@@ -2476,6 +2524,7 @@ export async function createScenarioActionPlan(options: {
     manifest,
     gameModule,
     manifestContractModule,
+    modules,
   ] = await Promise.all([
     loadTypedBases(options.projectRoot),
     loadTypedScenarios(options.projectRoot, {}),
@@ -2487,6 +2536,7 @@ export async function createScenarioActionPlan(options: {
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "shared", "manifest-contract.ts"),
     ),
+    loadProjectReducerNativeModules(options.projectRoot),
   ]);
 
   const matchingScenarios = scenarios.filter(
@@ -2541,6 +2591,7 @@ export async function createScenarioActionPlan(options: {
     basesById,
   });
   const shadow = new ShadowReducerRuntime(
+    await loadProjectReducerNativeModules(options.projectRoot),
     manifest,
     gameModule.default,
     createInitialTable,
@@ -2564,7 +2615,9 @@ export async function createScenarioActionPlan(options: {
   const context = await createScenarioContext({
     runner: "reducer",
     shadow,
-    expect: (await loadTestingExpectApiFactory())(),
+    expect: (
+      await loadProjectReducerNativeModules(options.projectRoot)
+    ).createExpectApi(),
     actionPlan: {
       submitIndex: 0,
       diagnostics,
@@ -2941,20 +2994,21 @@ export async function writeReducerNativeGeneratedFiles(options: {
   );
   await ensureDir(generatedDir);
   const baseStates: BaseStateFile = {};
-  const [gameModule, manifestContractModule] = await Promise.all([
+  const [gameModule, manifestContractModule, modules] = await Promise.all([
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "app", "game.ts"),
     ),
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "shared", "manifest-contract.ts"),
     ),
+    loadProjectReducerNativeModules(options.projectRoot),
   ]);
   const createInitialTable =
     typeof manifestContractModule.createInitialTable === "function"
       ? (manifestContractModule.createInitialTable as GeneratedInitialTableFactory)
       : null;
-  const contractFingerprintValue = contractFingerprint(
-    gameModule.default as Parameters<typeof contractFingerprint>[0],
+  const contractFingerprintValue = modules.contractFingerprint(
+    gameModule.default,
   ).value;
   const basesById = new Map(
     options.bases.map((base) => [base.definition.id, base]),
@@ -2967,6 +3021,7 @@ export async function writeReducerNativeGeneratedFiles(options: {
       basesById,
     });
     const shadow = new ShadowReducerRuntime(
+      modules,
       manifest,
       gameModule.default,
       createInitialTable,
@@ -3009,7 +3064,7 @@ export async function writeReducerNativeGeneratedFiles(options: {
     const context = await createScenarioContext({
       runner: "reducer",
       shadow,
-      expect: (await loadTestingExpectApiFactory())(),
+      expect: modules.createExpectApi(),
     });
     await context.game.start();
     try {
@@ -3209,11 +3264,14 @@ async function currentFingerprint(options: {
   gameId?: string;
 }): Promise<BaseStateArtifact["fingerprint"]> {
   const manifest = await loadManifest(options.projectRoot);
-  const gameModule = await importTypeScriptModule<Record<string, unknown>>(
-    path.join(options.projectRoot, "app", "game.ts"),
-  );
-  const contractFingerprintValue = contractFingerprint(
-    gameModule.default as Parameters<typeof contractFingerprint>[0],
+  const [gameModule, modules] = await Promise.all([
+    importTypeScriptModule<Record<string, unknown>>(
+      path.join(options.projectRoot, "app", "game.ts"),
+    ),
+    loadProjectReducerNativeModules(options.projectRoot),
+  ]);
+  const contractFingerprintValue = modules.contractFingerprint(
+    gameModule.default,
   ).value;
   const resolvedBase = resolveBaseDefinition(
     options.base,
@@ -3319,6 +3377,7 @@ export async function runReducerNativeScenarios(options: {
     manifest,
     gameModule,
     manifestContractModule,
+    modules,
   ] = await Promise.all([
     loadTypedBases(options.projectRoot),
     loadTypedScenarios(options.projectRoot, {
@@ -3332,6 +3391,7 @@ export async function runReducerNativeScenarios(options: {
     importTypeScriptModule<Record<string, unknown>>(
       path.join(options.projectRoot, "shared", "manifest-contract.ts"),
     ),
+    loadProjectReducerNativeModules(options.projectRoot),
   ]);
   let generatedBaseStates = initialGeneratedBaseStates;
   const createInitialTable =
@@ -3372,288 +3432,283 @@ export async function runReducerNativeScenarios(options: {
   const results: ReducerNativeScenarioResult[] = [];
 
   for (const scenario of runnerScenarios) {
-      const base = basesById.get(scenario.definition.from);
-      if (!base) {
-        throw new Error(
-          `Missing typed base '${scenario.definition.from}' for scenario '${scenario.definition.id}'.`,
-        );
-      }
+    const base = basesById.get(scenario.definition.from);
+    if (!base) {
+      throw new Error(
+        `Missing typed base '${scenario.definition.from}' for scenario '${scenario.definition.id}'.`,
+      );
+    }
 
-      if (generatedBaseStates?.[baseStateKey(base.definition.id)]) {
-        validateGeneratedFingerprint({
-          generated:
-            generatedBaseStates[baseStateKey(base.definition.id)]!.fingerprint,
-          current: await currentFingerprint({
-            projectRoot: options.projectRoot,
-            base,
-            basesById,
-            compiledResultId: options.compiledResultId,
-            gameId: options.gameId,
-          }),
-        });
-      } else if (options.runner !== "reducer") {
-        throw new Error(
-          "Missing reducer-native generated base artifacts. Run 'dreamboard test generate' first.",
-        );
-      }
-
-      let scenarioBrowser: Browser | null = null;
-      let scenarioDevHost: { url: string; close(): Promise<void> } | null =
-        null;
-      try {
-        const resolvedBase = resolveBaseDefinition(base, basesById);
-        const effectiveSetup = resolveEffectiveBaseSetup({
-          manifest,
-          base: base.definition,
+    if (generatedBaseStates?.[baseStateKey(base.definition.id)]) {
+      validateGeneratedFingerprint({
+        generated:
+          generatedBaseStates[baseStateKey(base.definition.id)]!.fingerprint,
+        current: await currentFingerprint({
+          projectRoot: options.projectRoot,
+          base,
           basesById,
+          compiledResultId: options.compiledResultId,
+          gameId: options.gameId,
+        }),
+      });
+    } else if (options.runner !== "reducer") {
+      throw new Error(
+        "Missing reducer-native generated base artifacts. Run 'dreamboard test generate' first.",
+      );
+    }
+
+    let scenarioBrowser: Browser | null = null;
+    let scenarioDevHost: { url: string; close(): Promise<void> } | null = null;
+    try {
+      const resolvedBase = resolveBaseDefinition(base, basesById);
+      const effectiveSetup = resolveEffectiveBaseSetup({
+        manifest,
+        base: base.definition,
+        basesById,
+      });
+      const shadow = new ShadowReducerRuntime(
+        modules,
+        manifest,
+        gameModule.default,
+        createInitialTable,
+        resolvedBase.seed,
+        resolvedBase.players,
+        effectiveSetup.setupProfileId,
+        options.debug ?? false,
+      );
+      if (base.definition.extends) {
+        const parentArtifact =
+          generatedBaseStates?.[baseStateKey(base.definition.extends)];
+        if (!parentArtifact) {
+          throw new Error(
+            `Base '${base.definition.id}' extends '${base.definition.extends}', but the parent artifact is missing. Run 'dreamboard test generate' first.`,
+          );
+        }
+        shadow.hydrate(parentArtifact.snapshot, parentArtifact.version);
+      }
+
+      let remote:
+        | {
+            sessionId: string;
+            tracker: RemoteGameplayTracker;
+          }
+        | undefined;
+      if (options.runner === "remote") {
+        const compiledResultId =
+          options.compiledResultId ??
+          options.projectConfig.compile?.latestSuccessful?.resultId;
+        if (!compiledResultId) {
+          throw new Error(
+            "Remote runner requires a compiled result. Compile the workspace first.",
+          );
+        }
+        const {
+          data: session,
+          error: sessionError,
+          response: sessionResponse,
+        } = await createProjectSession({
+          path: { projectId: options.projectConfig.projectId },
+          body: {
+            compiledResultId,
+            seed: resolvedBase.seed,
+            playerCount: resolvedBase.players,
+            autoAssignSeats: true,
+            setupProfileId: effectiveSetup.setupProfileId ?? undefined,
+          },
         });
-        const shadow = new ShadowReducerRuntime(
-          manifest,
-          gameModule.default,
-          createInitialTable,
-          resolvedBase.seed,
-          resolvedBase.players,
-          effectiveSetup.setupProfileId,
-          options.debug ?? false,
+        if (!session || sessionError) {
+          throw toDreamboardApiError(
+            sessionError,
+            sessionResponse,
+            "Failed to create remote-runner session.",
+          );
+        }
+        const tracker = new RemoteGameplayTracker(
+          session.sessionId,
+          "player-1",
         );
-        if (base.definition.extends) {
-          const parentArtifact =
-            generatedBaseStates?.[baseStateKey(base.definition.extends)];
-          if (!parentArtifact) {
-            throw new Error(
-              `Base '${base.definition.id}' extends '${base.definition.extends}', but the parent artifact is missing. Run 'dreamboard test generate' first.`,
-            );
-          }
-          shadow.hydrate(parentArtifact.snapshot, parentArtifact.version);
-        }
-
-        let remote:
-          | {
-              sessionId: string;
-              tracker: RemoteGameplayTracker;
-            }
-          | undefined;
-        if (options.runner === "remote") {
-          const compiledResultId =
-            options.compiledResultId ??
-            options.projectConfig.compile?.latestSuccessful?.resultId;
-          if (!compiledResultId) {
-            throw new Error(
-              "Remote runner requires a compiled result. Compile the workspace first.",
-            );
-          }
-          const {
-            data: session,
-            error: sessionError,
-            response: sessionResponse,
-          } = await createProjectSession({
-            path: { projectId: options.projectConfig.projectId },
-            body: {
-              compiledResultId,
-              seed: resolvedBase.seed,
-              playerCount: resolvedBase.players,
-              autoAssignSeats: true,
-              setupProfileId: effectiveSetup.setupProfileId ?? undefined,
-            },
-          });
-          if (!session || sessionError) {
-            throw toDreamboardApiError(
-              sessionError,
-              sessionResponse,
-              "Failed to create remote-runner session.",
-            );
-          }
-          const tracker = new RemoteGameplayTracker(
-            session.sessionId,
-            "player-1",
+        const { error: startError, response: startResponse } = await startGame({
+          path: { sessionId: session.sessionId },
+        });
+        if (startError) {
+          throw toDreamboardApiError(
+            startError,
+            startResponse,
+            "Failed to start remote-runner session.",
           );
-          const { error: startError, response: startResponse } =
-            await startGame({
-              path: { sessionId: session.sessionId },
-            });
-          if (startError) {
-            throw toDreamboardApiError(
-              startError,
-              startResponse,
-              "Failed to start remote-runner session.",
-            );
-          }
-          await tracker.bootstrap();
-          remote = {
-            sessionId: session.sessionId,
-            tracker,
-          };
         }
+        await tracker.bootstrap();
+        remote = {
+          sessionId: session.sessionId,
+          tracker,
+        };
+      }
 
-        if (options.runner === "browser") {
-          const compiledResultId =
-            options.compiledResultId ??
-            options.projectConfig.compile?.latestSuccessful?.resultId;
-          if (!compiledResultId) {
-            throw new Error(
-              "Browser runner requires a compiled result. Compile the workspace first.",
-            );
-          }
-          const {
-            data: session,
-            error: sessionError,
-            response: sessionResponse,
-          } = await createProjectSession({
-            path: { projectId: options.projectConfig.projectId },
-            body: {
-              compiledResultId,
-              seed: resolvedBase.seed,
-              playerCount: resolvedBase.players,
-              autoAssignSeats: true,
-              setupProfileId: effectiveSetup.setupProfileId ?? undefined,
-            },
-          });
-          if (!session || sessionError) {
-            throw toDreamboardApiError(
-              sessionError,
-              sessionResponse,
-              "Failed to create browser-runner session.",
-            );
-          }
-          const { error: startError, data: started } = await startGame({
-            path: { sessionId: session.sessionId },
-          });
-          if (startError || !started) {
-            throw new Error("Failed to start browser-runner session.");
-          }
-          const devDir = path.join(
-            options.projectRoot,
-            PROJECT_DIR_NAME,
-            "dev",
+      if (options.runner === "browser") {
+        const compiledResultId =
+          options.compiledResultId ??
+          options.projectConfig.compile?.latestSuccessful?.resultId;
+        if (!compiledResultId) {
+          throw new Error(
+            "Browser runner requires a compiled result. Compile the workspace first.",
           );
-          await ensureDir(devDir);
-          const sessionFilePath = path.join(devDir, "session.json");
-          await writeJsonFile(
+        }
+        const {
+          data: session,
+          error: sessionError,
+          response: sessionResponse,
+        } = await createProjectSession({
+          path: { projectId: options.projectConfig.projectId },
+          body: {
+            compiledResultId,
+            seed: resolvedBase.seed,
+            playerCount: resolvedBase.players,
+            autoAssignSeats: true,
+            setupProfileId: effectiveSetup.setupProfileId ?? undefined,
+          },
+        });
+        if (!session || sessionError) {
+          throw toDreamboardApiError(
+            sessionError,
+            sessionResponse,
+            "Failed to create browser-runner session.",
+          );
+        }
+        const { error: startError, data: started } = await startGame({
+          path: { sessionId: session.sessionId },
+        });
+        if (startError || !started) {
+          throw new Error("Failed to start browser-runner session.");
+        }
+        const devDir = path.join(options.projectRoot, PROJECT_DIR_NAME, "dev");
+        await ensureDir(devDir);
+        const sessionFilePath = path.join(devDir, "session.json");
+        await writeJsonFile(
+          sessionFilePath,
+          createPersistedDevSession({ sessionId: session.sessionId }),
+        );
+        const devHostPlatform = createCliDevHostPlatform(
+          options.resolvedConfig,
+        );
+        const bearer = await devHostPlatform.resolveBearer();
+        if (bearer.kind === "permanent_invalid") {
+          throw new Error(bearer.message);
+        }
+        const loadedDevHost = await loadProjectDevHost(options.projectRoot);
+        scenarioDevHost = await loadedDevHost.module.start(
+          {
+            projectRoot: options.projectRoot,
             sessionFilePath,
-            createPersistedDevSession({ sessionId: session.sessionId }),
-          );
-          const devHostPlatform = createCliDevHostPlatform(
-            options.resolvedConfig,
-          );
-          const bearer = await devHostPlatform.resolveBearer();
-          if (bearer.kind === "permanent_invalid") {
-            throw new Error(bearer.message);
-          }
-          const loadedDevHost = await loadProjectDevHost(options.projectRoot);
-          scenarioDevHost = await loadedDevHost.module.start(
-            {
-              projectRoot: options.projectRoot,
-              sessionFilePath,
+            apiBaseUrl: options.resolvedConfig.apiBaseUrl,
+            runtimeConfig: {
               apiBaseUrl: options.resolvedConfig.apiBaseUrl,
-              runtimeConfig: {
-                apiBaseUrl: options.resolvedConfig.apiBaseUrl,
-                userId: extractUserIdFromJwt(bearer.token),
+              userId: extractUserIdFromJwt(bearer.token),
+              gameId: options.projectConfig.gameId,
+              compiledResultId,
+              setupProfileId: effectiveSetup.setupProfileId ?? null,
+              playerCount: resolvedBase.players,
+              debug: options.debug ?? false,
+              slug: options.projectConfig.slug,
+              autoStartGame: false,
+              initialSession: {
+                sessionId: session.sessionId,
+                shortCode: started.context.shortCode,
                 gameId: options.projectConfig.gameId,
-                compiledResultId,
-                setupProfileId: effectiveSetup.setupProfileId ?? null,
-                playerCount: resolvedBase.players,
-                debug: options.debug ?? false,
-                slug: options.projectConfig.slug,
-                autoStartGame: false,
-                initialSession: {
-                  sessionId: session.sessionId,
-                  shortCode: started.context.shortCode,
-                  gameId: options.projectConfig.gameId,
-                  seed: resolvedBase.seed,
-                },
+                seed: resolvedBase.seed,
               },
             },
-            devHostPlatform,
-          );
-          const opened = await openBrowserPage(
-            scenarioDevHost.url,
-            options.resolvedConfig,
-          );
-          scenarioBrowser = opened.browser;
-          const page = opened.page;
-          await waitForGameReady(page);
-          browserBridge = await createBrowserBridgeClient(page);
-          await browserDriver?.onReady?.(browserBridge);
-        }
-
-        const context = await createScenarioContext({
-          runner: options.runner,
-          shadow,
-          expect: (await loadTestingExpectApiFactory())({
-            matchSnapshot: createScenarioSnapshotMatcher({
-              projectRoot: options.projectRoot,
-              scenarioId: scenario.definition.id,
-              updateSnapshots: options.updateSnapshots ?? false,
-            }),
-          }),
-          remote,
-          browser:
-            options.runner === "browser" && browserBridge
-              ? {
-                  bridge: browserBridge,
-                  driver: browserDriver,
-                }
-              : undefined,
-        });
-
-        await context.game.start();
-        await base.definition.setup({
-          game: context.game,
-          players: context.players,
-          seat: context.seat,
-        });
-        shadow.clearHistory();
-        await scenario.definition.when(context);
-        if (
-          scenario.definition.phase &&
-          shadow.phase() !== scenario.definition.phase
-        ) {
-          throw new Error(
-            `Scenario '${scenario.definition.id}' expected phase '${scenario.definition.phase}' but reached '${shadow.phase()}'.`,
-          );
-        }
-        if (
-          scenario.definition.stage &&
-          shadow.currentStage() !== scenario.definition.stage
-        ) {
-          throw new Error(
-            `Scenario '${scenario.definition.id}' expected stage '${scenario.definition.stage}' but reached '${
-              shadow.currentStage() ?? "null"
-            }'.`,
-          );
-        }
-        await scenario.definition.then(context);
-        passed += 1;
-        results.push({
-          id: scenario.definition.id,
-          success: true,
-        });
-      } catch (error) {
-        failed += 1;
-        results.push({
-          id: scenario.definition.id,
-          success: false,
-          errorCode: isStaleContractArtifactError(error)
-            ? STALE_CONTRACT_ARTIFACT_CODE
-            : undefined,
-          error:
-            error instanceof Error
-              ? formatScenarioErrorForDisplay({
-                  error,
-                  projectRoot: options.projectRoot,
-                  scenarioFilePath: scenario.filePath,
-                })
-              : `Scenario '${scenario.definition.id}' failed.`,
-        });
-      } finally {
-        browserBridge = null;
-        if (scenarioBrowser) {
-          await scenarioBrowser.close();
-        }
-        if (scenarioDevHost) {
-          await scenarioDevHost.close();
-        }
+          },
+          devHostPlatform,
+        );
+        const opened = await openBrowserPage(
+          scenarioDevHost.url,
+          options.resolvedConfig,
+        );
+        scenarioBrowser = opened.browser;
+        const page = opened.page;
+        await waitForGameReady(page);
+        browserBridge = await createBrowserBridgeClient(page);
+        await browserDriver?.onReady?.(browserBridge);
       }
+
+      const context = await createScenarioContext({
+        runner: options.runner,
+        shadow,
+        expect: modules.createExpectApi({
+          matchSnapshot: createScenarioSnapshotMatcher({
+            projectRoot: options.projectRoot,
+            scenarioId: scenario.definition.id,
+            updateSnapshots: options.updateSnapshots ?? false,
+          }),
+        }),
+        remote,
+        browser:
+          options.runner === "browser" && browserBridge
+            ? {
+                bridge: browserBridge,
+                driver: browserDriver,
+              }
+            : undefined,
+      });
+
+      await context.game.start();
+      await base.definition.setup({
+        game: context.game,
+        players: context.players,
+        seat: context.seat,
+      });
+      shadow.clearHistory();
+      await scenario.definition.when(context);
+      if (
+        scenario.definition.phase &&
+        shadow.phase() !== scenario.definition.phase
+      ) {
+        throw new Error(
+          `Scenario '${scenario.definition.id}' expected phase '${scenario.definition.phase}' but reached '${shadow.phase()}'.`,
+        );
+      }
+      if (
+        scenario.definition.stage &&
+        shadow.currentStage() !== scenario.definition.stage
+      ) {
+        throw new Error(
+          `Scenario '${scenario.definition.id}' expected stage '${scenario.definition.stage}' but reached '${
+            shadow.currentStage() ?? "null"
+          }'.`,
+        );
+      }
+      await scenario.definition.then(context);
+      passed += 1;
+      results.push({
+        id: scenario.definition.id,
+        success: true,
+      });
+    } catch (error) {
+      failed += 1;
+      results.push({
+        id: scenario.definition.id,
+        success: false,
+        errorCode: isStaleContractArtifactError(error)
+          ? STALE_CONTRACT_ARTIFACT_CODE
+          : undefined,
+        error:
+          error instanceof Error
+            ? formatScenarioErrorForDisplay({
+                error,
+                projectRoot: options.projectRoot,
+                scenarioFilePath: scenario.filePath,
+              })
+            : `Scenario '${scenario.definition.id}' failed.`,
+      });
+    } finally {
+      browserBridge = null;
+      if (scenarioBrowser) {
+        await scenarioBrowser.close();
+      }
+      if (scenarioDevHost) {
+        await scenarioDevHost.close();
+      }
+    }
   }
 
   return { passed, failed, results };

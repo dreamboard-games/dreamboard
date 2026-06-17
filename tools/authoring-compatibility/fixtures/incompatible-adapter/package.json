@@ -1,0 +1,9 @@
+{
+  "name": "@dreamboard-games/sdk",
+  "version": "0.0.0-incompatible",
+  "type": "module",
+  "exports": {
+    "./authoring": "./authoring.js",
+    "./package.json": "./package.json"
+  }
+}
