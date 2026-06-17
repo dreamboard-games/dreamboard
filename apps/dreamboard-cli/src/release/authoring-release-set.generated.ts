@@ -7,11 +7,11 @@ export const AUTHORING_RELEASE_SET = {
   "packages": {
     "cli": {
       "name": "@dreamboard-games/cli",
-      "version": "0.1.30-alpha.15"
+      "version": "0.1.30-alpha.16"
     },
     "sdk": {
       "name": "@dreamboard-games/sdk",
-      "version": "0.4.0-alpha.3"
+      "version": "0.4.0-alpha.4"
     },
     "apiClient": {
       "name": "@dreamboard-games/api-client",
@@ -19,7 +19,7 @@ export const AUTHORING_RELEASE_SET = {
     },
     "devHost": {
       "name": "@dreamboard-games/dev-host",
-      "version": "0.1.30-alpha.15"
+      "version": "0.1.30-alpha.16"
     }
   },
   "protocols": {
@@ -37,5 +37,5 @@ export const AUTHORING_RELEASE_SET = {
     "portable": true
   },
   "packageManager": "pnpm@10.4.1",
-  "releaseSetId": "sha256:14825942d16170607601f16e85d187fbd479d5aac14b2e498295c395617723a3"
+  "releaseSetId": "sha256:ef5945255c08ccf7dbbff9abbf77fdcc91546bdd3c5703671ef6c22052e23d3f"
 } as const satisfies AuthoringReleaseSetV1;
