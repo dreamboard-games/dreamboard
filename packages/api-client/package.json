@@ -108,6 +108,7 @@
     }
   },
   "scripts": {
+    "authoring:candidate": "node scripts/build-authoring-candidate.mjs",
     "sync:private-openapi": "bun run scripts/sync-private-openapi.ts",
     "build": "bun run scripts/generate.ts && tsc -b",
     "generate": "bun run scripts/generate.ts"

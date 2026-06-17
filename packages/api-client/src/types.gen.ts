@@ -454,6 +454,10 @@ export type PresetCardSetDefinition = {
      * Type of card set source
      */
     type: 'preset';
+    /**
+     * Default initial home for cards materialized from the preset
+     */
+    defaultHome: ComponentHomeSpec;
 };
 
 /**
