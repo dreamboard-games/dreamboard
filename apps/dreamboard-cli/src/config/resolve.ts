@@ -26,7 +26,7 @@ import { refreshClerkOAuthToken } from "../auth/clerk-oauth.js";
 import { createUserTokenManager } from "../auth/user-token-manager.js";
 import { resolveLocalHarnessAccessToken } from "./local-harness-auth.js";
 
-const LOGIN_HINT = "Run `dreamboard login` to authenticate again.";
+const LOGIN_HINT = "Run `dreamboard auth login` to authenticate again.";
 const DEFAULT_REFRESH_WINDOW_MS = 5 * 60 * 1000;
 const TRANSIENT_READ_RETRY_DELAYS_MS = [100, 300];
 
@@ -287,13 +287,13 @@ function assertPublicRuntimeFlags(flags: ConfigFlags): void {
 
   if (valueOrUndefined(flags.token) || argv.includes("--token")) {
     throw new Error(
-      "Direct JWT injection is not supported in the published Dreamboard CLI. Use `dreamboard login` so the CLI can store and refresh your session.",
+      "Direct JWT injection is not supported in the published Dreamboard CLI. Use `dreamboard auth login` so the CLI can store and refresh your session.",
     );
   }
 
   if (process.env.DREAMBOARD_TOKEN) {
     throw new Error(
-      "The published Dreamboard CLI ignores direct token environment variables. Use `dreamboard login` so the CLI can manage refreshable credentials.",
+      "The published Dreamboard CLI ignores direct token environment variables. Use `dreamboard auth login` so the CLI can manage refreshable credentials.",
     );
   }
 }
@@ -480,7 +480,7 @@ export function requireAuth(config: ResolvedConfig): void {
     !resolveLocalHarnessAccessToken(config)
   ) {
     throw new Error(
-      "Missing Dreamboard session. Run `dreamboard login` to authenticate.",
+      "Missing Dreamboard session. Run `dreamboard auth login` to authenticate.",
     );
   }
 }

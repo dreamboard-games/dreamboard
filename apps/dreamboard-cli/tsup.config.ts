@@ -23,6 +23,7 @@ export default defineConfig({
   },
   noExternal: [
     "@dreamboard-games/api-client",
+    "@dreamboard-games/cli-core",
     "@dreamboard-games/gameplay-authority-client",
     "citty",
     "consola",

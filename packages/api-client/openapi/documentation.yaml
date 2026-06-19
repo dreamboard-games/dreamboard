@@ -407,6 +407,34 @@ paths:
         "500": 
           $ref: "#/components/responses/InternalServerError"
   "/api/projects/{projectId}/repository": 
+    get: 
+      summary: Get project repository
+      description: "Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope."
+      operationId: getProjectRepository
+      security: 
+        - BearerAuth: 
+            []
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+      responses: 
+        "200": 
+          description: Repository binding found
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectRepository"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
     put: 
       summary: Ensure project repository
       description: "Ensure the project installation in the authenticated user's active owner scope has one opaque Git repository binding."
@@ -427,6 +455,232 @@ paths:
                 $ref: "#/components/schemas/ProjectRepository"
         "400": 
           $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/repository/reconcile": 
+    post: 
+      summary: Retry project repository reconciliation
+      description: "Request a new reconciliation generation for the project's opaque Git repository binding."
+      operationId: retryProjectRepositoryReconciliation
+      security: 
+        - BearerAuth: 
+            []
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+      responses: 
+        "200": 
+          description: Repository reconciliation requested
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectRepository"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "409": 
+          $ref: "#/components/responses/ConflictError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/builds": 
+    post: 
+      summary: Ensure project build
+      description: Ensure a server-derived build recipe and compile job exist for one exact observed Git commit.
+      operationId: ensureProjectBuild
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody: 
+        required: true
+        content: 
+          application/json: 
+            schema: 
+              $ref: "#/components/schemas/EnsureProjectBuildRequest"
+      responses: 
+        "200": 
+          description: Existing or newly queued project build
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectBuild"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "409": 
+          $ref: "#/components/responses/ConflictError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/status/{commitOid}": 
+    get: 
+      summary: Get project commit status
+      description: "Return server-owned source, build, preview, and release state for one exact Git commit."
+      operationId: getProjectCommitStatus
+      security: 
+        - BearerAuth: 
+            []
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+        - name: commitOid
+          in: path
+          required: true
+          description: Exact Git commit OID already resolved by the caller.
+          schema: 
+            type: string
+            pattern: "^[a-f0-9]{40,64}$"
+      responses: 
+        "200": 
+          description: Server state for the requested commit
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectCommitStatus"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/builds/{buildRecipeDigest}": 
+    get: 
+      summary: Get project build
+      description: Get a server-derived build recipe and compiled artifact state for this project.
+      operationId: getProjectBuild
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+        - name: buildRecipeDigest
+          in: path
+          required: true
+          description: Canonical build recipe digest.
+          schema: 
+            type: string
+            pattern: "^sha256:[a-f0-9]{64}$"
+      responses: 
+        "200": 
+          description: Project build found
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectBuild"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/previews": 
+    post: 
+      summary: Create project preview
+      description: Create a preview aggregate for one exact observed Git commit after its build has succeeded.
+      operationId: createProjectPreview
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody: 
+        required: true
+        content: 
+          application/json: 
+            schema: 
+              $ref: "#/components/schemas/CreateProjectPreviewRequest"
+      responses: 
+        "200": 
+          description: Pending-retention project preview
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectPreview"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "409": 
+          $ref: "#/components/responses/ConflictError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/releases": 
+    post: 
+      summary: Publish project release
+      description: Create a pending release aggregate for one exact observed Git commit after its release build has succeeded.
+      operationId: publishProjectRelease
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody: 
+        required: true
+        content: 
+          application/json: 
+            schema: 
+              $ref: "#/components/schemas/PublishProjectReleaseRequest"
+      responses: 
+        "200": 
+          description: Pending-retention project release
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectRelease"
+        "400": 
+          $ref: "#/components/responses/BadRequestError"
+        "401": 
+          $ref: "#/components/responses/UnauthorizedError"
+        "403": 
+          $ref: "#/components/responses/ForbiddenError"
+        "404": 
+          $ref: "#/components/responses/NotFoundError"
+        "409": 
+          $ref: "#/components/responses/ConflictError"
+        "500": 
+          $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/releases/current": 
+    get: 
+      summary: Get current project release
+      description: Read the active release currently selected for a project.
+      operationId: getCurrentProjectRelease
+      tags: 
+        - Projects
+      parameters: 
+        - $ref: "#/components/parameters/ProjectId"
+      responses: 
+        "200": 
+          description: Current active project release
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/ProjectRelease"
         "401": 
           $ref: "#/components/responses/UnauthorizedError"
         "403": 
@@ -1640,7 +1894,7 @@ paths:
         description: Demo game slug
         schema: 
           type: string
-          example: frontier-trails
+          example: hex-network-trading
     get: 
       summary: Get demo game
       description: Return registration and playability metadata for a bundled demo game.
@@ -1670,7 +1924,7 @@ paths:
         description: Demo game slug
         schema: 
           type: string
-          example: frontier-trails
+          example: hex-network-trading
     get: 
       summary: Get demo game thumbnail
       description: Return the static thumbnail image for an active bundled demo game.
@@ -1711,7 +1965,7 @@ paths:
         description: Demo game slug
         schema: 
           type: string
-          example: frontier-trails
+          example: hex-network-trading
     post: 
       summary: Create demo session
       description: Create a fresh guest-play session for a bundled demo game.
@@ -2652,6 +2906,15 @@ components:
         metadata: 
           $ref: "#/components/schemas/GameMetadata"
           nullable: true
+    ProjectRepositoryProvisioningState: 
+      type: string
+      enum: 
+        - REQUESTED
+        - PROVISIONING
+        - READY
+        - ERROR
+        - DELETING
+        - DELETED
     ProjectRepository: 
       type: object
       description: Environment-local opaque Git repository binding for a project installation.
@@ -2671,11 +2934,398 @@ components:
           type: string
           nullable: true
           description: Current repository HEAD commit OID when known.
+        provisioningState: 
+          $ref: "#/components/schemas/ProjectRepositoryProvisioningState"
+        desiredGeneration: 
+          type: integer
+          format: int64
+          description: Desired repository reconciliation generation.
+        observedGeneration: 
+          type: integer
+          format: int64
+          description: Latest Forgejo state generation observed by reconciliation.
+        retryable: 
+          type: boolean
+          description: Whether retrying reconciliation is allowed for the current state.
+        errorCode: 
+          type: string
+          nullable: true
+          description: Stable sanitized reconciliation error code when provisioning is in error.
       required: 
         - repoBindingId
         - cloneUrl
         - defaultBranch
         - headCommit
+        - provisioningState
+        - desiredGeneration
+        - observedGeneration
+        - retryable
+    ProjectBuildTargetProfile: 
+      type: string
+      enum: 
+        - preview
+        - release
+    EnsureProjectBuildRequest: 
+      type: object
+      description: Request to ensure a build exists for one exact observed Git commit.
+      properties: 
+        commitOid: 
+          type: string
+          pattern: "^[a-f0-9]{40,64}$"
+          description: Exact Git commit OID already pushed to the project repository.
+        targetProfile: 
+          $ref: "#/components/schemas/ProjectBuildTargetProfile"
+      required: 
+        - commitOid
+        - targetProfile
+    ProjectCompiledArtifactStatus: 
+      type: string
+      enum: 
+        - PENDING
+        - SUCCEEDED
+        - FAILED
+    ProjectBuild: 
+      type: object
+      description: Server-derived build recipe and compiled artifact state for one exact Git commit.
+      properties: 
+        buildRecipeId: 
+          type: string
+          format: uuid
+        buildRecipeDigest: 
+          type: string
+          pattern: "^sha256:[a-f0-9]{64}$"
+        gameRevisionId: 
+          type: string
+          format: uuid
+        gitSourceRevisionId: 
+          type: string
+          format: uuid
+        commitOid: 
+          type: string
+        treeOid: 
+          type: string
+        targetProfile: 
+          $ref: "#/components/schemas/ProjectBuildTargetProfile"
+        compiledArtifactId: 
+          type: string
+          format: uuid
+        compiledArtifactStatus: 
+          $ref: "#/components/schemas/ProjectCompiledArtifactStatus"
+        compiledArtifactDigest: 
+          type: 
+            - string
+            - "null"
+        storageKey: 
+          type: 
+            - string
+            - "null"
+        workJobId: 
+          type: 
+            - string
+            - "null"
+          format: uuid
+        enqueued: 
+          type: boolean
+          description: Whether this request created the compile work job.
+      required: 
+        - buildRecipeId
+        - buildRecipeDigest
+        - gameRevisionId
+        - gitSourceRevisionId
+        - commitOid
+        - treeOid
+        - targetProfile
+        - compiledArtifactId
+        - compiledArtifactStatus
+        - compiledArtifactDigest
+        - storageKey
+        - workJobId
+        - enqueued
+    ProjectCommitSourceValidationStatus: 
+      type: string
+      enum: 
+        - PENDING
+        - SUCCEEDED
+        - FAILED
+    ProjectCommitSourceStatus: 
+      type: object
+      description: Server observation and validation state for one exact Git source revision.
+      properties: 
+        observed: 
+          type: boolean
+        gitSourceRevisionId: 
+          type: 
+            - string
+            - "null"
+          format: uuid
+        treeOid: 
+          type: 
+            - string
+            - "null"
+        refName: 
+          type: 
+            - string
+            - "null"
+        validationStatus: 
+          oneOf: 
+            - $ref: "#/components/schemas/ProjectCommitSourceValidationStatus"
+            - type: "null"
+        validationDiagnostics: 
+          type: 
+            - object
+            - "null"
+          additionalProperties: true
+          x-kotlin-type: kotlinx.serialization.json.JsonElement
+        observedAt: 
+          type: 
+            - string
+            - "null"
+          format: date-time
+      required: 
+        - observed
+        - gitSourceRevisionId
+        - treeOid
+        - refName
+        - validationStatus
+        - validationDiagnostics
+        - observedAt
+    ProjectCommitGameRevisionStatus: 
+      type: object
+      description: Materialized game revision linked to an exact Git source revision.
+      properties: 
+        gameRevisionId: 
+          type: 
+            - string
+            - "null"
+          format: uuid
+        revisionDigest: 
+          type: 
+            - string
+            - "null"
+        sourceTreeHash: 
+          type: 
+            - string
+            - "null"
+      required: 
+        - gameRevisionId
+        - revisionDigest
+        - sourceTreeHash
+    ProjectCommitBuildStatus: 
+      type: object
+      description: Build recipe and compiled artifact state for a target profile at one exact commit.
+      properties: 
+        targetProfile: 
+          $ref: "#/components/schemas/ProjectBuildTargetProfile"
+        buildRecipeDigest: 
+          type: string
+          pattern: "^sha256:[a-f0-9]{64}$"
+        buildRecipe: 
+          type: object
+          additionalProperties: true
+          x-kotlin-type: kotlinx.serialization.json.JsonElement
+        buildRecipeId: 
+          type: 
+            - string
+            - "null"
+          format: uuid
+        compiledArtifactId: 
+          type: 
+            - string
+            - "null"
+          format: uuid
+        compiledArtifactStatus: 
+          oneOf: 
+            - $ref: "#/components/schemas/ProjectCompiledArtifactStatus"
+            - type: "null"
+        compiledArtifactDigest: 
+          type: 
+            - string
+            - "null"
+        storageKey: 
+          type: 
+            - string
+            - "null"
+        diagnostics: 
+          type: 
+            - object
+            - "null"
+          additionalProperties: true
+          x-kotlin-type: kotlinx.serialization.json.JsonElement
+      required: 
+        - targetProfile
+        - buildRecipeDigest
+        - buildRecipe
+        - buildRecipeId
+        - compiledArtifactId
+        - compiledArtifactStatus
+        - compiledArtifactDigest
+        - storageKey
+        - diagnostics
+    ProjectPreviewStatus: 
+      type: string
+      enum: 
+        - PENDING_RETENTION
+        - ACTIVE
+        - EXPIRED
+    ProjectPreview: 
+      type: object
+      description: Preview aggregate for one exact Git source revision and compiled artifact.
+      properties: 
+        previewId: 
+          type: string
+          format: uuid
+        gameRevisionId: 
+          type: string
+          format: uuid
+        compiledArtifactId: 
+          type: string
+          format: uuid
+        status: 
+          $ref: "#/components/schemas/ProjectPreviewStatus"
+        sourceRef: 
+          type: 
+            - string
+            - "null"
+        retentionRef: 
+          type: 
+            - string
+            - "null"
+        expiresAt: 
+          type: string
+          format: date-time
+        createdAt: 
+          type: string
+          format: date-time
+      required: 
+        - previewId
+        - gameRevisionId
+        - compiledArtifactId
+        - status
+        - sourceRef
+        - retentionRef
+        - expiresAt
+        - createdAt
+    ProjectReleaseStatus: 
+      type: string
+      enum: 
+        - PENDING_RETENTION
+        - ACTIVE
+        - REVOKED
+    ProjectCommitReleaseStatus: 
+      type: object
+      description: Release membership for a commit-scoped game revision.
+      properties: 
+        releaseId: 
+          type: string
+          format: uuid
+        gameRevisionId: 
+          type: string
+          format: uuid
+        compiledArtifactId: 
+          type: string
+          format: uuid
+        status: 
+          $ref: "#/components/schemas/ProjectReleaseStatus"
+        retentionRef: 
+          type: 
+            - string
+            - "null"
+        current: 
+          type: boolean
+        createdAt: 
+          type: string
+          format: date-time
+      required: 
+        - releaseId
+        - gameRevisionId
+        - compiledArtifactId
+        - status
+        - retentionRef
+        - current
+        - createdAt
+    ProjectCommitStatus: 
+      type: object
+      description: Server-owned status aggregate for one exact Git commit.
+      properties: 
+        projectId: 
+          type: string
+          format: uuid
+        commitOid: 
+          type: string
+          pattern: "^[a-f0-9]{40,64}$"
+        source: 
+          $ref: "#/components/schemas/ProjectCommitSourceStatus"
+        gameRevision: 
+          $ref: "#/components/schemas/ProjectCommitGameRevisionStatus"
+        builds: 
+          type: array
+          items: 
+            $ref: "#/components/schemas/ProjectCommitBuildStatus"
+        previews: 
+          type: array
+          items: 
+            $ref: "#/components/schemas/ProjectPreview"
+        releases: 
+          type: array
+          items: 
+            $ref: "#/components/schemas/ProjectCommitReleaseStatus"
+      required: 
+        - projectId
+        - commitOid
+        - source
+        - gameRevision
+        - builds
+        - previews
+        - releases
+    CreateProjectPreviewRequest: 
+      type: object
+      description: Request to create a preview for one exact observed Git commit.
+      properties: 
+        commitOid: 
+          type: string
+          pattern: "^[a-f0-9]{40,64}$"
+          description: Exact Git commit OID already pushed to the project repository.
+      required: 
+        - commitOid
+    PublishProjectReleaseRequest: 
+      type: object
+      description: Request to publish a release for one exact observed Git commit.
+      properties: 
+        commitOid: 
+          type: string
+          pattern: "^[a-f0-9]{40,64}$"
+          description: Exact Git commit OID already pushed to the project repository.
+      required: 
+        - commitOid
+    ProjectRelease: 
+      type: object
+      description: Release aggregate for one exact Git source revision and compiled artifact.
+      properties: 
+        releaseId: 
+          type: string
+          format: uuid
+        gameRevisionId: 
+          type: string
+          format: uuid
+        compiledArtifactId: 
+          type: string
+          format: uuid
+        status: 
+          $ref: "#/components/schemas/ProjectReleaseStatus"
+        retentionRef: 
+          type: 
+            - string
+            - "null"
+        createdAt: 
+          type: string
+          format: date-time
+      required: 
+        - releaseId
+        - gameRevisionId
+        - compiledArtifactId
+        - status
+        - retentionRef
+        - createdAt
     GameRevisionSourceFile: 
       type: object
       description: Source file descriptor included in an atomic game revision
@@ -2729,142 +3379,6 @@ components:
       required: 
         - minPlayers
         - maxPlayers
-    PresetCardSetDefinition: 
-      type: object
-      properties: 
-        id: 
-          type: string
-          description: Unique local identifier for the authored card set
-          minLength: 1
-        presetId: 
-          type: string
-          description: Built-in preset card-set selector
-          minLength: 1
-        name: 
-          type: string
-          description: Display name of the card set
-          minLength: 1
-        type: 
-          type: string
-          enum: 
-            - preset
-          description: Type of card set source
-        defaultHome:
-          $ref: "#/components/schemas/ComponentHomeSpec"
-          description: Default initial home for cards materialized from the preset
-      required: 
-        - id
-        - presetId
-        - name
-        - type
-        - defaultHome
-    JsonValue: 
-      description: Arbitrary authored JSON value.
-      oneOf: 
-        - type: string
-        - type: integer
-        - type: number
-        - type: boolean
-        - type: "null"
-        - type: array
-          items: 
-            $ref: "#/components/schemas/JsonValue"
-        - type: object
-          additionalProperties: 
-            $ref: "#/components/schemas/JsonValue"
-    PropertySchema: 
-      type: object
-      properties: 
-        type: 
-          type: string
-          enum: 
-            - string
-            - integer
-            - number
-            - boolean
-            - zoneId
-            - cardId
-            - playerId
-            - boardId
-            - edgeId
-            - vertexId
-            - spaceId
-            - pieceId
-            - dieId
-            - resourceId
-            - array
-            - object
-            - record
-            - enum
-          description: The data type of the property.
-        description: 
-          type: string
-          description: "Optional description of the property's purpose and usage."
-          nullable: true
-        optional: 
-          type: boolean
-          description: Whether an object property may be omitted.
-          default: false
-        nullable: 
-          type: boolean
-          description: Whether the value may be null.
-          default: false
-        default: 
-          description: "Optional authored default value for this property. When present, omitted\nseed values materialize to the default and generated TypeScript treats\nthe property as present even if `optional: true` is also set.\n"
-          $ref: "#/components/schemas/JsonValue"
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-        items: 
-          $ref: "#/components/schemas/PropertySchema"
-          description: "For array types, the schema of the array items. Required if type is 'array'."
-          nullable: true
-        properties: 
-          type: object
-          additionalProperties: 
-            $ref: "#/components/schemas/PropertySchema"
-          description: "For object types, the schema of the object's properties. Required if type is 'object'."
-          nullable: true
-        enums: 
-          type: array
-          items: 
-            type: string
-          description: "For enum types, the list of allowed string values. Required if type is 'enum'."
-          nullable: true
-        values: 
-          $ref: "#/components/schemas/PropertySchema"
-          description: "For record types, the schema of the record's values. Required if type is 'record'."
-          nullable: true
-      required: 
-        - type
-    ObjectSchema: 
-      type: object
-      properties: 
-        properties: 
-          type: object
-          additionalProperties: 
-            $ref: "#/components/schemas/PropertySchema"
-          description: "Map of property names to their schemas. Type is always 'object' and all properties are required."
-      required: 
-        - properties
-    CardPropertySchemaVariants: 
-      type: object
-      properties: 
-        shared: 
-          type: object
-          additionalProperties: 
-            $ref: "#/components/schemas/PropertySchema"
-          description: Property schemas present on every card-type variant.
-        variants: 
-          type: object
-          additionalProperties: 
-            $ref: "#/components/schemas/ObjectSchema"
-          description: Property schema for each card type in this manual card set.
-      required: 
-        - variants
-    CardPropertySchema: 
-      oneOf: 
-        - $ref: "#/components/schemas/ObjectSchema"
-        - $ref: "#/components/schemas/CardPropertySchemaVariants"
     DetachedHomeSpec: 
       type: object
       properties: 
@@ -3039,6 +3553,142 @@ components:
           edge: "#/components/schemas/EdgeHomeSpec"
           vertex: "#/components/schemas/VertexHomeSpec"
           slot: "#/components/schemas/SlotHomeSpec"
+    PresetCardSetDefinition: 
+      type: object
+      properties: 
+        id: 
+          type: string
+          description: Unique local identifier for the authored card set
+          minLength: 1
+        presetId: 
+          type: string
+          description: Built-in preset card-set selector
+          minLength: 1
+        name: 
+          type: string
+          description: Display name of the card set
+          minLength: 1
+        type: 
+          type: string
+          enum: 
+            - preset
+          description: Type of card set source
+        defaultHome: 
+          $ref: "#/components/schemas/ComponentHomeSpec"
+          description: Default initial home for cards materialized from the preset
+      required: 
+        - id
+        - presetId
+        - name
+        - type
+        - defaultHome
+    JsonValue: 
+      description: Arbitrary authored JSON value.
+      oneOf: 
+        - type: string
+        - type: integer
+        - type: number
+        - type: boolean
+        - type: "null"
+        - type: array
+          items: 
+            $ref: "#/components/schemas/JsonValue"
+        - type: object
+          additionalProperties: 
+            $ref: "#/components/schemas/JsonValue"
+    PropertySchema: 
+      type: object
+      properties: 
+        type: 
+          type: string
+          enum: 
+            - string
+            - integer
+            - number
+            - boolean
+            - zoneId
+            - cardId
+            - playerId
+            - boardId
+            - edgeId
+            - vertexId
+            - spaceId
+            - pieceId
+            - dieId
+            - resourceId
+            - array
+            - object
+            - record
+            - enum
+          description: The data type of the property.
+        description: 
+          type: string
+          description: "Optional description of the property's purpose and usage."
+          nullable: true
+        optional: 
+          type: boolean
+          description: Whether an object property may be omitted.
+          default: false
+        nullable: 
+          type: boolean
+          description: Whether the value may be null.
+          default: false
+        default: 
+          description: "Optional authored default value for this property. When present, omitted\nseed values materialize to the default and generated TypeScript treats\nthe property as present even if `optional: true` is also set.\n"
+          $ref: "#/components/schemas/JsonValue"
+          x-kotlin-type: kotlinx.serialization.json.JsonElement
+          nullable: true
+        items: 
+          $ref: "#/components/schemas/PropertySchema"
+          description: "For array types, the schema of the array items. Required if type is 'array'."
+          nullable: true
+        properties: 
+          type: object
+          additionalProperties: 
+            $ref: "#/components/schemas/PropertySchema"
+          description: "For object types, the schema of the object's properties. Required if type is 'object'."
+          nullable: true
+        enums: 
+          type: array
+          items: 
+            type: string
+          description: "For enum types, the list of allowed string values. Required if type is 'enum'."
+          nullable: true
+        values: 
+          $ref: "#/components/schemas/PropertySchema"
+          description: "For record types, the schema of the record's values. Required if type is 'record'."
+          nullable: true
+      required: 
+        - type
+    ObjectSchema: 
+      type: object
+      properties: 
+        properties: 
+          type: object
+          additionalProperties: 
+            $ref: "#/components/schemas/PropertySchema"
+          description: "Map of property names to their schemas. Type is always 'object' and all properties are required."
+      required: 
+        - properties
+    CardPropertySchemaVariants: 
+      type: object
+      properties: 
+        shared: 
+          type: object
+          additionalProperties: 
+            $ref: "#/components/schemas/PropertySchema"
+          description: Property schemas present on every card-type variant.
+        variants: 
+          type: object
+          additionalProperties: 
+            $ref: "#/components/schemas/ObjectSchema"
+          description: Property schema for each card type in this manual card set.
+      required: 
+        - variants
+    CardPropertySchema: 
+      oneOf: 
+        - $ref: "#/components/schemas/ObjectSchema"
+        - $ref: "#/components/schemas/CardPropertySchemaVariants"
     ComponentVisibilitySpec: 
       type: object
       description: Default authored visibility for a component instance
@@ -4580,7 +5230,7 @@ components:
         artifactStorageFingerprint: 
           type: string
           nullable: true
-          description: Non-secret identity of the artifact storage provider used for this compilation. Changes when switching between local filesystem storage and Tigris/S3-compatible object storage.
+          description: Non-secret identity of the artifact storage provider used for this compilation. Changes when switching between local filesystem storage and AWS S3 object storage.
         appFingerprint: 
           type: string
           nullable: true
@@ -6855,6 +7505,100 @@ components:
           description: Secret-free relative artifact pointer such as build/verification/run-1 or .perf/runs/run-1.
       required: 
         - outcome
+    GameOutcomeReason: 
+      type: object
+      required: 
+        - code
+      properties: 
+        code: 
+          type: string
+          minLength: 1
+        message: 
+          type: string
+          minLength: 1
+      additionalProperties: false
+    GameOutcomeResult: 
+      type: string
+      enum: 
+        - win
+        - draw
+        - loss
+        - eliminated
+    GameOutcomeScoreComponent: 
+      type: object
+      required: 
+        - id
+        - label
+        - value
+      properties: 
+        id: 
+          type: string
+          minLength: 1
+        label: 
+          type: string
+          minLength: 1
+        value: 
+          type: number
+      additionalProperties: false
+    GameOutcomeTieBreak: 
+      type: object
+      required: 
+        - id
+        - label
+        - value
+      properties: 
+        id: 
+          type: string
+          minLength: 1
+        label: 
+          type: string
+          minLength: 1
+        value: 
+          oneOf: 
+            - type: number
+            - type: string
+              minLength: 1
+      additionalProperties: false
+    GameOutcomeStanding: 
+      type: object
+      required: 
+        - playerId
+        - rank
+        - result
+      properties: 
+        playerId: 
+          type: string
+          minLength: 1
+        rank: 
+          type: integer
+          minimum: 1
+        result: 
+          $ref: "#/components/schemas/GameOutcomeResult"
+        score: 
+          type: number
+        scoreBreakdown: 
+          type: array
+          items: 
+            $ref: "#/components/schemas/GameOutcomeScoreComponent"
+        tieBreaks: 
+          type: array
+          items: 
+            $ref: "#/components/schemas/GameOutcomeTieBreak"
+      additionalProperties: false
+    GameOutcome: 
+      type: object
+      required: 
+        - reason
+        - standings
+      properties: 
+        reason: 
+          $ref: "#/components/schemas/GameOutcomeReason"
+        standings: 
+          type: array
+          minItems: 1
+          items: 
+            $ref: "#/components/schemas/GameOutcomeStanding"
+      additionalProperties: false
     SessionEndedCallbackRequest: 
       type: object
       required: 
@@ -6862,7 +7606,7 @@ components:
         - version
         - stateHash
         - endedAt
-        - reason
+        - outcome
       properties: 
         generation: 
           type: integer
@@ -6878,18 +7622,8 @@ components:
         endedAt: 
           type: string
           format: date-time
-        winnerPlayerId: 
-          type: string
-          minLength: 1
-          nullable: true
-        finalScores: 
-          type: object
-          additionalProperties: 
-            type: integer
-          nullable: true
-        reason: 
-          type: string
-          minLength: 1
+        outcome: 
+          $ref: "#/components/schemas/GameOutcome"
       additionalProperties: false
     SessionEndedCallbackResponse: 
       type: object
@@ -6925,10 +7659,10 @@ components:
       properties: 
         slug: 
           type: string
-          example: frontier-trails
+          example: hex-network-trading
         name: 
           type: string
-          example: Frontier Trails
+          example: Hex Network Trading
         description: 
           type: string
           nullable: true
@@ -6940,7 +7674,7 @@ components:
           type: string
           nullable: true
           description: Relative URL for the bundled static demo thumbnail.
-          example: /api/demo-games/frontier-trails/thumbnail
+          example: /api/demo-games/hex-network-trading/thumbnail
         creator: 
           type: string
           nullable: true

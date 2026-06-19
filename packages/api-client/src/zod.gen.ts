@@ -244,6 +244,15 @@ export const zUpdateProjectRequest = z.object({
     metadata: z.optional(zGameMetadata)
 });
 
+export const zProjectRepositoryProvisioningState = z.enum([
+    'REQUESTED',
+    'PROVISIONING',
+    'READY',
+    'ERROR',
+    'DELETING',
+    'DELETED'
+]);
+
 /**
  * Environment-local opaque Git repository binding for a project installation.
  */
@@ -251,7 +260,234 @@ export const zProjectRepository = z.object({
     repoBindingId: z.uuid(),
     cloneUrl: z.url(),
     defaultBranch: z.string(),
-    headCommit: z.string()
+    headCommit: z.string(),
+    provisioningState: zProjectRepositoryProvisioningState,
+    desiredGeneration: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    observedGeneration: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    retryable: z.boolean(),
+    errorCode: z.optional(z.string())
+});
+
+export const zProjectBuildTargetProfile = z.enum(['preview', 'release']);
+
+/**
+ * Request to ensure a build exists for one exact observed Git commit.
+ */
+export const zEnsureProjectBuildRequest = z.object({
+    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/),
+    targetProfile: zProjectBuildTargetProfile
+});
+
+export const zProjectCompiledArtifactStatus = z.enum([
+    'PENDING',
+    'SUCCEEDED',
+    'FAILED'
+]);
+
+/**
+ * Server-derived build recipe and compiled artifact state for one exact Git commit.
+ */
+export const zProjectBuild = z.object({
+    buildRecipeId: z.uuid(),
+    buildRecipeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+    gameRevisionId: z.uuid(),
+    gitSourceRevisionId: z.uuid(),
+    commitOid: z.string(),
+    treeOid: z.string(),
+    targetProfile: zProjectBuildTargetProfile,
+    compiledArtifactId: z.uuid(),
+    compiledArtifactStatus: zProjectCompiledArtifactStatus,
+    compiledArtifactDigest: z.union([
+        z.string(),
+        z.null()
+    ]),
+    storageKey: z.union([
+        z.string(),
+        z.null()
+    ]),
+    workJobId: z.union([
+        z.uuid(),
+        z.null()
+    ]),
+    enqueued: z.boolean()
+});
+
+export const zProjectCommitSourceValidationStatus = z.enum([
+    'PENDING',
+    'SUCCEEDED',
+    'FAILED'
+]);
+
+/**
+ * Server observation and validation state for one exact Git source revision.
+ */
+export const zProjectCommitSourceStatus = z.object({
+    observed: z.boolean(),
+    gitSourceRevisionId: z.union([
+        z.uuid(),
+        z.null()
+    ]),
+    treeOid: z.union([
+        z.string(),
+        z.null()
+    ]),
+    refName: z.union([
+        z.string(),
+        z.null()
+    ]),
+    validationStatus: z.union([
+        zProjectCommitSourceValidationStatus,
+        z.null()
+    ]),
+    validationDiagnostics: z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ]),
+    observedAt: z.union([
+        z.iso.datetime(),
+        z.null()
+    ])
+});
+
+/**
+ * Materialized game revision linked to an exact Git source revision.
+ */
+export const zProjectCommitGameRevisionStatus = z.object({
+    gameRevisionId: z.union([
+        z.uuid(),
+        z.null()
+    ]),
+    revisionDigest: z.union([
+        z.string(),
+        z.null()
+    ]),
+    sourceTreeHash: z.union([
+        z.string(),
+        z.null()
+    ])
+});
+
+/**
+ * Build recipe and compiled artifact state for a target profile at one exact commit.
+ */
+export const zProjectCommitBuildStatus = z.object({
+    targetProfile: zProjectBuildTargetProfile,
+    buildRecipeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+    buildRecipe: z.record(z.string(), z.unknown()),
+    buildRecipeId: z.union([
+        z.uuid(),
+        z.null()
+    ]),
+    compiledArtifactId: z.union([
+        z.uuid(),
+        z.null()
+    ]),
+    compiledArtifactStatus: z.union([
+        zProjectCompiledArtifactStatus,
+        z.null()
+    ]),
+    compiledArtifactDigest: z.union([
+        z.string(),
+        z.null()
+    ]),
+    storageKey: z.union([
+        z.string(),
+        z.null()
+    ]),
+    diagnostics: z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ])
+});
+
+export const zProjectPreviewStatus = z.enum([
+    'PENDING_RETENTION',
+    'ACTIVE',
+    'EXPIRED'
+]);
+
+/**
+ * Preview aggregate for one exact Git source revision and compiled artifact.
+ */
+export const zProjectPreview = z.object({
+    previewId: z.uuid(),
+    gameRevisionId: z.uuid(),
+    compiledArtifactId: z.uuid(),
+    status: zProjectPreviewStatus,
+    sourceRef: z.union([
+        z.string(),
+        z.null()
+    ]),
+    retentionRef: z.union([
+        z.string(),
+        z.null()
+    ]),
+    expiresAt: z.iso.datetime(),
+    createdAt: z.iso.datetime()
+});
+
+export const zProjectReleaseStatus = z.enum([
+    'PENDING_RETENTION',
+    'ACTIVE',
+    'REVOKED'
+]);
+
+/**
+ * Release membership for a commit-scoped game revision.
+ */
+export const zProjectCommitReleaseStatus = z.object({
+    releaseId: z.uuid(),
+    gameRevisionId: z.uuid(),
+    compiledArtifactId: z.uuid(),
+    status: zProjectReleaseStatus,
+    retentionRef: z.union([
+        z.string(),
+        z.null()
+    ]),
+    current: z.boolean(),
+    createdAt: z.iso.datetime()
+});
+
+/**
+ * Server-owned status aggregate for one exact Git commit.
+ */
+export const zProjectCommitStatus = z.object({
+    projectId: z.uuid(),
+    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/),
+    source: zProjectCommitSourceStatus,
+    gameRevision: zProjectCommitGameRevisionStatus,
+    builds: z.array(zProjectCommitBuildStatus),
+    previews: z.array(zProjectPreview),
+    releases: z.array(zProjectCommitReleaseStatus)
+});
+
+/**
+ * Request to create a preview for one exact observed Git commit.
+ */
+export const zCreateProjectPreviewRequest = z.object({
+    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/)
+});
+
+/**
+ * Request to publish a release for one exact observed Git commit.
+ */
+export const zPublishProjectReleaseRequest = z.object({
+    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/)
+});
+
+/**
+ * Release aggregate for one exact Git source revision and compiled artifact.
+ */
+export const zProjectRelease = z.object({
+    releaseId: z.uuid(),
+    gameRevisionId: z.uuid(),
+    compiledArtifactId: z.uuid(),
+    status: zProjectReleaseStatus,
+    retentionRef: z.union([
+        z.string(),
+        z.null()
+    ]),
+    createdAt: z.iso.datetime()
 });
 
 /**
@@ -278,70 +514,6 @@ export const zPlayersDefinition = z.object({
     maxPlayers: z.int().gte(1).lte(10),
     optimalPlayers: z.optional(z.int().gte(1).lte(10))
 });
-
-/**
- * Arbitrary authored JSON value.
- */
-export const zJsonValue = z.union([
-    z.string(),
-    z.int(),
-    z.number(),
-    z.boolean(),
-    z.null(),
-    z.array(z.lazy((): any => zJsonValue)),
-    z.record(z.string(), z.lazy((): any => zJsonValue))
-]);
-
-export const zPropertySchema = z.object({
-    type: z.enum([
-        'string',
-        'integer',
-        'number',
-        'boolean',
-        'zoneId',
-        'cardId',
-        'playerId',
-        'boardId',
-        'edgeId',
-        'vertexId',
-        'spaceId',
-        'pieceId',
-        'dieId',
-        'resourceId',
-        'array',
-        'object',
-        'record',
-        'enum'
-    ]),
-    description: z.optional(z.string()),
-    optional: z.optional(z.boolean()).default(false),
-    nullable: z.optional(z.boolean()).default(false),
-    default: z.optional(zJsonValue),
-    get items() {
-        return z.optional(z.lazy((): any => zPropertySchema));
-    },
-    get properties() {
-        return z.optional(z.record(z.string(), z.lazy((): any => zPropertySchema)));
-    },
-    enums: z.optional(z.array(z.string())),
-    get values() {
-        return z.optional(z.lazy((): any => zPropertySchema));
-    }
-});
-
-export const zObjectSchema = z.object({
-    properties: z.record(z.string(), zPropertySchema)
-});
-
-export const zCardPropertySchemaVariants = z.object({
-    shared: z.optional(z.record(z.string(), zPropertySchema)),
-    variants: z.record(z.string(), zObjectSchema)
-});
-
-export const zCardPropertySchema = z.union([
-    zObjectSchema,
-    zCardPropertySchemaVariants
-]);
 
 export const zDetachedHomeSpec = z.object({
     type: z.enum(['detached'])
@@ -446,6 +618,70 @@ export const zPresetCardSetDefinition = z.object({
     type: z.enum(['preset']),
     defaultHome: zComponentHomeSpec
 });
+
+/**
+ * Arbitrary authored JSON value.
+ */
+export const zJsonValue = z.union([
+    z.string(),
+    z.int(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(z.lazy((): any => zJsonValue)),
+    z.record(z.string(), z.lazy((): any => zJsonValue))
+]);
+
+export const zPropertySchema = z.object({
+    type: z.enum([
+        'string',
+        'integer',
+        'number',
+        'boolean',
+        'zoneId',
+        'cardId',
+        'playerId',
+        'boardId',
+        'edgeId',
+        'vertexId',
+        'spaceId',
+        'pieceId',
+        'dieId',
+        'resourceId',
+        'array',
+        'object',
+        'record',
+        'enum'
+    ]),
+    description: z.optional(z.string()),
+    optional: z.optional(z.boolean()).default(false),
+    nullable: z.optional(z.boolean()).default(false),
+    default: z.optional(zJsonValue),
+    get items() {
+        return z.optional(z.lazy((): any => zPropertySchema));
+    },
+    get properties() {
+        return z.optional(z.record(z.string(), z.lazy((): any => zPropertySchema)));
+    },
+    enums: z.optional(z.array(z.string())),
+    get values() {
+        return z.optional(z.lazy((): any => zPropertySchema));
+    }
+});
+
+export const zObjectSchema = z.object({
+    properties: z.record(z.string(), zPropertySchema)
+});
+
+export const zCardPropertySchemaVariants = z.object({
+    shared: z.optional(z.record(z.string(), zPropertySchema)),
+    variants: z.record(z.string(), zObjectSchema)
+});
+
+export const zCardPropertySchema = z.union([
+    zObjectSchema,
+    zCardPropertySchemaVariants
+]);
 
 /**
  * Default authored visibility for a component instance
@@ -1909,14 +2145,53 @@ export const zClosePerfRunRequest = z.object({
     observationBundlePath: z.optional(z.string().max(1000))
 });
 
+export const zGameOutcomeReason = z.object({
+    code: z.string().min(1),
+    message: z.optional(z.string().min(1))
+});
+
+export const zGameOutcomeResult = z.enum([
+    'win',
+    'draw',
+    'loss',
+    'eliminated'
+]);
+
+export const zGameOutcomeScoreComponent = z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    value: z.number()
+});
+
+export const zGameOutcomeTieBreak = z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    value: z.union([
+        z.number(),
+        z.string().min(1)
+    ])
+});
+
+export const zGameOutcomeStanding = z.object({
+    playerId: z.string().min(1),
+    rank: z.int().gte(1),
+    result: zGameOutcomeResult,
+    score: z.optional(z.number()),
+    scoreBreakdown: z.optional(z.array(zGameOutcomeScoreComponent)),
+    tieBreaks: z.optional(z.array(zGameOutcomeTieBreak))
+});
+
+export const zGameOutcome = z.object({
+    reason: zGameOutcomeReason,
+    standings: z.array(zGameOutcomeStanding).min(1)
+});
+
 export const zSessionEndedCallbackRequest = z.object({
     generation: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     version: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     stateHash: z.string().min(1),
     endedAt: z.iso.datetime(),
-    winnerPlayerId: z.optional(z.string().min(1)),
-    finalScores: z.optional(z.record(z.string(), z.int())),
-    reason: z.string().min(1)
+    outcome: zGameOutcome
 });
 
 export const zSessionEndedCallbackResponse = z.object({
@@ -2555,6 +2830,19 @@ export const zEnsureProjectData = z.object({
  */
 export const zEnsureProjectResponse = zProject;
 
+export const zGetProjectRepositoryData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Repository binding found
+ */
+export const zGetProjectRepositoryResponse = zProjectRepository;
+
 export const zEnsureProjectRepositoryData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -2567,6 +2855,99 @@ export const zEnsureProjectRepositoryData = z.object({
  * Repository binding ensured
  */
 export const zEnsureProjectRepositoryResponse = zProjectRepository;
+
+export const zRetryProjectRepositoryReconciliationData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Repository reconciliation requested
+ */
+export const zRetryProjectRepositoryReconciliationResponse = zProjectRepository;
+
+export const zEnsureProjectBuildData = z.object({
+    body: zEnsureProjectBuildRequest,
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Existing or newly queued project build
+ */
+export const zEnsureProjectBuildResponse = zProjectBuild;
+
+export const zGetProjectCommitStatusData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid(),
+        commitOid: z.string().regex(/^[a-f0-9]{40,64}$/)
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Server state for the requested commit
+ */
+export const zGetProjectCommitStatusResponse = zProjectCommitStatus;
+
+export const zGetProjectBuildData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid(),
+        buildRecipeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/)
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Project build found
+ */
+export const zGetProjectBuildResponse = zProjectBuild;
+
+export const zCreateProjectPreviewData = z.object({
+    body: zCreateProjectPreviewRequest,
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Pending-retention project preview
+ */
+export const zCreateProjectPreviewResponse = zProjectPreview;
+
+export const zPublishProjectReleaseData = z.object({
+    body: zPublishProjectReleaseRequest,
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Pending-retention project release
+ */
+export const zPublishProjectReleaseResponse = zProjectRelease;
+
+export const zGetCurrentProjectReleaseData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Current active project release
+ */
+export const zGetCurrentProjectReleaseResponse = zProjectRelease;
 
 export const zGetProjectBySlugData = z.object({
     body: z.optional(z.never()),

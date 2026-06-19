@@ -8,7 +8,28 @@ const ensureProjectSdk = mock(async () => ({
     revisionDigest: "revision-digest-1",
   },
 }));
+const ensureProjectRepositorySdk = mock(async () => ({
+  repoBindingId: "repo-binding-1",
+  cloneUrl: "https://git.example.com/project-1.git",
+  defaultBranch: "main",
+  headCommit: "",
+  provisioningState: "REQUESTED" as const,
+  desiredGeneration: 1,
+  observedGeneration: 0,
+  retryable: false,
+}));
+const pollProjectRepository = mock(async () => ({
+  repoBindingId: "repo-binding-1",
+  cloneUrl: "https://git.example.com/project-1.git",
+  defaultBranch: "main",
+  headCommit: "",
+  provisioningState: "READY" as const,
+  desiredGeneration: 1,
+  observedGeneration: 1,
+  retryable: false,
+}));
 const materializeWorkspaceProject = mock(async () => undefined);
+const configureWorkspaceGitOrigin = mock(async () => undefined);
 
 mock.module("../config/resolve.js", () => ({
   resolveConfig: () => ({
@@ -44,16 +65,22 @@ mock.module("../utils/uuid-v7.js", () => ({
 }));
 
 mock.module("../services/api/index.js", () => ({
+  ensureProjectRepositorySdk,
   ensureProjectSdk,
   loadRemoteProjectIdentity: async () => ({
     deploymentId: "deployment-1",
     ownerScopeId: "owner-scope-1",
     bindingKey: "deployment-1:owner-scope-1",
   }),
+  pollProjectRepository,
 }));
 
 mock.module("../services/project/materialize-workspace.js", () => ({
   materializeWorkspaceProject,
+}));
+
+mock.module("../services/git/workspace-origin.js", () => ({
+  configureWorkspaceGitOrigin,
 }));
 
 mock.module("../services/project/local-maintainer-registry.js", () => ({
@@ -72,7 +99,10 @@ const newCommand = (await import("./new.ts")).default;
 
 test("new command materializes a project-bound workspace", async () => {
   ensureProjectSdk.mockClear();
+  ensureProjectRepositorySdk.mockClear();
+  pollProjectRepository.mockClear();
   materializeWorkspaceProject.mockClear();
+  configureWorkspaceGitOrigin.mockClear();
 
   await newCommand.run({
     args: {
@@ -87,6 +117,12 @@ test("new command materializes a project-bound workspace", async () => {
     slug: "test-game",
     description: "A test game",
     updateAlias: false,
+  });
+  expect(ensureProjectRepositorySdk).toHaveBeenCalledWith("project-1");
+  expect(pollProjectRepository).toHaveBeenCalledWith({
+    projectId: "project-1",
+    timeoutMs: 120000,
+    intervalMs: 1000,
   });
   expect(materializeWorkspaceProject).toHaveBeenCalledTimes(1);
   const materializeArgs = materializeWorkspaceProject.mock.calls[0]?.[0] as {
@@ -114,5 +150,9 @@ test("new command materializes a project-bound workspace", async () => {
   expect(materializeArgs.webBaseUrl).toBe("https://web.example.com");
   expect(materializeArgs.localMaintainerRegistry?.packages).toEqual({
     "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
+  });
+  expect(configureWorkspaceGitOrigin).toHaveBeenCalledWith({
+    projectRoot: materializeArgs.targetDir,
+    cloneUrl: "https://git.example.com/project-1.git",
   });
 });

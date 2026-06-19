@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
 import { client } from './client.gen.js';
-import type { AddSeatData, AddSeatErrors, AddSeatResponses, AssignSeatData, AssignSeatErrors, AssignSeatResponses, CancelGameRunData, CancelGameRunErrors, CancelGameRunResponses, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionErrors, CreateBillingCheckoutSessionResponses, CreateBillingPortalSessionData, CreateBillingPortalSessionErrors, CreateBillingPortalSessionResponses, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityErrors, CreateDemoGameplayCapabilityResponses, CreateDemoGameSessionData, CreateDemoGameSessionErrors, CreateDemoGameSessionResponses, CreateGameplayCapabilityData, CreateGameplayCapabilityErrors, CreateGameplayCapabilityResponses, CreateGameRevisionData, CreateGameRevisionErrors, CreateGameRevisionResponses, CreateGameRunData, CreateGameRunErrors, CreateGameRunResponses, CreateProjectSessionData, CreateProjectSessionErrors, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotErrors, CreateProjectSessionFromReducerSnapshotResponses, CreateProjectSessionResponses, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionErrors, CreateProjectSourceBlobUploadSessionResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DownloadProjectSourcesData, DownloadProjectSourcesErrors, DownloadProjectSourcesResponses, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileErrors, EnsureProjectDevCompileResponses, EnsureProjectErrors, EnsureProjectRepositoryData, EnsureProjectRepositoryErrors, EnsureProjectRepositoryResponses, EnsureProjectResponses, ExchangeAuthTokenData, ExchangeAuthTokenErrors, ExchangeAuthTokenResponses, ExtractGameSpecData, ExtractGameSpecErrors, ExtractGameSpecResponses, FetchDemoUiBundleData, FetchDemoUiBundleErrors, FetchDemoUiBundleResponses, FetchProjectPreviewImageData, FetchProjectPreviewImageErrors, FetchProjectPreviewImageResponses, FetchUiBundleData, FetchUiBundleErrors, FetchUiBundleResponses, GetApiVersionData, GetApiVersionResponses, GetAuthJwksData, GetAuthJwksResponses, GetCurrentAuthUserData, GetCurrentAuthUserErrors, GetCurrentAuthUserResponses, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsErrors, GetCurrentBillingEntitlementsResponses, GetDemoGameData, GetDemoGameErrors, GetDemoGameResponses, GetDemoGameThumbnailData, GetDemoGameThumbnailErrors, GetDemoGameThumbnailResponses, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeErrors, GetDemoSessionByShortCodeResponses, GetDemoSessionEventBatchData, GetDemoSessionEventBatchErrors, GetDemoSessionEventBatchResponses, GetDemoSessionLogBatchData, GetDemoSessionLogBatchErrors, GetDemoSessionLogBatchResponses, GetDemoSessionSnapshotData, GetDemoSessionSnapshotErrors, GetDemoSessionSnapshotResponses, GetJobData, GetJobErrors, GetJobEventBatchData, GetJobEventBatchErrors, GetJobEventBatchResponses, GetJobResponses, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultErrors, GetLatestProjectCompiledResultResponses, GetProjectActiveJobData, GetProjectActiveJobErrors, GetProjectActiveJobResponses, GetProjectBySlugData, GetProjectBySlugErrors, GetProjectBySlugResponses, GetProjectCompiledResultData, GetProjectCompiledResultErrors, GetProjectCompiledResultResponses, GetProjectData, GetProjectErrors, GetProjectResponses, GetProjectRevisionSourcesData, GetProjectRevisionSourcesErrors, GetProjectRevisionSourcesResponses, GetProjectSourcesData, GetProjectSourcesErrors, GetProjectSourcesResponses, GetSessionByShortCodeData, GetSessionByShortCodeErrors, GetSessionByShortCodeResponses, GetSessionEventBatchData, GetSessionEventBatchErrors, GetSessionEventBatchResponses, GetSessionLogBatchData, GetSessionLogBatchErrors, GetSessionLogBatchResponses, GetSessionSnapshotData, GetSessionSnapshotErrors, GetSessionSnapshotResponses, HealthCheckData, HealthCheckResponses, ListDemoGamesData, ListDemoGamesErrors, ListDemoGamesResponses, ListProjectCompiledResultsData, ListProjectCompiledResultsErrors, ListProjectCompiledResultsResponses, ListProjectsData, ListProjectsErrors, ListProjectsResponses, QueryWorkshopRulebookData, QueryWorkshopRulebookErrors, QueryWorkshopRulebookResponses, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotErrors, QueueProjectPreviewScreenshotResponses, QueueProjectRevisionCompileData, QueueProjectRevisionCompileErrors, QueueProjectRevisionCompileResponses, ReceiveStripeBillingWebhookData, ReceiveStripeBillingWebhookErrors, ReceiveStripeBillingWebhookResponses, RemoveSeatData, RemoveSeatErrors, RemoveSeatResponses, StartDemoGameData, StartDemoGameErrors, StartDemoGameResponses, StartGameData, StartGameErrors, StartGameResponses, UnassignSeatData, UnassignSeatErrors, UnassignSeatResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateSeatData, UpdateSeatErrors, UpdateSeatResponses, UploadProjectInitialProjectionData, UploadProjectInitialProjectionErrors, UploadProjectInitialProjectionResponses } from './types.gen.js';
+import type { AddSeatData, AddSeatErrors, AddSeatResponses, AssignSeatData, AssignSeatErrors, AssignSeatResponses, CancelGameRunData, CancelGameRunErrors, CancelGameRunResponses, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionErrors, CreateBillingCheckoutSessionResponses, CreateBillingPortalSessionData, CreateBillingPortalSessionErrors, CreateBillingPortalSessionResponses, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityErrors, CreateDemoGameplayCapabilityResponses, CreateDemoGameSessionData, CreateDemoGameSessionErrors, CreateDemoGameSessionResponses, CreateGameplayCapabilityData, CreateGameplayCapabilityErrors, CreateGameplayCapabilityResponses, CreateGameRevisionData, CreateGameRevisionErrors, CreateGameRevisionResponses, CreateGameRunData, CreateGameRunErrors, CreateGameRunResponses, CreateProjectPreviewData, CreateProjectPreviewErrors, CreateProjectPreviewResponses, CreateProjectSessionData, CreateProjectSessionErrors, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotErrors, CreateProjectSessionFromReducerSnapshotResponses, CreateProjectSessionResponses, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionErrors, CreateProjectSourceBlobUploadSessionResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DownloadProjectSourcesData, DownloadProjectSourcesErrors, DownloadProjectSourcesResponses, EnsureProjectBuildData, EnsureProjectBuildErrors, EnsureProjectBuildResponses, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileErrors, EnsureProjectDevCompileResponses, EnsureProjectErrors, EnsureProjectRepositoryData, EnsureProjectRepositoryErrors, EnsureProjectRepositoryResponses, EnsureProjectResponses, ExchangeAuthTokenData, ExchangeAuthTokenErrors, ExchangeAuthTokenResponses, ExtractGameSpecData, ExtractGameSpecErrors, ExtractGameSpecResponses, FetchDemoUiBundleData, FetchDemoUiBundleErrors, FetchDemoUiBundleResponses, FetchProjectPreviewImageData, FetchProjectPreviewImageErrors, FetchProjectPreviewImageResponses, FetchUiBundleData, FetchUiBundleErrors, FetchUiBundleResponses, GetApiVersionData, GetApiVersionResponses, GetAuthJwksData, GetAuthJwksResponses, GetCurrentAuthUserData, GetCurrentAuthUserErrors, GetCurrentAuthUserResponses, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsErrors, GetCurrentBillingEntitlementsResponses, GetCurrentProjectReleaseData, GetCurrentProjectReleaseErrors, GetCurrentProjectReleaseResponses, GetDemoGameData, GetDemoGameErrors, GetDemoGameResponses, GetDemoGameThumbnailData, GetDemoGameThumbnailErrors, GetDemoGameThumbnailResponses, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeErrors, GetDemoSessionByShortCodeResponses, GetDemoSessionEventBatchData, GetDemoSessionEventBatchErrors, GetDemoSessionEventBatchResponses, GetDemoSessionLogBatchData, GetDemoSessionLogBatchErrors, GetDemoSessionLogBatchResponses, GetDemoSessionSnapshotData, GetDemoSessionSnapshotErrors, GetDemoSessionSnapshotResponses, GetJobData, GetJobErrors, GetJobEventBatchData, GetJobEventBatchErrors, GetJobEventBatchResponses, GetJobResponses, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultErrors, GetLatestProjectCompiledResultResponses, GetProjectActiveJobData, GetProjectActiveJobErrors, GetProjectActiveJobResponses, GetProjectBuildData, GetProjectBuildErrors, GetProjectBuildResponses, GetProjectBySlugData, GetProjectBySlugErrors, GetProjectBySlugResponses, GetProjectCommitStatusData, GetProjectCommitStatusErrors, GetProjectCommitStatusResponses, GetProjectCompiledResultData, GetProjectCompiledResultErrors, GetProjectCompiledResultResponses, GetProjectData, GetProjectErrors, GetProjectRepositoryData, GetProjectRepositoryErrors, GetProjectRepositoryResponses, GetProjectResponses, GetProjectRevisionSourcesData, GetProjectRevisionSourcesErrors, GetProjectRevisionSourcesResponses, GetProjectSourcesData, GetProjectSourcesErrors, GetProjectSourcesResponses, GetSessionByShortCodeData, GetSessionByShortCodeErrors, GetSessionByShortCodeResponses, GetSessionEventBatchData, GetSessionEventBatchErrors, GetSessionEventBatchResponses, GetSessionLogBatchData, GetSessionLogBatchErrors, GetSessionLogBatchResponses, GetSessionSnapshotData, GetSessionSnapshotErrors, GetSessionSnapshotResponses, HealthCheckData, HealthCheckResponses, ListDemoGamesData, ListDemoGamesErrors, ListDemoGamesResponses, ListProjectCompiledResultsData, ListProjectCompiledResultsErrors, ListProjectCompiledResultsResponses, ListProjectsData, ListProjectsErrors, ListProjectsResponses, PublishProjectReleaseData, PublishProjectReleaseErrors, PublishProjectReleaseResponses, QueryWorkshopRulebookData, QueryWorkshopRulebookErrors, QueryWorkshopRulebookResponses, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotErrors, QueueProjectPreviewScreenshotResponses, QueueProjectRevisionCompileData, QueueProjectRevisionCompileErrors, QueueProjectRevisionCompileResponses, ReceiveStripeBillingWebhookData, ReceiveStripeBillingWebhookErrors, ReceiveStripeBillingWebhookResponses, RemoveSeatData, RemoveSeatErrors, RemoveSeatResponses, RetryProjectRepositoryReconciliationData, RetryProjectRepositoryReconciliationErrors, RetryProjectRepositoryReconciliationResponses, StartDemoGameData, StartDemoGameErrors, StartDemoGameResponses, StartGameData, StartGameErrors, StartGameResponses, UnassignSeatData, UnassignSeatErrors, UnassignSeatResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateSeatData, UpdateSeatErrors, UpdateSeatResponses, UploadProjectInitialProjectionData, UploadProjectInitialProjectionErrors, UploadProjectInitialProjectionResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -207,6 +207,17 @@ export const ensureProject = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
+ * Get project repository
+ *
+ * Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope.
+ */
+export const getProjectRepository = <ThrowOnError extends boolean = false>(options: Options<GetProjectRepositoryData, ThrowOnError>) => (options.client ?? client).get<GetProjectRepositoryResponses, GetProjectRepositoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/repository',
+    ...options
+});
+
+/**
  * Ensure project repository
  *
  * Ensure the project installation in the authenticated user's active owner scope has one opaque Git repository binding.
@@ -214,6 +225,95 @@ export const ensureProject = <ThrowOnError extends boolean = false>(options: Opt
 export const ensureProjectRepository = <ThrowOnError extends boolean = false>(options: Options<EnsureProjectRepositoryData, ThrowOnError>) => (options.client ?? client).put<EnsureProjectRepositoryResponses, EnsureProjectRepositoryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/projects/{projectId}/repository',
+    ...options
+});
+
+/**
+ * Retry project repository reconciliation
+ *
+ * Request a new reconciliation generation for the project's opaque Git repository binding.
+ */
+export const retryProjectRepositoryReconciliation = <ThrowOnError extends boolean = false>(options: Options<RetryProjectRepositoryReconciliationData, ThrowOnError>) => (options.client ?? client).post<RetryProjectRepositoryReconciliationResponses, RetryProjectRepositoryReconciliationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/repository/reconcile',
+    ...options
+});
+
+/**
+ * Ensure project build
+ *
+ * Ensure a server-derived build recipe and compile job exist for one exact observed Git commit.
+ */
+export const ensureProjectBuild = <ThrowOnError extends boolean = false>(options: Options<EnsureProjectBuildData, ThrowOnError>) => (options.client ?? client).post<EnsureProjectBuildResponses, EnsureProjectBuildErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/builds',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get project commit status
+ *
+ * Return server-owned source, build, preview, and release state for one exact Git commit.
+ */
+export const getProjectCommitStatus = <ThrowOnError extends boolean = false>(options: Options<GetProjectCommitStatusData, ThrowOnError>) => (options.client ?? client).get<GetProjectCommitStatusResponses, GetProjectCommitStatusErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/status/{commitOid}',
+    ...options
+});
+
+/**
+ * Get project build
+ *
+ * Get a server-derived build recipe and compiled artifact state for this project.
+ */
+export const getProjectBuild = <ThrowOnError extends boolean = false>(options: Options<GetProjectBuildData, ThrowOnError>) => (options.client ?? client).get<GetProjectBuildResponses, GetProjectBuildErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/builds/{buildRecipeDigest}',
+    ...options
+});
+
+/**
+ * Create project preview
+ *
+ * Create a preview aggregate for one exact observed Git commit after its build has succeeded.
+ */
+export const createProjectPreview = <ThrowOnError extends boolean = false>(options: Options<CreateProjectPreviewData, ThrowOnError>) => (options.client ?? client).post<CreateProjectPreviewResponses, CreateProjectPreviewErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/previews',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Publish project release
+ *
+ * Create a pending release aggregate for one exact observed Git commit after its release build has succeeded.
+ */
+export const publishProjectRelease = <ThrowOnError extends boolean = false>(options: Options<PublishProjectReleaseData, ThrowOnError>) => (options.client ?? client).post<PublishProjectReleaseResponses, PublishProjectReleaseErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/releases',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get current project release
+ *
+ * Read the active release currently selected for a project.
+ */
+export const getCurrentProjectRelease = <ThrowOnError extends boolean = false>(options: Options<GetCurrentProjectReleaseData, ThrowOnError>) => (options.client ?? client).get<GetCurrentProjectReleaseResponses, GetCurrentProjectReleaseErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/projects/{projectId}/releases/current',
     ...options
 });
 

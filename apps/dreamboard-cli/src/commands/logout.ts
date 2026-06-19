@@ -7,7 +7,7 @@ export default defineCommand({
   meta: { name: "logout", description: "Clear the stored Dreamboard session" },
   args: {},
   async run() {
-    await clearCredentials();
+    await clearCredentials("logout_command");
     consola.success(`Logged out. Cleared session from ${getGlobalAuthPath()}.`);
   },
 });

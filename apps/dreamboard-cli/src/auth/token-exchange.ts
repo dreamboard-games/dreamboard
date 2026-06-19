@@ -30,7 +30,7 @@ export async function exchangeDreamboardUserToken(input: {
 
   if (!response.ok) {
     throw new Error(
-      `Dreamboard token exchange failed (${response.status}). Run \`dreamboard login\` to authenticate again.`,
+      `Dreamboard token exchange failed (${response.status}). Run \`dreamboard auth login\` to authenticate again.`,
     );
   }
 

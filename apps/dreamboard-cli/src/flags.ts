@@ -19,6 +19,8 @@ const newCommandArgsSchema = configFlagsSchema.extend({
   slug: z.string().min(1),
   description: z.string().min(1),
   force: z.boolean().default(false),
+  "wait-timeout-ms": z.string().optional(),
+  "repository-poll-interval-ms": z.string().optional(),
 });
 
 const cloneCommandArgsSchema = configFlagsSchema.extend({
@@ -45,6 +47,27 @@ const compileCommandArgsSchema = configFlagsSchema.extend({
 
 const statusCommandArgsSchema = configFlagsSchema.extend({
   json: z.boolean().default(false),
+});
+
+const projectRepositoryCommandArgsSchema = configFlagsSchema.extend({
+  project: z.string().min(1),
+  wait: z.boolean().default(false),
+  "wait-timeout-ms": z.string().optional(),
+  "repository-poll-interval-ms": z.string().optional(),
+  json: z.boolean().default(false),
+});
+
+const commitScopedCommandArgsSchema = configFlagsSchema.extend({
+  commit: z.string().min(1),
+  json: z.boolean().default(false),
+});
+
+const buildCommandArgsSchema = commitScopedCommandArgsSchema.extend({
+  profile: z.enum(["preview", "release"]).optional().default("preview"),
+});
+
+const releasePublishCommandArgsSchema = commitScopedCommandArgsSchema.extend({
+  yes: z.boolean().default(false),
 });
 
 const devCommandArgsSchema = configFlagsSchema.extend({
@@ -76,7 +99,14 @@ const configCommandArgsSchema = configFlagsSchema.extend({
 });
 
 const authCommandArgsSchema = z.object({
-  action: z.enum(["set", "clear", "login", "env", "status"]),
+  action: z.enum([
+    "set",
+    "login",
+    "logout",
+    "env",
+    "status",
+    "git-credential",
+  ]),
   tokenValue: z.string().optional(),
   token: z.string().optional(),
   jwt: z.boolean().optional(),
@@ -94,6 +124,16 @@ export type PullCommandArgs = z.infer<typeof pullCommandArgsSchema>;
 export type SyncCommandArgs = z.infer<typeof syncCommandArgsSchema>;
 export type CompileCommandArgs = z.infer<typeof compileCommandArgsSchema>;
 export type StatusCommandArgs = z.infer<typeof statusCommandArgsSchema>;
+export type ProjectRepositoryCommandArgs = z.infer<
+  typeof projectRepositoryCommandArgsSchema
+>;
+export type CommitScopedCommandArgs = z.infer<
+  typeof commitScopedCommandArgsSchema
+>;
+export type BuildCommandArgs = z.infer<typeof buildCommandArgsSchema>;
+export type ReleasePublishCommandArgs = z.infer<
+  typeof releasePublishCommandArgsSchema
+>;
 export type DevCommandArgs = z.infer<typeof devCommandArgsSchema>;
 export type JoinCommandArgs = z.infer<typeof joinCommandArgsSchema>;
 export type LoginCommandArgs = z.infer<typeof loginCommandArgsSchema>;
@@ -157,6 +197,33 @@ export function parseCompileCommandArgs(args: unknown): CompileCommandArgs {
 
 export function parseStatusCommandArgs(args: unknown): StatusCommandArgs {
   return parseArgs("status", statusCommandArgsSchema, args);
+}
+
+export function parseProjectRepositoryCommandArgs(
+  args: unknown,
+): ProjectRepositoryCommandArgs {
+  return parseArgs(
+    "project repository",
+    projectRepositoryCommandArgsSchema,
+    args,
+  );
+}
+
+export function parseCommitScopedCommandArgs(
+  commandName: string,
+  args: unknown,
+): CommitScopedCommandArgs {
+  return parseArgs(commandName, commitScopedCommandArgsSchema, args);
+}
+
+export function parseBuildCommandArgs(args: unknown): BuildCommandArgs {
+  return parseArgs("build", buildCommandArgsSchema, args);
+}
+
+export function parseReleasePublishCommandArgs(
+  args: unknown,
+): ReleasePublishCommandArgs {
+  return parseArgs("release publish", releasePublishCommandArgsSchema, args);
 }
 
 export function parseDevCommandArgs(args: unknown): DevCommandArgs {

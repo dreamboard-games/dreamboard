@@ -272,9 +272,9 @@ function getProblemResolution(problem: ApiProblem): string | undefined {
 
   switch (problem.type) {
     case CLI_PROBLEM_TYPES.UNAUTHORIZED:
-      return "Run `dreamboard login` to authenticate again.";
+      return "Run `dreamboard auth login` to authenticate again.";
     case CLI_PROBLEM_TYPES.FORBIDDEN:
-      return "Check that the signed-in account has access to this game, or run `dreamboard login` with the correct account.";
+      return "Check that the signed-in account has access to this game, or run `dreamboard auth login` with the correct account.";
     case CLI_PROBLEM_TYPES.TOO_MANY_REQUESTS:
       return "Wait a moment, then retry the command.";
     case CLI_PROBLEM_TYPES.TRANSPORT_ERROR:

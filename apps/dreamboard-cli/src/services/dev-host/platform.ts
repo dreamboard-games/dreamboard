@@ -27,7 +27,7 @@ export async function resolveDevHostBearer(
     return {
       kind: "permanent_invalid",
       message:
-        "Stored Dreamboard session is expired or invalid. Run `dreamboard login` to authenticate again.",
+        "Stored Dreamboard session is expired or invalid. Run `dreamboard auth login` to authenticate again.",
     };
   }
 
