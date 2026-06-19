@@ -11,15 +11,15 @@ const TYPECHECK_FIXTURE_ROOT = path.resolve(
   import.meta.dir,
   "__fixtures__/static-typecheck",
 );
-const WORKSPACE_NODE_MODULES = path.join(
-  path.resolve(import.meta.dir, "../../../../.."),
+const CLI_NODE_MODULES = path.join(
+  path.resolve(import.meta.dir, "../../.."),
   "node_modules",
 );
 const UI_SDK_NODE_MODULES = path.join(
   path.resolve(import.meta.dir, "../../../../../packages/ui-sdk"),
   "node_modules",
 );
-const TSC_BIN = path.join(WORKSPACE_NODE_MODULES, ".bin", "tsc");
+const TSC_BIN = path.join(CLI_NODE_MODULES, ".bin", "tsc");
 
 async function seedDynamicFilesForTypecheck(tempRoot: string): Promise<void> {
   const fixtureFiles = [
@@ -36,7 +36,7 @@ async function seedDynamicFilesForTypecheck(tempRoot: string): Promise<void> {
     await Bun.write(targetPath, await Bun.file(sourcePath).text());
   }
 
-  await symlink(WORKSPACE_NODE_MODULES, path.join(tempRoot, "node_modules"));
+  await symlink(CLI_NODE_MODULES, path.join(tempRoot, "node_modules"));
   await symlink(UI_SDK_NODE_MODULES, path.join(tempRoot, "ui", "node_modules"));
 }
 
