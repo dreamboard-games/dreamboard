@@ -13,6 +13,13 @@ import cmdStatus from "./commands/status.js";
 import cmdSync from "./commands/sync.js";
 import cmdTest from "./commands/test.js";
 import { formatCliError, getCliErrorExitCode } from "./utils/errors.js";
+import {
+  commandPathToId,
+  consumeMachineOutputMode,
+  emitMachineFailureAndExit,
+  runWithMachineOutput,
+  type MachineOutputContext,
+} from "./machine-output.js";
 
 // ---------------------------------------------------------------------------
 // Global error handlers prevent runtime-specific stack previews from spilling
@@ -20,7 +27,16 @@ import { formatCliError, getCliErrorExitCode } from "./utils/errors.js";
 // ---------------------------------------------------------------------------
 type FatalErrorHandler = (error: unknown) => never;
 
+let machineOutputContext: MachineOutputContext | null = null;
+
 function handleFatalError(error: unknown): never {
+  if (machineOutputContext) {
+    emitMachineFailureAndExit(
+      machineOutputContext,
+      commandPathToId(process.argv.slice(2)),
+      error,
+    );
+  }
   const message = formatCliError(error);
   process.stderr.write(`Error: ${message}\n`);
   process.exit(getCliErrorExitCode(error));
@@ -54,11 +70,12 @@ type DreamboardCommandMap = Record<string, DreamboardSubCommand>;
 function wrapCommandMapForCli(
   commands: DreamboardCommandMap,
   fatalErrorHandler: FatalErrorHandler,
+  parentPath: readonly string[] = [],
 ): DreamboardCommandMap {
   return Object.fromEntries(
     Object.entries(commands).map(([name, command]) => [
       name,
-      wrapCommandForCli(command, fatalErrorHandler),
+      wrapCommandForCli(command, fatalErrorHandler, [...parentPath, name]),
     ]),
   );
 }
@@ -66,16 +83,27 @@ function wrapCommandMapForCli(
 export function wrapCommandForCli(
   command: DreamboardSubCommand,
   fatalErrorHandler: FatalErrorHandler = handleFatalError,
+  commandPath: readonly string[] = [],
 ): DreamboardSubCommand {
   const subCommands = command.subCommands as DreamboardCommandMap | undefined;
   return {
     ...command,
     subCommands: subCommands
-      ? wrapCommandMapForCli(subCommands, fatalErrorHandler)
+      ? wrapCommandMapForCli(subCommands, fatalErrorHandler, commandPath)
       : undefined,
     run: command.run
       ? async (context) => {
           try {
+            if (machineOutputContext) {
+              await runWithMachineOutput(
+                machineOutputContext,
+                commandPathToId(process.argv.slice(2)),
+                async () => {
+                  await command.run?.(context);
+                },
+              );
+              return;
+            }
             return await command.run?.(context);
           } catch (error) {
             fatalErrorHandler(error);
@@ -88,6 +116,7 @@ export function wrapCommandForCli(
 export function runDreamboardCli(
   internalSubCommands: Record<string, DreamboardSubCommand> = {},
 ): void {
+  machineOutputContext = consumeMachineOutputMode(process.argv);
   const subCommands = wrapCommandMapForCli(
     {
       ...publicSubCommands,

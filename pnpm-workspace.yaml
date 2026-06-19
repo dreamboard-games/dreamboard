@@ -1,5 +1,6 @@
 packages:
   - "apps/dreamboard-cli"
   - "packages/api-client"
+  - "packages/cli-core"
   - "packages/dev-host"
   - "packages/typescript-config"

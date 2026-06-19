@@ -29,6 +29,7 @@ import {
 } from "../config/resolve.js";
 import { parseAuthCommandArgs } from "../flags.js";
 import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
+import { runGitCredentialHelper } from "../services/git/git-credential-helper.js";
 
 async function loginWithBrowser(
   config: ReturnType<typeof resolveConfig>,
@@ -98,7 +99,7 @@ export default defineCommand({
       type: "positional",
       description: IS_PUBLISHED_BUILD
         ? "Action: clear | login"
-        : "Action: set | clear | login | env | status",
+        : "Action: set | clear | login | env | status | git-credential",
       required: true,
     },
     ...(IS_PUBLISHED_BUILD
@@ -127,6 +128,11 @@ export default defineCommand({
     const parsedArgs = parseAuthCommandArgs(args);
     const action = parsedArgs.action;
     const globalConfig = await loadGlobalConfig();
+
+    if (action === "git-credential") {
+      await runGitCredentialHelper();
+      return;
+    }
 
     if (IS_PUBLISHED_BUILD && action !== "login" && action !== "clear") {
       throw new Error(
@@ -176,7 +182,7 @@ export default defineCommand({
     }
 
     if (action === "clear") {
-      await clearCredentials();
+      await clearCredentials("auth_clear_command");
       consola.success(
         `Stored Dreamboard session cleared from ${getGlobalAuthPath()}.`,
       );

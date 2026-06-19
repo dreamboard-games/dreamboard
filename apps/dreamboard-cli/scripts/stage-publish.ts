@@ -98,6 +98,7 @@ function buildPublishedDependencies(
     dependencies["@dreamboard-games/api-client"] =
       AUTHORING_RELEASE_SET.packages.apiClient.version;
   }
+  delete dependencies["@dreamboard-games/cli-core"];
   delete dependencies["@dreamboard-games/sdk"];
   return dependencies;
 }

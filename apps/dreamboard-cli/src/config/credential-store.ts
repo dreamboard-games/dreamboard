@@ -86,7 +86,7 @@ export type CredentialBackend = {
   read(): Promise<StoredSessionSnapshot | null>;
   writeFull(creds: Credentials): Promise<void>;
   writeAccessOnly(accessToken: string): Promise<void>;
-  clear(): Promise<void>;
+  clear(reason?: CredentialClearReason): Promise<void>;
 };
 
 export type CredentialLockOps = {
@@ -94,8 +94,14 @@ export type CredentialLockOps = {
   read(): Promise<StoredSessionSnapshot | null>;
   writeFull(creds: Credentials): Promise<void>;
   writeAccessOnly(accessToken: string): Promise<void>;
-  clear(): Promise<void>;
+  clear(reason?: CredentialClearReason): Promise<void>;
 };
+
+export type CredentialClearReason =
+  | "auth_clear_command"
+  | "logout_command"
+  | "user_token_manager_logout"
+  | "credential_store_clear";
 
 type DiskShape = Partial<{
   clerkAccessToken: string;
@@ -112,12 +118,48 @@ type DiskShape = Partial<{
   environment: string;
 }>;
 
+let credentialDirectoryOverrideForTests: string | null = null;
+
+function getCredentialDirectory(): string {
+  return (
+    credentialDirectoryOverrideForTests ??
+    path.join(os.homedir(), PROJECT_DIR_NAME)
+  );
+}
+
 export function getCredentialFilePath(): string {
-  return path.join(os.homedir(), PROJECT_DIR_NAME, "auth.json");
+  return path.join(getCredentialDirectory(), "auth.json");
+}
+
+export function getCredentialAuditLogPath(): string {
+  return path.join(getCredentialDirectory(), "auth-events.log");
 }
 
 function getCredentialLockPath(): string {
   return `${getCredentialFilePath()}.lock`;
+}
+
+async function appendCredentialAuditEvent(event: {
+  readonly event: "auth_file_deleted" | "auth_file_delete_missing";
+  readonly reason: CredentialClearReason;
+  readonly authPath: string;
+  readonly backend: CredentialBackendName;
+}): Promise<void> {
+  try {
+    const logPath = getCredentialAuditLogPath();
+    await fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o700 });
+    await fs.appendFile(
+      logPath,
+      `${JSON.stringify({
+        timestamp: new Date().toISOString(),
+        pid: process.pid,
+        ...event,
+      })}\n`,
+      { mode: 0o600 },
+    );
+  } catch {
+    // Credential clearing must not fail because local diagnostic logging failed.
+  }
 }
 
 async function fileRead(): Promise<StoredSessionSnapshot | null> {
@@ -190,12 +232,29 @@ async function fileWriteAccessOnly(accessToken: string): Promise<void> {
   await writeFilePayload({ authToken: accessToken });
 }
 
-async function fileClear(): Promise<void> {
+async function fileClear(
+  reason: CredentialClearReason = "credential_store_clear",
+): Promise<void> {
   const filePath = getCredentialFilePath();
   try {
     await fs.unlink(filePath);
+    await appendCredentialAuditEvent({
+      event: "auth_file_deleted",
+      reason,
+      authPath: filePath,
+      backend: "file",
+    });
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      await appendCredentialAuditEvent({
+        event: "auth_file_delete_missing",
+        reason,
+        authPath: filePath,
+        backend: "file",
+      });
+      return;
+    }
+    throw err;
   }
 }
 
@@ -312,9 +371,9 @@ export async function getCredentialBackend(): Promise<CredentialBackend> {
     cachedBackend = await backendResolver();
     // One-time migration: if we resolved to a non-file backend and
     // `auth.json` still has credentials from the old layout, copy them
-    // over and remove the file. We only do this when the new backend is
-    // empty, so repeated migrations cannot stomp a newer keychain
-    // session with a stale file session.
+    // over. The file is intentionally left in place; implicit backend
+    // migration must not make a working CLI session appear to vanish from
+    // the default file-backed view.
     if (!migrationCompleted && cachedBackend.name !== "file") {
       await migrateFromFileBackendIfNeeded(cachedBackend);
     }
@@ -334,9 +393,9 @@ async function migrateFromFileBackendIfNeeded(
     ]);
     if (!onDisk) return;
     if (onTarget) {
-      // Target already has a session - the user has already migrated.
-      // Remove the file so it cannot get re-used accidentally.
-      await fileCredentialBackend.clear();
+      // Target already has a session - the user has already migrated. Leave the
+      // file copy alone so a transient keychain override/probe cannot remove
+      // the visible file-backed session.
       return;
     }
     if (onDisk.accessToken && onDisk.refreshToken) {
@@ -362,7 +421,6 @@ async function migrateFromFileBackendIfNeeded(
     } else {
       return;
     }
-    await fileCredentialBackend.clear();
   } catch (error) {
     if (options.failClosed) {
       throw new CredentialStoreUnavailableError(
@@ -436,10 +494,12 @@ export async function setAccessOnlySession(accessToken: string): Promise<void> {
   });
 }
 
-export async function clearCredentials(): Promise<void> {
+export async function clearCredentials(
+  reason: CredentialClearReason = "credential_store_clear",
+): Promise<void> {
   await withFileLock(getCredentialLockPath(), async () => {
     const backend = await getCredentialBackend();
-    await backend.clear();
+    await backend.clear(reason);
   });
 }
 
@@ -465,7 +525,7 @@ export async function withCredentialLock<T>(
         read: () => backend.read(),
         writeFull: (creds) => backend.writeFull(creds),
         writeAccessOnly: (accessToken) => backend.writeAccessOnly(accessToken),
-        clear: () => backend.clear(),
+        clear: (reason) => backend.clear(reason),
       };
       return fn(ops);
     },
@@ -478,4 +538,12 @@ export function _resetCredentialStoreForTests(): void {
   cachedBackend = null;
   migrationCompleted = false;
   backendResolver = defaultBackendResolver;
+  credentialDirectoryOverrideForTests = null;
+}
+
+/** Test-only override of the credential directory. Not exported through the barrel. */
+export function _setCredentialDirectoryForTests(directory: string | null): void {
+  credentialDirectoryOverrideForTests = directory;
+  cachedBackend = null;
+  migrationCompleted = false;
 }

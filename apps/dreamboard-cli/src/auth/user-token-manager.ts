@@ -2,7 +2,14 @@ import type {
   Credentials,
   StoredSessionSnapshot,
 } from "../config/credential-store.js";
-import { withCredentialLock } from "../config/credential-store.js";
+import {
+  clearCredentials,
+  withCredentialLock,
+} from "../config/credential-store.js";
+import type {
+  AccessToken,
+  UserTokenManager,
+} from "@dreamboard-games/cli-core";
 import { refreshClerkOAuthToken } from "./clerk-oauth.js";
 import {
   exchangeDreamboardUserToken,
@@ -11,17 +18,6 @@ import {
 import type { ResolvedConfig } from "../types.js";
 
 const TOKEN_REFRESH_WINDOW_MS = 60 * 1000;
-
-export type AccessToken = {
-  readonly token: string;
-  readonly expiresAt?: string;
-  readonly audience: DreamboardTokenAudience;
-};
-
-export interface UserTokenManager {
-  resolveApiToken(): Promise<AccessToken | null>;
-  resolveGitToken(): Promise<AccessToken>;
-}
 
 export function createUserTokenManager(
   config: ResolvedConfig,
@@ -86,6 +82,10 @@ export function createUserTokenManager(
           audience: "dreamboard-git",
         };
       });
+    },
+
+    async logout() {
+      await clearCredentials("user_token_manager_logout");
     },
   };
 }

@@ -1,0 +1,19 @@
+{
+  "name": "@dreamboard-games/cli-core",
+  "version": "0.1.30-alpha.19",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test src/**/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@dreamboard/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "@types/node": "^24.12.4",
+    "typescript": "^5.9.3"
+  }
+}
