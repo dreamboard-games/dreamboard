@@ -10,7 +10,7 @@
  * Failure contract:
  * - Permanent refresh failure (stored refresh token invalid) responds
  *   with `401 { error: "session_invalid", message }` so the browser can
- *   show a "Run dreamboard login" overlay instead of surfacing a
+ *   show a "Run dreamboard auth login" overlay instead of surfacing a
  *   confusing upstream 401.
  * - Transient refresh failure responds with a structured proxy failure instead
  *   of exposing credential material to browser code.

@@ -381,6 +381,8 @@ export type UpdateProjectRequest = {
     metadata?: GameMetadata;
 };
 
+export type ProjectRepositoryProvisioningState = 'REQUESTED' | 'PROVISIONING' | 'READY' | 'ERROR' | 'DELETING' | 'DELETED';
+
 /**
  * Environment-local opaque Git repository binding for a project installation.
  */
@@ -401,6 +403,181 @@ export type ProjectRepository = {
      * Current repository HEAD commit OID when known.
      */
     headCommit: string;
+    provisioningState: ProjectRepositoryProvisioningState;
+    /**
+     * Desired repository reconciliation generation.
+     */
+    desiredGeneration: number;
+    /**
+     * Latest Forgejo state generation observed by reconciliation.
+     */
+    observedGeneration: number;
+    /**
+     * Whether retrying reconciliation is allowed for the current state.
+     */
+    retryable: boolean;
+    /**
+     * Stable sanitized reconciliation error code when provisioning is in error.
+     */
+    errorCode?: string;
+};
+
+export type ProjectBuildTargetProfile = 'preview' | 'release';
+
+/**
+ * Request to ensure a build exists for one exact observed Git commit.
+ */
+export type EnsureProjectBuildRequest = {
+    /**
+     * Exact Git commit OID already pushed to the project repository.
+     */
+    commitOid: string;
+    targetProfile: ProjectBuildTargetProfile;
+};
+
+export type ProjectCompiledArtifactStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
+
+/**
+ * Server-derived build recipe and compiled artifact state for one exact Git commit.
+ */
+export type ProjectBuild = {
+    buildRecipeId: string;
+    buildRecipeDigest: string;
+    gameRevisionId: string;
+    gitSourceRevisionId: string;
+    commitOid: string;
+    treeOid: string;
+    targetProfile: ProjectBuildTargetProfile;
+    compiledArtifactId: string;
+    compiledArtifactStatus: ProjectCompiledArtifactStatus;
+    compiledArtifactDigest: string | null;
+    storageKey: string | null;
+    workJobId: string | null;
+    /**
+     * Whether this request created the compile work job.
+     */
+    enqueued: boolean;
+};
+
+export type ProjectCommitSourceValidationStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
+
+/**
+ * Server observation and validation state for one exact Git source revision.
+ */
+export type ProjectCommitSourceStatus = {
+    observed: boolean;
+    gitSourceRevisionId: string | null;
+    treeOid: string | null;
+    refName: string | null;
+    validationStatus: ProjectCommitSourceValidationStatus | null;
+    validationDiagnostics: {
+        [key: string]: unknown;
+    } | null;
+    observedAt: string | null;
+};
+
+/**
+ * Materialized game revision linked to an exact Git source revision.
+ */
+export type ProjectCommitGameRevisionStatus = {
+    gameRevisionId: string | null;
+    revisionDigest: string | null;
+    sourceTreeHash: string | null;
+};
+
+/**
+ * Build recipe and compiled artifact state for a target profile at one exact commit.
+ */
+export type ProjectCommitBuildStatus = {
+    targetProfile: ProjectBuildTargetProfile;
+    buildRecipeDigest: string;
+    buildRecipe: {
+        [key: string]: unknown;
+    };
+    buildRecipeId: string | null;
+    compiledArtifactId: string | null;
+    compiledArtifactStatus: ProjectCompiledArtifactStatus | null;
+    compiledArtifactDigest: string | null;
+    storageKey: string | null;
+    diagnostics: {
+        [key: string]: unknown;
+    } | null;
+};
+
+export type ProjectPreviewStatus = 'PENDING_RETENTION' | 'ACTIVE' | 'EXPIRED';
+
+/**
+ * Preview aggregate for one exact Git source revision and compiled artifact.
+ */
+export type ProjectPreview = {
+    previewId: string;
+    gameRevisionId: string;
+    compiledArtifactId: string;
+    status: ProjectPreviewStatus;
+    sourceRef: string | null;
+    retentionRef: string | null;
+    expiresAt: string;
+    createdAt: string;
+};
+
+export type ProjectReleaseStatus = 'PENDING_RETENTION' | 'ACTIVE' | 'REVOKED';
+
+/**
+ * Release membership for a commit-scoped game revision.
+ */
+export type ProjectCommitReleaseStatus = {
+    releaseId: string;
+    gameRevisionId: string;
+    compiledArtifactId: string;
+    status: ProjectReleaseStatus;
+    retentionRef: string | null;
+    current: boolean;
+    createdAt: string;
+};
+
+/**
+ * Server-owned status aggregate for one exact Git commit.
+ */
+export type ProjectCommitStatus = {
+    projectId: string;
+    commitOid: string;
+    source: ProjectCommitSourceStatus;
+    gameRevision: ProjectCommitGameRevisionStatus;
+    builds: Array<ProjectCommitBuildStatus>;
+    previews: Array<ProjectPreview>;
+    releases: Array<ProjectCommitReleaseStatus>;
+};
+
+/**
+ * Request to create a preview for one exact observed Git commit.
+ */
+export type CreateProjectPreviewRequest = {
+    /**
+     * Exact Git commit OID already pushed to the project repository.
+     */
+    commitOid: string;
+};
+
+/**
+ * Request to publish a release for one exact observed Git commit.
+ */
+export type PublishProjectReleaseRequest = {
+    /**
+     * Exact Git commit OID already pushed to the project repository.
+     */
+    commitOid: string;
+};
+
+/**
+ * Release aggregate for one exact Git source revision and compiled artifact.
+ */
+export type ProjectRelease = {
+    releaseId: string;
+    gameRevisionId: string;
+    compiledArtifactId: string;
+    status: ProjectReleaseStatus;
+    retentionRef: string | null;
+    createdAt: string;
 };
 
 /**
@@ -436,6 +613,91 @@ export type PlayersDefinition = {
     maxPlayers: number;
     optimalPlayers?: number;
 };
+
+export type DetachedHomeSpec = {
+    type: 'detached';
+};
+
+export type ZoneHomeSpec = {
+    type: 'zone';
+    zoneId: string;
+};
+
+export type SpaceHomeSpec = {
+    type: 'space';
+    boardId: string;
+    spaceId: string;
+};
+
+export type ContainerHomeSpec = {
+    type: 'container';
+    boardId: string;
+    containerId: string;
+};
+
+/**
+ * Tiled board edge identified by the spaces that border it
+ */
+export type BoardEdgeRef = {
+    spaces: Array<string>;
+};
+
+export type EdgeHomeSpec = {
+    type: 'edge';
+    boardId: string;
+    ref: BoardEdgeRef;
+};
+
+/**
+ * Tiled board vertex identified by the spaces that touch it
+ */
+export type BoardVertexRef = {
+    spaces: Array<string>;
+};
+
+export type VertexHomeSpec = {
+    type: 'vertex';
+    boardId: string;
+    ref: BoardVertexRef;
+};
+
+export type PieceSlotHostRef = {
+    kind: 'piece';
+    id: string;
+};
+
+export type DieSlotHostRef = {
+    kind: 'die';
+    id: string;
+};
+
+export type SlotHostRef = ({
+    kind: 'piece';
+} & PieceSlotHostRef) | ({
+    kind: 'die';
+} & DieSlotHostRef);
+
+export type SlotHomeSpec = {
+    type: 'slot';
+    host: SlotHostRef;
+    slotId: string;
+};
+
+export type ComponentHomeSpec = ({
+    type: 'detached';
+} & DetachedHomeSpec) | ({
+    type: 'zone';
+} & ZoneHomeSpec) | ({
+    type: 'space';
+} & SpaceHomeSpec) | ({
+    type: 'container';
+} & ContainerHomeSpec) | ({
+    type: 'edge';
+} & EdgeHomeSpec) | ({
+    type: 'vertex';
+} & VertexHomeSpec) | ({
+    type: 'slot';
+} & SlotHomeSpec);
 
 export type PresetCardSetDefinition = {
     /**
@@ -536,91 +798,6 @@ export type CardPropertySchemaVariants = {
 };
 
 export type CardPropertySchema = ObjectSchema | CardPropertySchemaVariants;
-
-export type DetachedHomeSpec = {
-    type: 'detached';
-};
-
-export type ZoneHomeSpec = {
-    type: 'zone';
-    zoneId: string;
-};
-
-export type SpaceHomeSpec = {
-    type: 'space';
-    boardId: string;
-    spaceId: string;
-};
-
-export type ContainerHomeSpec = {
-    type: 'container';
-    boardId: string;
-    containerId: string;
-};
-
-/**
- * Tiled board edge identified by the spaces that border it
- */
-export type BoardEdgeRef = {
-    spaces: Array<string>;
-};
-
-export type EdgeHomeSpec = {
-    type: 'edge';
-    boardId: string;
-    ref: BoardEdgeRef;
-};
-
-/**
- * Tiled board vertex identified by the spaces that touch it
- */
-export type BoardVertexRef = {
-    spaces: Array<string>;
-};
-
-export type VertexHomeSpec = {
-    type: 'vertex';
-    boardId: string;
-    ref: BoardVertexRef;
-};
-
-export type PieceSlotHostRef = {
-    kind: 'piece';
-    id: string;
-};
-
-export type DieSlotHostRef = {
-    kind: 'die';
-    id: string;
-};
-
-export type SlotHostRef = ({
-    kind: 'piece';
-} & PieceSlotHostRef) | ({
-    kind: 'die';
-} & DieSlotHostRef);
-
-export type SlotHomeSpec = {
-    type: 'slot';
-    host: SlotHostRef;
-    slotId: string;
-};
-
-export type ComponentHomeSpec = ({
-    type: 'detached';
-} & DetachedHomeSpec) | ({
-    type: 'zone';
-} & ZoneHomeSpec) | ({
-    type: 'space';
-} & SpaceHomeSpec) | ({
-    type: 'container';
-} & ContainerHomeSpec) | ({
-    type: 'edge';
-} & EdgeHomeSpec) | ({
-    type: 'vertex';
-} & VertexHomeSpec) | ({
-    type: 'slot';
-} & SlotHomeSpec);
 
 /**
  * Default authored visibility for a component instance
@@ -1650,7 +1827,7 @@ export type CompiledResult = {
      */
     uiStorageKey?: string;
     /**
-     * Non-secret identity of the artifact storage provider used for this compilation. Changes when switching between local filesystem storage and Tigris/S3-compatible object storage.
+     * Non-secret identity of the artifact storage provider used for this compilation. Changes when switching between local filesystem storage and AWS S3 object storage.
      */
     artifactStorageFingerprint?: string;
     /**
@@ -3023,16 +3200,45 @@ export type ClosePerfRunRequest = {
     observationBundlePath?: string;
 };
 
+export type GameOutcomeReason = {
+    code: string;
+    message?: string;
+};
+
+export type GameOutcomeResult = 'win' | 'draw' | 'loss' | 'eliminated';
+
+export type GameOutcomeScoreComponent = {
+    id: string;
+    label: string;
+    value: number;
+};
+
+export type GameOutcomeTieBreak = {
+    id: string;
+    label: string;
+    value: number | string;
+};
+
+export type GameOutcomeStanding = {
+    playerId: string;
+    rank: number;
+    result: GameOutcomeResult;
+    score?: number;
+    scoreBreakdown?: Array<GameOutcomeScoreComponent>;
+    tieBreaks?: Array<GameOutcomeTieBreak>;
+};
+
+export type GameOutcome = {
+    reason: GameOutcomeReason;
+    standings: Array<GameOutcomeStanding>;
+};
+
 export type SessionEndedCallbackRequest = {
     generation: number;
     version: number;
     stateHash: string;
     endedAt: string;
-    winnerPlayerId?: string;
-    finalScores?: {
-        [key: string]: number;
-    };
-    reason: string;
+    outcome: GameOutcome;
 };
 
 export type SessionEndedCallbackResponse = {
@@ -3955,6 +4161,52 @@ export type EnsureProjectResponses = {
 
 export type EnsureProjectResponse = EnsureProjectResponses[keyof EnsureProjectResponses];
 
+export type GetProjectRepositoryData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/repository';
+};
+
+export type GetProjectRepositoryErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectRepositoryError = GetProjectRepositoryErrors[keyof GetProjectRepositoryErrors];
+
+export type GetProjectRepositoryResponses = {
+    /**
+     * Repository binding found
+     */
+    200: ProjectRepository;
+};
+
+export type GetProjectRepositoryResponse = GetProjectRepositoryResponses[keyof GetProjectRepositoryResponses];
+
 export type EnsureProjectRepositoryData = {
     body?: never;
     path: {
@@ -4000,6 +4252,348 @@ export type EnsureProjectRepositoryResponses = {
 };
 
 export type EnsureProjectRepositoryResponse = EnsureProjectRepositoryResponses[keyof EnsureProjectRepositoryResponses];
+
+export type RetryProjectRepositoryReconciliationData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/repository/reconcile';
+};
+
+export type RetryProjectRepositoryReconciliationErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type RetryProjectRepositoryReconciliationError = RetryProjectRepositoryReconciliationErrors[keyof RetryProjectRepositoryReconciliationErrors];
+
+export type RetryProjectRepositoryReconciliationResponses = {
+    /**
+     * Repository reconciliation requested
+     */
+    200: ProjectRepository;
+};
+
+export type RetryProjectRepositoryReconciliationResponse = RetryProjectRepositoryReconciliationResponses[keyof RetryProjectRepositoryReconciliationResponses];
+
+export type EnsureProjectBuildData = {
+    body: EnsureProjectBuildRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/builds';
+};
+
+export type EnsureProjectBuildErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type EnsureProjectBuildError = EnsureProjectBuildErrors[keyof EnsureProjectBuildErrors];
+
+export type EnsureProjectBuildResponses = {
+    /**
+     * Existing or newly queued project build
+     */
+    200: ProjectBuild;
+};
+
+export type EnsureProjectBuildResponse = EnsureProjectBuildResponses[keyof EnsureProjectBuildResponses];
+
+export type GetProjectCommitStatusData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Exact Git commit OID already resolved by the caller.
+         */
+        commitOid: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/status/{commitOid}';
+};
+
+export type GetProjectCommitStatusErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectCommitStatusError = GetProjectCommitStatusErrors[keyof GetProjectCommitStatusErrors];
+
+export type GetProjectCommitStatusResponses = {
+    /**
+     * Server state for the requested commit
+     */
+    200: ProjectCommitStatus;
+};
+
+export type GetProjectCommitStatusResponse = GetProjectCommitStatusResponses[keyof GetProjectCommitStatusResponses];
+
+export type GetProjectBuildData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Canonical build recipe digest.
+         */
+        buildRecipeDigest: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/builds/{buildRecipeDigest}';
+};
+
+export type GetProjectBuildErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectBuildError = GetProjectBuildErrors[keyof GetProjectBuildErrors];
+
+export type GetProjectBuildResponses = {
+    /**
+     * Project build found
+     */
+    200: ProjectBuild;
+};
+
+export type GetProjectBuildResponse = GetProjectBuildResponses[keyof GetProjectBuildResponses];
+
+export type CreateProjectPreviewData = {
+    body: CreateProjectPreviewRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/previews';
+};
+
+export type CreateProjectPreviewErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateProjectPreviewError = CreateProjectPreviewErrors[keyof CreateProjectPreviewErrors];
+
+export type CreateProjectPreviewResponses = {
+    /**
+     * Pending-retention project preview
+     */
+    200: ProjectPreview;
+};
+
+export type CreateProjectPreviewResponse = CreateProjectPreviewResponses[keyof CreateProjectPreviewResponses];
+
+export type PublishProjectReleaseData = {
+    body: PublishProjectReleaseRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/releases';
+};
+
+export type PublishProjectReleaseErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type PublishProjectReleaseError = PublishProjectReleaseErrors[keyof PublishProjectReleaseErrors];
+
+export type PublishProjectReleaseResponses = {
+    /**
+     * Pending-retention project release
+     */
+    200: ProjectRelease;
+};
+
+export type PublishProjectReleaseResponse = PublishProjectReleaseResponses[keyof PublishProjectReleaseResponses];
+
+export type GetCurrentProjectReleaseData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/releases/current';
+};
+
+export type GetCurrentProjectReleaseErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetCurrentProjectReleaseError = GetCurrentProjectReleaseErrors[keyof GetCurrentProjectReleaseErrors];
+
+export type GetCurrentProjectReleaseResponses = {
+    /**
+     * Current active project release
+     */
+    200: ProjectRelease;
+};
+
+export type GetCurrentProjectReleaseResponse = GetCurrentProjectReleaseResponses[keyof GetCurrentProjectReleaseResponses];
 
 export type GetProjectBySlugData = {
     body?: never;

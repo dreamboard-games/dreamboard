@@ -101,11 +101,7 @@ async function runFullBackendConnectedVerification(
     ]);
   await runCommandDefinition(cmdSync, { ...parsedFlags, force: true });
   await runCommandDefinition(cmdCompile, parsedFlags);
-  await runCommandDefinition(
-    resolveTestSubCommand(cmdTest, "generate"),
-    parsedFlags,
-  );
-  await runCommandDefinition(resolveTestSubCommand(cmdTest, "run"), parsedFlags);
+  await runCommandDefinition(cmdTest, parsedFlags);
 }
 
 async function runCommandDefinition(
@@ -116,20 +112,6 @@ async function runCommandDefinition(
     throw new Error("Verifier command is missing a runnable step.");
   }
   await command.run({ args, rawArgs: [], cmd: command } as any);
-}
-
-function resolveTestSubCommand(
-  cmdTest: CommandDef<any>,
-  name: "generate" | "run",
-): CommandDef<any> {
-  const subCommands = cmdTest.subCommands as
-    | Record<string, CommandDef<any>>
-    | undefined;
-  const command = subCommands?.[name];
-  if (!command) {
-    throw new Error(`Verifier command is missing test ${name}.`);
-  }
-  return command;
 }
 
 function parseVerificationMode(value: unknown): VerificationMode {

@@ -19,6 +19,20 @@ export {
   loadRemoteProjectIdentity,
   type RemoteProjectIdentity,
 } from "./project-api.js";
+export {
+  ensureProjectRepositorySdk,
+  getProjectRepositorySdk,
+  pollProjectRepository,
+  ProjectRepositoryTimeoutError,
+  retryProjectRepositoryReconciliationSdk,
+} from "./project-repository-api.js";
+export {
+  createProjectPreviewSdk,
+  ensureProjectBuildSdk,
+  getCurrentProjectReleaseSdk,
+  getProjectCommitStatusSdk,
+  publishProjectReleaseSdk,
+} from "./source-build-release-api.js";
 export { uploadInitialProjectionSdk } from "./preview-api.js";
 export {
   createSourceRevisionSdk,

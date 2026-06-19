@@ -104,7 +104,7 @@ export default defineCommand({
     if (action === "set") {
       if (IS_PUBLISHED_BUILD) {
         throw new Error(
-          "The published Dreamboard CLI does not support config overrides. Use `dreamboard login` to authenticate.",
+          "The published Dreamboard CLI does not support config overrides. Use `dreamboard auth login` to authenticate.",
         );
       }
       if (parsedArgs.scope === "workspace") {
@@ -131,7 +131,7 @@ export default defineCommand({
       if (overrideToken) {
         // `config set --token` is an access-only override. Never write a
         // refresh token through this path - that belongs to
-        // `dreamboard login`.
+        // `dreamboard auth login`.
         await setAccessOnlySession(overrideToken);
       }
       consola.success("Config updated.");

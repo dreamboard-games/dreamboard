@@ -61,7 +61,7 @@ export function createUserTokenManager(
 
       if (!usesStoredSession(config)) {
         throw new Error(
-          "Missing Dreamboard session. Run `dreamboard login` to authenticate.",
+          "Missing Dreamboard session. Run `dreamboard auth login` to authenticate.",
         );
       }
 
@@ -127,7 +127,7 @@ async function resolveFreshClerkAccessToken(
 
   if (!refreshToken) {
     throw new Error(
-      "Stored Dreamboard session is missing its refresh token. Run `dreamboard login` to authenticate again.",
+      "Stored Dreamboard session is missing its refresh token. Run `dreamboard auth login` to authenticate again.",
     );
   }
 

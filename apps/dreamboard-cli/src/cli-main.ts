@@ -1,17 +1,15 @@
 import { defineCommand, runMain, type CommandDef } from "citty";
 import consola from "consola";
-import cmdClone from "./commands/clone.js";
-import cmdCompile from "./commands/compile.js";
-import cmdConfig from "./commands/config.js";
+import cmdAuth from "./commands/auth.js";
+import cmdBuild from "./commands/build.js";
 import cmdDev from "./commands/dev.js";
-import cmdJoin from "./commands/join.js";
-import cmdLogin from "./commands/login.js";
-import cmdLogout from "./commands/logout.js";
-import cmdNew from "./commands/new.js";
-import cmdPull from "./commands/pull.js";
-import cmdStatus from "./commands/status.js";
-import cmdSync from "./commands/sync.js";
+import cmdDoctor from "./commands/doctor.js";
+import cmdFeedback from "./commands/feedback.js";
+import cmdPreview from "./commands/preview.js";
+import cmdProject from "./commands/project.js";
+import cmdRelease from "./commands/release.js";
 import cmdTest from "./commands/test.js";
+import cmdVerify from "./commands/verify.js";
 import { formatCliError, getCliErrorExitCode } from "./utils/errors.js";
 import {
   commandPathToId,
@@ -48,19 +46,17 @@ process.on("unhandledRejection", handleFatalError);
 
 consola.options.formatOptions.date = false;
 
-const publicSubCommands = {
-  new: cmdNew,
-  clone: cmdClone,
-  sync: cmdSync,
-  compile: cmdCompile,
-  pull: cmdPull,
-  status: cmdStatus,
-  dev: cmdDev,
-  join: cmdJoin,
+export const publicSubCommands = {
+  auth: cmdAuth,
+  project: cmdProject,
+  verify: cmdVerify,
   test: cmdTest,
-  login: cmdLogin,
-  logout: cmdLogout,
-  config: cmdConfig,
+  dev: cmdDev,
+  build: cmdBuild,
+  preview: cmdPreview,
+  release: cmdRelease,
+  doctor: cmdDoctor,
+  feedback: cmdFeedback,
 };
 
 export type DreamboardSubCommand = CommandDef<any>;

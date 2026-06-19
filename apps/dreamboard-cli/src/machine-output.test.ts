@@ -29,14 +29,20 @@ describe("machine output mode", () => {
   });
 
   test("maps current commands onto the Phase 8 command ids", () => {
+    expect(commandPathToId(["auth", "login"])).toBe("auth.login");
+    expect(commandPathToId(["auth", "logout"])).toBe("auth.logout");
     expect(commandPathToId(["auth", "status"])).toBe("auth.status");
     expect(commandPathToId(["auth", "git-credential"])).toBe(
       "auth.git_credential",
     );
-    expect(commandPathToId(["new"])).toBe("project.create");
-    expect(commandPathToId(["clone"])).toBe("project.clone");
-    expect(commandPathToId(["status"])).toBe("project.status");
-    expect(commandPathToId(["compile"])).toBe("build");
-    expect(commandPathToId(["sync"])).toBe("verify");
+    expect(commandPathToId(["project", "create"])).toBe("project.create");
+    expect(commandPathToId(["project", "clone"])).toBe("project.clone");
+    expect(commandPathToId(["project", "status"])).toBe("project.status");
+    expect(commandPathToId(["verify"])).toBe("verify");
+    expect(commandPathToId(["build"])).toBe("build");
+    expect(commandPathToId(["preview"])).toBe("preview");
+    expect(commandPathToId(["release", "publish"])).toBe("release.publish");
+    expect(commandPathToId(["release", "current"])).toBe("release.current");
+    expect(commandPathToId(["feedback", "submit"])).toBe("feedback.submit");
   });
 });

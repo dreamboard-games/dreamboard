@@ -328,8 +328,8 @@ export default defineCommand({
     name: "test",
     description: "Reducer-native test runner with typed bases and scenarios",
   },
-  subCommands: {
-    generate: generateCommand,
-    run: runCommand,
+  args: runCommand.args,
+  async run(context) {
+    await runCommand.run?.(context);
   },
 });

@@ -209,7 +209,7 @@ function installProxyAuthErrorInterceptor(): void {
         : "Stored Dreamboard session is no longer valid.";
     controller.reportRuntimeError({
       title: "Session expired",
-      summary: `${detail} Run \`dreamboard login\` in your terminal, then reload this page.`,
+      summary: `${detail} Run \`dreamboard auth login\` in your terminal, then reload this page.`,
       violations: [],
     });
     return response;

@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen.js';
-import { addSeat, assignSeat, cancelGameRun, createBillingCheckoutSession, createBillingPortalSession, createDemoGameplayCapability, createDemoGameSession, createGameplayCapability, createGameRevision, createGameRun, createProjectSession, createProjectSessionFromReducerSnapshot, createProjectSourceBlobUploadSession, deleteProject, downloadProjectSources, ensureProject, ensureProjectDevCompile, ensureProjectRepository, exchangeAuthToken, extractGameSpec, fetchDemoUiBundle, fetchProjectPreviewImage, fetchUiBundle, getApiVersion, getAuthJwks, getCurrentAuthUser, getCurrentBillingEntitlements, getDemoGame, getDemoGameThumbnail, getDemoSessionByShortCode, getDemoSessionEventBatch, getDemoSessionLogBatch, getDemoSessionSnapshot, getJob, getJobEventBatch, getLatestProjectCompiledResult, getProject, getProjectActiveJob, getProjectBySlug, getProjectCompiledResult, getProjectRevisionSources, getProjectSources, getSessionByShortCode, getSessionEventBatch, getSessionLogBatch, getSessionSnapshot, healthCheck, listDemoGames, listProjectCompiledResults, listProjects, type Options, queryWorkshopRulebook, queueProjectPreviewScreenshot, queueProjectRevisionCompile, receiveStripeBillingWebhook, removeSeat, startDemoGame, startGame, unassignSeat, updateProject, updateSeat, uploadProjectInitialProjection } from '../sdk.gen.js';
-import type { AddSeatData, AddSeatError, AddSeatResponse, AssignSeatData, AssignSeatError, AssignSeatResponse, CancelGameRunData, CancelGameRunError, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionError, CreateBillingCheckoutSessionResponse, CreateBillingPortalSessionData, CreateBillingPortalSessionError, CreateBillingPortalSessionResponse, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityError, CreateDemoGameplayCapabilityResponse, CreateDemoGameSessionData, CreateDemoGameSessionError, CreateDemoGameSessionResponse, CreateGameplayCapabilityData, CreateGameplayCapabilityError, CreateGameplayCapabilityResponse, CreateGameRevisionData, CreateGameRevisionError, CreateGameRevisionResponse, CreateGameRunData, CreateGameRunError, CreateGameRunResponse2, CreateProjectSessionData, CreateProjectSessionError, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotError, CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionResponse, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionError, CreateProjectSourceBlobUploadSessionResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse2, DownloadProjectSourcesData, DownloadProjectSourcesError, DownloadProjectSourcesResponse, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileError, EnsureProjectDevCompileResponse, EnsureProjectError, EnsureProjectRepositoryData, EnsureProjectRepositoryError, EnsureProjectRepositoryResponse, EnsureProjectResponse, ExchangeAuthTokenData, ExchangeAuthTokenError, ExchangeAuthTokenResponse, ExtractGameSpecData, ExtractGameSpecError, ExtractGameSpecResponse2, FetchDemoUiBundleData, FetchDemoUiBundleError, FetchDemoUiBundleResponse, FetchProjectPreviewImageData, FetchProjectPreviewImageError, FetchProjectPreviewImageResponse, FetchUiBundleData, FetchUiBundleError, FetchUiBundleResponse, GetApiVersionData, GetApiVersionResponse, GetAuthJwksData, GetCurrentAuthUserData, GetCurrentAuthUserError, GetCurrentAuthUserResponse, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsError, GetCurrentBillingEntitlementsResponse, GetDemoGameData, GetDemoGameError, GetDemoGameResponse, GetDemoGameThumbnailData, GetDemoGameThumbnailError, GetDemoGameThumbnailResponse, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeError, GetDemoSessionByShortCodeResponse, GetDemoSessionEventBatchData, GetDemoSessionEventBatchError, GetDemoSessionEventBatchResponse, GetDemoSessionLogBatchData, GetDemoSessionLogBatchError, GetDemoSessionLogBatchResponse, GetDemoSessionSnapshotData, GetDemoSessionSnapshotError, GetDemoSessionSnapshotResponse, GetJobData, GetJobError, GetJobEventBatchData, GetJobEventBatchError, GetJobEventBatchResponse, GetJobResponse, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultError, GetLatestProjectCompiledResultResponse, GetProjectActiveJobData, GetProjectActiveJobError, GetProjectActiveJobResponse, GetProjectBySlugData, GetProjectBySlugError, GetProjectBySlugResponse, GetProjectCompiledResultData, GetProjectCompiledResultError, GetProjectCompiledResultResponse, GetProjectData, GetProjectError, GetProjectResponse, GetProjectRevisionSourcesData, GetProjectRevisionSourcesError, GetProjectRevisionSourcesResponse, GetProjectSourcesData, GetProjectSourcesError, GetProjectSourcesResponse, GetSessionByShortCodeData, GetSessionByShortCodeError, GetSessionByShortCodeResponse, GetSessionEventBatchData, GetSessionEventBatchError, GetSessionEventBatchResponse, GetSessionLogBatchData, GetSessionLogBatchError, GetSessionLogBatchResponse, GetSessionSnapshotData, GetSessionSnapshotError, GetSessionSnapshotResponse, HealthCheckData, HealthCheckResponse, ListDemoGamesData, ListDemoGamesError, ListDemoGamesResponse, ListProjectCompiledResultsData, ListProjectCompiledResultsError, ListProjectCompiledResultsResponse, ListProjectsData, ListProjectsError, ListProjectsResponse, QueryWorkshopRulebookData, QueryWorkshopRulebookError, QueryWorkshopRulebookResponse, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotError, QueueProjectPreviewScreenshotResponse, QueueProjectRevisionCompileData, QueueProjectRevisionCompileError, QueueProjectRevisionCompileResponse, ReceiveStripeBillingWebhookData, ReceiveStripeBillingWebhookError, ReceiveStripeBillingWebhookResponse, RemoveSeatData, RemoveSeatError, RemoveSeatResponse, StartDemoGameData, StartDemoGameError, StartDemoGameResponse, StartGameData, StartGameError, StartGameResponse, UnassignSeatData, UnassignSeatError, UnassignSeatResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateSeatData, UpdateSeatError, UpdateSeatResponse, UploadProjectInitialProjectionData, UploadProjectInitialProjectionError, UploadProjectInitialProjectionResponse } from '../types.gen.js';
+import { addSeat, assignSeat, cancelGameRun, createBillingCheckoutSession, createBillingPortalSession, createDemoGameplayCapability, createDemoGameSession, createGameplayCapability, createGameRevision, createGameRun, createProjectPreview, createProjectSession, createProjectSessionFromReducerSnapshot, createProjectSourceBlobUploadSession, deleteProject, downloadProjectSources, ensureProject, ensureProjectBuild, ensureProjectDevCompile, ensureProjectRepository, exchangeAuthToken, extractGameSpec, fetchDemoUiBundle, fetchProjectPreviewImage, fetchUiBundle, getApiVersion, getAuthJwks, getCurrentAuthUser, getCurrentBillingEntitlements, getCurrentProjectRelease, getDemoGame, getDemoGameThumbnail, getDemoSessionByShortCode, getDemoSessionEventBatch, getDemoSessionLogBatch, getDemoSessionSnapshot, getJob, getJobEventBatch, getLatestProjectCompiledResult, getProject, getProjectActiveJob, getProjectBuild, getProjectBySlug, getProjectCommitStatus, getProjectCompiledResult, getProjectRepository, getProjectRevisionSources, getProjectSources, getSessionByShortCode, getSessionEventBatch, getSessionLogBatch, getSessionSnapshot, healthCheck, listDemoGames, listProjectCompiledResults, listProjects, type Options, publishProjectRelease, queryWorkshopRulebook, queueProjectPreviewScreenshot, queueProjectRevisionCompile, receiveStripeBillingWebhook, removeSeat, retryProjectRepositoryReconciliation, startDemoGame, startGame, unassignSeat, updateProject, updateSeat, uploadProjectInitialProjection } from '../sdk.gen.js';
+import type { AddSeatData, AddSeatError, AddSeatResponse, AssignSeatData, AssignSeatError, AssignSeatResponse, CancelGameRunData, CancelGameRunError, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionError, CreateBillingCheckoutSessionResponse, CreateBillingPortalSessionData, CreateBillingPortalSessionError, CreateBillingPortalSessionResponse, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityError, CreateDemoGameplayCapabilityResponse, CreateDemoGameSessionData, CreateDemoGameSessionError, CreateDemoGameSessionResponse, CreateGameplayCapabilityData, CreateGameplayCapabilityError, CreateGameplayCapabilityResponse, CreateGameRevisionData, CreateGameRevisionError, CreateGameRevisionResponse, CreateGameRunData, CreateGameRunError, CreateGameRunResponse2, CreateProjectPreviewData, CreateProjectPreviewError, CreateProjectPreviewResponse, CreateProjectSessionData, CreateProjectSessionError, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotError, CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionResponse, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionError, CreateProjectSourceBlobUploadSessionResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse2, DownloadProjectSourcesData, DownloadProjectSourcesError, DownloadProjectSourcesResponse, EnsureProjectBuildData, EnsureProjectBuildError, EnsureProjectBuildResponse, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileError, EnsureProjectDevCompileResponse, EnsureProjectError, EnsureProjectRepositoryData, EnsureProjectRepositoryError, EnsureProjectRepositoryResponse, EnsureProjectResponse, ExchangeAuthTokenData, ExchangeAuthTokenError, ExchangeAuthTokenResponse, ExtractGameSpecData, ExtractGameSpecError, ExtractGameSpecResponse2, FetchDemoUiBundleData, FetchDemoUiBundleError, FetchDemoUiBundleResponse, FetchProjectPreviewImageData, FetchProjectPreviewImageError, FetchProjectPreviewImageResponse, FetchUiBundleData, FetchUiBundleError, FetchUiBundleResponse, GetApiVersionData, GetApiVersionResponse, GetAuthJwksData, GetCurrentAuthUserData, GetCurrentAuthUserError, GetCurrentAuthUserResponse, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsError, GetCurrentBillingEntitlementsResponse, GetCurrentProjectReleaseData, GetCurrentProjectReleaseError, GetCurrentProjectReleaseResponse, GetDemoGameData, GetDemoGameError, GetDemoGameResponse, GetDemoGameThumbnailData, GetDemoGameThumbnailError, GetDemoGameThumbnailResponse, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeError, GetDemoSessionByShortCodeResponse, GetDemoSessionEventBatchData, GetDemoSessionEventBatchError, GetDemoSessionEventBatchResponse, GetDemoSessionLogBatchData, GetDemoSessionLogBatchError, GetDemoSessionLogBatchResponse, GetDemoSessionSnapshotData, GetDemoSessionSnapshotError, GetDemoSessionSnapshotResponse, GetJobData, GetJobError, GetJobEventBatchData, GetJobEventBatchError, GetJobEventBatchResponse, GetJobResponse, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultError, GetLatestProjectCompiledResultResponse, GetProjectActiveJobData, GetProjectActiveJobError, GetProjectActiveJobResponse, GetProjectBuildData, GetProjectBuildError, GetProjectBuildResponse, GetProjectBySlugData, GetProjectBySlugError, GetProjectBySlugResponse, GetProjectCommitStatusData, GetProjectCommitStatusError, GetProjectCommitStatusResponse, GetProjectCompiledResultData, GetProjectCompiledResultError, GetProjectCompiledResultResponse, GetProjectData, GetProjectError, GetProjectRepositoryData, GetProjectRepositoryError, GetProjectRepositoryResponse, GetProjectResponse, GetProjectRevisionSourcesData, GetProjectRevisionSourcesError, GetProjectRevisionSourcesResponse, GetProjectSourcesData, GetProjectSourcesError, GetProjectSourcesResponse, GetSessionByShortCodeData, GetSessionByShortCodeError, GetSessionByShortCodeResponse, GetSessionEventBatchData, GetSessionEventBatchError, GetSessionEventBatchResponse, GetSessionLogBatchData, GetSessionLogBatchError, GetSessionLogBatchResponse, GetSessionSnapshotData, GetSessionSnapshotError, GetSessionSnapshotResponse, HealthCheckData, HealthCheckResponse, ListDemoGamesData, ListDemoGamesError, ListDemoGamesResponse, ListProjectCompiledResultsData, ListProjectCompiledResultsError, ListProjectCompiledResultsResponse, ListProjectsData, ListProjectsError, ListProjectsResponse, PublishProjectReleaseData, PublishProjectReleaseError, PublishProjectReleaseResponse, QueryWorkshopRulebookData, QueryWorkshopRulebookError, QueryWorkshopRulebookResponse, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotError, QueueProjectPreviewScreenshotResponse, QueueProjectRevisionCompileData, QueueProjectRevisionCompileError, QueueProjectRevisionCompileResponse, ReceiveStripeBillingWebhookData, ReceiveStripeBillingWebhookError, ReceiveStripeBillingWebhookResponse, RemoveSeatData, RemoveSeatError, RemoveSeatResponse, RetryProjectRepositoryReconciliationData, RetryProjectRepositoryReconciliationError, RetryProjectRepositoryReconciliationResponse, StartDemoGameData, StartDemoGameError, StartDemoGameResponse, StartGameData, StartGameError, StartGameResponse, UnassignSeatData, UnassignSeatError, UnassignSeatResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateSeatData, UpdateSeatError, UpdateSeatResponse, UploadProjectInitialProjectionData, UploadProjectInitialProjectionError, UploadProjectInitialProjectionResponse } from '../types.gen.js';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -346,6 +346,26 @@ export const ensureProjectMutation = (options?: Partial<Options<EnsureProjectDat
     return mutationOptions;
 };
 
+export const getProjectRepositoryQueryKey = (options: Options<GetProjectRepositoryData>) => createQueryKey('getProjectRepository', options);
+
+/**
+ * Get project repository
+ *
+ * Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope.
+ */
+export const getProjectRepositoryOptions = (options: Options<GetProjectRepositoryData>) => queryOptions<GetProjectRepositoryResponse, GetProjectRepositoryError, GetProjectRepositoryResponse, ReturnType<typeof getProjectRepositoryQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectRepository({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectRepositoryQueryKey(options)
+});
+
 /**
  * Ensure project repository
  *
@@ -364,6 +384,142 @@ export const ensureProjectRepositoryMutation = (options?: Partial<Options<Ensure
     };
     return mutationOptions;
 };
+
+/**
+ * Retry project repository reconciliation
+ *
+ * Request a new reconciliation generation for the project's opaque Git repository binding.
+ */
+export const retryProjectRepositoryReconciliationMutation = (options?: Partial<Options<RetryProjectRepositoryReconciliationData>>): UseMutationOptions<RetryProjectRepositoryReconciliationResponse, RetryProjectRepositoryReconciliationError, Options<RetryProjectRepositoryReconciliationData>> => {
+    const mutationOptions: UseMutationOptions<RetryProjectRepositoryReconciliationResponse, RetryProjectRepositoryReconciliationError, Options<RetryProjectRepositoryReconciliationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await retryProjectRepositoryReconciliation({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Ensure project build
+ *
+ * Ensure a server-derived build recipe and compile job exist for one exact observed Git commit.
+ */
+export const ensureProjectBuildMutation = (options?: Partial<Options<EnsureProjectBuildData>>): UseMutationOptions<EnsureProjectBuildResponse, EnsureProjectBuildError, Options<EnsureProjectBuildData>> => {
+    const mutationOptions: UseMutationOptions<EnsureProjectBuildResponse, EnsureProjectBuildError, Options<EnsureProjectBuildData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await ensureProjectBuild({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getProjectCommitStatusQueryKey = (options: Options<GetProjectCommitStatusData>) => createQueryKey('getProjectCommitStatus', options);
+
+/**
+ * Get project commit status
+ *
+ * Return server-owned source, build, preview, and release state for one exact Git commit.
+ */
+export const getProjectCommitStatusOptions = (options: Options<GetProjectCommitStatusData>) => queryOptions<GetProjectCommitStatusResponse, GetProjectCommitStatusError, GetProjectCommitStatusResponse, ReturnType<typeof getProjectCommitStatusQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectCommitStatus({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectCommitStatusQueryKey(options)
+});
+
+export const getProjectBuildQueryKey = (options: Options<GetProjectBuildData>) => createQueryKey('getProjectBuild', options);
+
+/**
+ * Get project build
+ *
+ * Get a server-derived build recipe and compiled artifact state for this project.
+ */
+export const getProjectBuildOptions = (options: Options<GetProjectBuildData>) => queryOptions<GetProjectBuildResponse, GetProjectBuildError, GetProjectBuildResponse, ReturnType<typeof getProjectBuildQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectBuild({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectBuildQueryKey(options)
+});
+
+/**
+ * Create project preview
+ *
+ * Create a preview aggregate for one exact observed Git commit after its build has succeeded.
+ */
+export const createProjectPreviewMutation = (options?: Partial<Options<CreateProjectPreviewData>>): UseMutationOptions<CreateProjectPreviewResponse, CreateProjectPreviewError, Options<CreateProjectPreviewData>> => {
+    const mutationOptions: UseMutationOptions<CreateProjectPreviewResponse, CreateProjectPreviewError, Options<CreateProjectPreviewData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createProjectPreview({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Publish project release
+ *
+ * Create a pending release aggregate for one exact observed Git commit after its release build has succeeded.
+ */
+export const publishProjectReleaseMutation = (options?: Partial<Options<PublishProjectReleaseData>>): UseMutationOptions<PublishProjectReleaseResponse, PublishProjectReleaseError, Options<PublishProjectReleaseData>> => {
+    const mutationOptions: UseMutationOptions<PublishProjectReleaseResponse, PublishProjectReleaseError, Options<PublishProjectReleaseData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await publishProjectRelease({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getCurrentProjectReleaseQueryKey = (options: Options<GetCurrentProjectReleaseData>) => createQueryKey('getCurrentProjectRelease', options);
+
+/**
+ * Get current project release
+ *
+ * Read the active release currently selected for a project.
+ */
+export const getCurrentProjectReleaseOptions = (options: Options<GetCurrentProjectReleaseData>) => queryOptions<GetCurrentProjectReleaseResponse, GetCurrentProjectReleaseError, GetCurrentProjectReleaseResponse, ReturnType<typeof getCurrentProjectReleaseQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getCurrentProjectRelease({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getCurrentProjectReleaseQueryKey(options)
+});
 
 export const getProjectBySlugQueryKey = (options: Options<GetProjectBySlugData>) => createQueryKey('getProjectBySlug', options);
 

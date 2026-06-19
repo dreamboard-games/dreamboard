@@ -36,7 +36,9 @@ export function consumeMachineOutputMode(
     if (arg !== "--json" && arg !== "--json-events") continue;
     const nextMode = arg === "--json" ? "json" : "json-events";
     if (mode && mode !== nextMode) {
-      throw new Error("Use only one machine output mode: --json or --json-events.");
+      throw new Error(
+        "Use only one machine output mode: --json or --json-events.",
+      );
     }
     mode = nextMode;
     argv.splice(index, 1);
@@ -55,32 +57,31 @@ export function commandPathToId(path: readonly string[]): CommandId {
   if (first === "auth") {
     if (second === "git-credential") return "auth.git_credential";
     if (second === "status") return "auth.status";
-    if (second === "clear") return "auth.logout";
+    if (second === "logout") return "auth.logout";
     return "auth.login";
   }
+  if (first === "project") {
+    if (second === "create") return "project.create";
+    if (second === "clone") return "project.clone";
+    return "project.status";
+  }
+  if (first === "release") {
+    if (second === "publish") return "release.publish";
+    return "release.current";
+  }
+  if (first === "feedback") return "feedback.submit";
   switch (first) {
-    case "login":
-      return "auth.login";
-    case "logout":
-      return "auth.logout";
-    case "new":
-      return "project.create";
-    case "clone":
-      return "project.clone";
-    case "status":
-    case "pull":
-      return "project.status";
-    case "sync":
+    case "verify":
       return "verify";
-    case "compile":
-      return "build";
     case "test":
       return "test";
     case "dev":
-    case "join":
       return "dev";
-    case "config":
-    case "query":
+    case "build":
+      return "build";
+    case "preview":
+      return "preview";
+    case "doctor":
       return "doctor";
     default:
       return "doctor";
@@ -174,13 +175,17 @@ async function captureProcessWrites(
   let stderr = "";
   process.stdout.write = ((chunk: unknown, ...args: unknown[]) => {
     stdout += stringifyChunk(chunk);
-    const callback = args.find((arg): arg is (error?: Error | null) => void => typeof arg === "function");
+    const callback = args.find(
+      (arg): arg is (error?: Error | null) => void => typeof arg === "function",
+    );
     callback?.();
     return true;
   }) as typeof process.stdout.write;
   process.stderr.write = ((chunk: unknown, ...args: unknown[]) => {
     stderr += stringifyChunk(chunk);
-    const callback = args.find((arg): arg is (error?: Error | null) => void => typeof arg === "function");
+    const callback = args.find(
+      (arg): arg is (error?: Error | null) => void => typeof arg === "function",
+    );
     callback?.();
     return true;
   }) as typeof process.stderr.write;
@@ -189,9 +194,7 @@ async function captureProcessWrites(
     await run();
     return {
       exitCode:
-        typeof process.exitCode === "number"
-          ? process.exitCode
-          : ExitCode.Ok,
+        typeof process.exitCode === "number" ? process.exitCode : ExitCode.Ok,
       stdout,
       stderr,
     };
@@ -203,7 +206,9 @@ async function captureProcessWrites(
 
 function emitMachineResult<T>(
   context: MachineOutputContext,
-  terminalEvent: ReturnType<ReturnType<typeof createProgressSequencer>["terminal"]>,
+  terminalEvent: ReturnType<
+    ReturnType<typeof createProgressSequencer>["terminal"]
+  >,
   result: CommandResult<T>,
 ): void {
   if (context.mode === "json-events") {

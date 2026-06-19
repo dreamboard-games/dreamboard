@@ -13,12 +13,33 @@ import { getStoredSession } from "../config/credential-store.js";
 import { normalizeSlug } from "../utils/strings.js";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import {
+  ensureProjectRepositorySdk,
   ensureProjectSdk,
   loadRemoteProjectIdentity,
+  pollProjectRepository,
 } from "../services/api/index.js";
+import { configureWorkspaceGitOrigin } from "../services/git/workspace-origin.js";
 import { materializeWorkspaceProject } from "../services/project/materialize-workspace.js";
 import { ensureLocalMaintainerSnapshot } from "../services/project/local-maintainer-registry.js";
 import { createUuidV7 } from "../utils/uuid-v7.js";
+
+const DEFAULT_REPOSITORY_WAIT_TIMEOUT_MS = 120_000;
+const DEFAULT_REPOSITORY_POLL_INTERVAL_MS = 1_000;
+
+function parsePositiveIntegerFlag(
+  value: string | undefined,
+  flagName: string,
+  defaultValue: number,
+): number {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0 || String(parsed) !== value) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
+  return parsed;
+}
 
 export default defineCommand({
   meta: {
@@ -37,12 +58,30 @@ export default defineCommand({
       description: "Delete existing game with the same slug before creating",
       default: false,
     },
+    "wait-timeout-ms": {
+      type: "string",
+      description: "Maximum time to wait for Git repository setup",
+    },
+    "repository-poll-interval-ms": {
+      type: "string",
+      description: "Polling interval for Git repository setup",
+    },
     ...CONFIG_FLAG_ARGS,
   },
   async run({ args }) {
     const parsedArgs = parseNewCommandArgs(args);
     const slugInput = parsedArgs.slug;
     const description = parsedArgs.description.trim();
+    const repositoryWaitTimeoutMs = parsePositiveIntegerFlag(
+      parsedArgs["wait-timeout-ms"],
+      "--wait-timeout-ms",
+      DEFAULT_REPOSITORY_WAIT_TIMEOUT_MS,
+    );
+    const repositoryPollIntervalMs = parsePositiveIntegerFlag(
+      parsedArgs["repository-poll-interval-ms"],
+      "--repository-poll-interval-ms",
+      DEFAULT_REPOSITORY_POLL_INTERVAL_MS,
+    );
 
     const normalizedSlug = normalizeSlug(slugInput);
     const projectId = createUuidV7();
@@ -76,6 +115,20 @@ export default defineCommand({
       description,
       updateAlias: Boolean(parsedArgs.force),
     });
+    await ensureProjectRepositorySdk(project.projectId);
+
+    consola.start("Setting up Git repository...");
+    const repository = await pollProjectRepository({
+      projectId: project.projectId,
+      timeoutMs: repositoryWaitTimeoutMs,
+      intervalMs: repositoryPollIntervalMs,
+    });
+    if (repository.provisioningState !== "READY") {
+      throw new Error(
+        `Repository setup did not complete for ${project.projectId}: ${repository.provisioningState}${repository.errorCode ? ` (${repository.errorCode})` : ""}. Retry project creation after fixing the repository provisioning issue.`,
+      );
+    }
+    consola.success("Git repository ready.");
 
     const blankManifest: GameTopologyManifest = {
       players: {
@@ -114,10 +167,14 @@ export default defineCommand({
       ruleText: "",
       localMaintainerRegistry,
     });
+    await configureWorkspaceGitOrigin({
+      projectRoot: targetDir,
+      cloneUrl: repository.cloneUrl,
+    });
 
     consola.success(`Created new project in ${targetDir}`);
     consola.info(
-      "Next: edit your files, then run 'dreamboard sync' followed by 'dreamboard compile'.",
+      "Next: edit your files, commit with Git, push to origin, then run 'dreamboard build --commit HEAD'.",
     );
   },
 });
