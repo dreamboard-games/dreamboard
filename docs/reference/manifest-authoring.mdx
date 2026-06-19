@@ -12,6 +12,10 @@ manifest should define stable hex spaces such as `cell-01`, `cell-02`, and
 `cell-03`, while the reducer shuffles terrain pieces and number tokens onto
 those spaces at runtime.
 
+For roll-and-write scorecards and compact tracks, use board topology rather
+than a separate sheet model. The manifest defines the stable square spaces and
+the reducer owns marks, dice results, legal targets, and scoring state.
+
 ## Top-level shape
 
 ```json
@@ -99,6 +103,10 @@ Use `home` on cards, piece seeds, and die seeds to place authored inventory.
 | `edge` | `boardId`, `ref` | Place onto a hex edge identified by two spaces |
 | `vertex` | `boardId`, `ref` | Place onto a hex vertex identified by three spaces |
 | `slot` | `hostComponentId`, `slotId` | Place into a component-owned slot |
+
+Do not duplicate authored inventory in reducer constants. Cards, dice, pieces,
+resources, zones, and boards should be read from the generated manifest helpers
+or initialized through manifest-backed defaults.
 
 ### `ComponentVisibilitySpec`
 

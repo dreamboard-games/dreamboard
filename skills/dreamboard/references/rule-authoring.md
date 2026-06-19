@@ -73,6 +73,7 @@ Describe how players gain or lose progress.
 - when scoring happens
 - round-end or trick-end resolution
 - tie-breakers for intermediate rankings
+- named score breakdowns players need to understand the result
 
 ### `Winning conditions`
 
@@ -83,6 +84,10 @@ State the exact end trigger and winner resolution rule.
 - how ties are broken
 - what happens if multiple end conditions become true at once
 
+Write outcome rules in enough detail for a coding agent to produce a
+`GameOutcome`: result reason, ordered standings, tie ranks, tie-break rows, and
+score breakdowns where relevant.
+
 ### `Special rules and edge cases`
 
 List rules that are easy to miss during implementation.
@@ -92,6 +97,11 @@ List rules that are easy to miss during implementation.
 - no-op or invalid actions
 - forced actions versus optional actions
 - what happens when a player cannot act
+- deterministic solo or automa procedures, including what event should be shown
+  to players after the procedure runs
+
+Automa and environment behavior should be described as game procedures, not as
+extra participants. Session seats belong to human players.
 
 ## Example template
 

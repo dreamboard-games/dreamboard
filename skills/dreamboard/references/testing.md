@@ -129,12 +129,16 @@ export default defineScenario({
     expect(state.lastRoll).toBe(6);
     expect(state.scores["player-1"]).toBe(9);
     expect(state.scores["player-2"]).toBe(12);
-    expect(state.winnerPlayerId).toBe("player-2");
-    expect(view("player-2").winnerPlayerId).toBe("player-2");
+    expect(state.gameOver).toBe(true);
+    expect(view("player-2").gameOver).toBe(true);
     expect(history().accepted().length).toBe(6);
   },
 });
 ```
+
+For terminal games, assert the reducer-owned outcome when the generated
+scenario helpers expose it. Do not infer the winner in tests by sorting scores
+unless that derived view is itself part of the rules.
 
 ## Scenario context
 
@@ -217,7 +221,7 @@ then: ({ phase, history, expect, publicState }) => {
   expect(history().rejected().length).toBe(1);
   expect(history().accepted().length).toBe(0);
   expect(phase()).toBe("takeTurn");
-  expect(publicState().winnerPlayerId).toBe(null);
+  expect(publicState().gameOver).toBe(false);
 };
 ```
 

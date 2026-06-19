@@ -17,6 +17,7 @@ Use the reducer framework for:
 - prompts, continuations, and reducer-owned windows
 - player-facing view projection
 - setup bootstrap steps
+- terminal outcomes, automated procedures, and game-event evidence
 
 ## Purity
 
@@ -68,6 +69,8 @@ import {
 
 `@dreamboard/app-sdk` currently re-exports the same surface, but
 `@dreamboard/app-sdk/reducer` is the explicit reducer import path.
+`endGame` is available from reducer callback arguments such as `reduce` and
+`enter`; destructure it from the callback context instead of importing it.
 
 ## `defineGameContract(...)`
 
@@ -103,7 +106,8 @@ export const gameContract = defineGameContract({
   state: {
     public: z.object({
       currentJudgeId: ids.playerId,
-      winnerPlayerId: ids.playerId.nullable(),
+      round: z.number().int().nonnegative(),
+      gameOver: z.boolean(),
     }),
     private: z.object({
       secretNotes: z.array(z.string()),
@@ -114,7 +118,8 @@ export const gameContract = defineGameContract({
     initial: {
       public: ({ playerIds }) => ({
         currentJudgeId: playerIds[0],
-        winnerPlayerId: null,
+        round: 1,
+        gameOver: false,
       }),
       private: () => ({
         secretNotes: [],
@@ -126,6 +131,43 @@ export const gameContract = defineGameContract({
   },
 });
 ```
+
+Use state fields for ongoing game progress. Use `endGame(...)` and
+`GameOutcome` for terminal results instead of preserving a parallel
+`winnerPlayerId` or score-map convention as the result contract.
+
+### Terminal outcomes
+
+Call `endGame(state, outcome)` when the reducer reaches a terminal state.
+`GameOutcome` owns the result reason and ordered standings, including ties,
+score breakdowns, and tie-break evidence.
+
+```ts
+return endGame(nextState, {
+  reason: {
+    code: "ROUND_LIMIT_REACHED",
+    message: "The final round is complete.",
+  },
+  standings: [
+    {
+      playerId: "player-1",
+      rank: 1,
+      result: "win",
+      score: 18,
+      scoreBreakdown: [{ id: "routes", label: "Routes", value: 12 }],
+      tieBreaks: [{ id: "cards-left", label: "Cards left", value: 2 }],
+    },
+    {
+      playerId: "player-2",
+      rank: 2,
+      result: "loss",
+      score: 15,
+    },
+  ],
+});
+```
+
+The UI may present this result, but reducer authority decides it.
 
 ## Generated `shared/manifest-contract`
 
@@ -416,6 +458,10 @@ Continuation IDs and window IDs default to their registry keys when you omit
 
 Keep hard legality checks in `validate(...)` or `reduce(...)`. `available(...)`
 only filters the surfaced available-action list.
+
+When an action is unavailable for a player-facing reason, project that reason
+through the reducer descriptor or view. React should display reducer authority;
+it should not recompute a second legality model.
 
 ```ts
 import { z } from "zod";

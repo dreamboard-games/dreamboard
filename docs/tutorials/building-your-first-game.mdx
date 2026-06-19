@@ -161,7 +161,7 @@ const playerId = manifestContract.ids.playerId;
 
 const publicStateSchema = z.object({
   currentPlayerId: playerId,
-  winnerPlayerId: playerId.nullable(),
+  gameOver: z.boolean(),
   lastRoll: z.number().int().min(1).max(6).nullable(),
   scores: z.record(playerId, z.number().int().nonnegative()),
 });
@@ -181,7 +181,7 @@ export const gameContract = defineGameContract({
     initial: {
       public: ({ playerIds }) => ({
         currentPlayerId: playerIds[0],
-        winnerPlayerId: null,
+        gameOver: false,
         lastRoll: null,
         scores: Object.fromEntries(playerIds.map((playerId) => [playerId, 0])),
       }),
@@ -212,7 +212,7 @@ import type { GameContract } from "./game-contract";
 export const playerView = defineView<GameContract>()({
   schema: z.object({
     currentPlayerId: z.string(),
-    winnerPlayerId: z.string().nullable(),
+    gameOver: z.boolean(),
     lastRoll: z.number().nullable(),
     scores: z.record(z.string(), z.number()),
     isMyTurn: z.boolean(),
@@ -222,10 +222,12 @@ export const playerView = defineView<GameContract>()({
   project({ state, playerId }) {
     return {
       currentPlayerId: state.publicState.currentPlayerId,
-      winnerPlayerId: state.publicState.winnerPlayerId,
+      gameOver: state.publicState.gameOver,
       lastRoll: state.publicState.lastRoll,
       scores: state.publicState.scores,
-      isMyTurn: state.publicState.currentPlayerId === playerId,
+      isMyTurn:
+        !state.publicState.gameOver &&
+        state.publicState.currentPlayerId === playerId,
       targetScore: 10,
       turnDieId: "turn-die",
     };
@@ -250,7 +252,7 @@ const TURN_DIE_ID = "turn-die" as const;
 const rollDie = defineAction<GameContract>()({
   params: z.object({}),
   validate({ state, input }) {
-    if (state.publicState.winnerPlayerId) {
+    if (state.publicState.gameOver) {
       return {
         errorCode: "GAME_ALREADY_ENDED",
         message: "The game has already ended.",
@@ -266,7 +268,7 @@ const rollDie = defineAction<GameContract>()({
 
     return null;
   },
-  reduce({ state, input, accept }) {
+  reduce({ state, input, accept, endGame }) {
     const nextRoll = (state.hiddenState.rollCount % 6) + 1;
     const nextScore = state.publicState.scores[input.playerId] + nextRoll;
     const nextScores = {
@@ -288,13 +290,13 @@ const rollDie = defineAction<GameContract>()({
       },
     };
 
-    return accept({
+    const nextState = {
       ...state,
       table: nextTable,
       publicState: {
         ...state.publicState,
         currentPlayerId: nextScore >= TARGET_SCORE ? input.playerId : nextPlayerId,
-        winnerPlayerId: nextScore >= TARGET_SCORE ? input.playerId : null,
+        gameOver: nextScore >= TARGET_SCORE,
         lastRoll: nextRoll,
         scores: nextScores,
       },
@@ -302,7 +304,27 @@ const rollDie = defineAction<GameContract>()({
         ...state.hiddenState,
         rollCount: state.hiddenState.rollCount + 1,
       },
-    });
+    };
+
+    if (nextScore < TARGET_SCORE) {
+      return accept(nextState);
+    }
+
+    const orderedPlayerIds = Object.keys(nextScores).sort();
+    const outcome = {
+      reason: {
+        code: "TARGET_SCORE_REACHED",
+        message: `${input.playerId} reached ${TARGET_SCORE} points.`,
+      },
+      standings: orderedPlayerIds.map((playerId) => ({
+        playerId,
+        rank: playerId === input.playerId ? 1 : 2,
+        result: playerId === input.playerId ? "win" : "loss",
+        score: nextScores[playerId] ?? 0,
+      })),
+    } as const;
+
+    return endGame(nextState, outcome);
   },
 });
 
@@ -311,7 +333,7 @@ export const takeTurn = definePhase<GameContract>()({
   state: z.object({}),
   initialState: () => ({}),
   enter({ state, accept }) {
-    if (state.publicState.winnerPlayerId) {
+    if (state.publicState.gameOver) {
       return accept(state);
     }
 
@@ -403,8 +425,8 @@ export default function App() {
 
       <p>Last roll: {view.lastRoll ?? "not rolled yet"}</p>
 
-      {view.winnerPlayerId ? (
-        <p>Winner: {view.winnerPlayerId}</p>
+      {view.gameOver ? (
+        <p>Game over. Check the result summary.</p>
       ) : (
         <button onClick={() => void rollDie()} disabled={!view.isMyTurn}>
           Roll die
@@ -463,8 +485,8 @@ export default defineScenario({
     expect(state.lastRoll).toBe(6);
     expect(state.scores["player-1"]).toBe(9);
     expect(state.scores["player-2"]).toBe(12);
-    expect(state.winnerPlayerId).toBe("player-2");
-    expect(view("player-2").winnerPlayerId).toBe("player-2");
+    expect(state.gameOver).toBe(true);
+    expect(view("player-2").gameOver).toBe(true);
     expect(history().accepted().length).toBe(6);
   },
 });

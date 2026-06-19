@@ -33,6 +33,7 @@
               "docs/reference/manifest-authoring",
               "docs/reference/reducer",
               "docs/reference/game-interface",
+              "docs/reference/canonical-concepts",
               "docs/reference/testing"
             ]
           }
@@ -68,6 +69,10 @@
     {
       "source": "/reference/game-interface",
       "destination": "/docs/reference/game-interface"
+    },
+    {
+      "source": "/reference/canonical-concepts",
+      "destination": "/docs/reference/canonical-concepts"
     },
     {
       "source": "/reference/ui-sdk",

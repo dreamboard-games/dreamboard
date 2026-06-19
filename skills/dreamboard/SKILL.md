@@ -40,6 +40,8 @@ See [tutorials/building-your-first-game.md](references/building-your-first-game.
   [references/game-interface.md](references/game-interface.md)
 - Testing:
   [references/testing.md](references/testing.md)
+- Canonical concepts:
+  [references/canonical-concepts.md](references/canonical-concepts.md)
 
 ## Current Scaffold
 
@@ -127,6 +129,12 @@ the pull request passes independent verification.
 - Keep reducer-owned UI data in views; do not reintroduce the old `shared/ui-args.ts` pattern in new scaffolds.
 - When a game exposes clickable hands, markets, boards, or prompts, prove the same interaction works through `dreamboard dev` in a browser. A direct scenario submission can pass even when the rendered surface does not collect the input.
 - For interactive card hands, render generated surfaces such as `handSurface.Hand` and `handSurface.Card` consistently. Do not swap a surface card for a raw `Card` or custom tile based on `me.canAct`; the surface primitive is responsible for disabling unavailable interactions.
+- For scorecards, grids, and compact tracks, use board topology and generated board surfaces. Do not invent a separate sheet model or duplicate cell state outside reducer authority.
+- Derive inventory from `manifest.json` and generated manifest helpers instead of declaring cards, dice, pieces, resources, or boards twice.
+- Use reducer-owned terminal outcomes for final results. Do not infer winners in UI from a `winnerPlayerId` convention or score sorting.
+- Display descriptor availability and reducer-projected disabled reasons. Do not reimplement action legality in React.
+- Model solo procedures and automa rivals as deterministic reducer phases, state transitions, and game events. Do not create fake player seats for non-human behavior.
+- Start from the smallest matching canonical reference game before inventing framework structure. See [references/canonical-concepts.md](references/canonical-concepts.md).
 
 ## Editable Surface
 

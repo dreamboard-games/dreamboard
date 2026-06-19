@@ -377,7 +377,7 @@ explicit props.
 | `ResourceCounter` | Resource totals |
 | `CostDisplay` | Cost breakdowns |
 | `PhaseIndicator` | Current phase or step status |
-| `GameEndDisplay` | Final rankings and scores |
+| `OutcomeDialog` / `StandingsTable` | Reducer-owned terminal outcomes |
 | `DiceRoller` | Reducer-driven dice results |
 | `Drawer` and related exports | Mobile overflow or detail panels |
 
@@ -460,6 +460,9 @@ resource affordability, and loading state.
 />
 ```
 
+Use reducer-projected descriptor help and availability reasons for disabled
+actions. Do not disable a button by reimplementing reducer rules in React.
+
 ### `ActionPanel` and `ActionGroup`
 
 Use these to keep the action surface grouped by phase or intent.
@@ -500,7 +503,7 @@ data.
 | Export | Use it for |
 | --- | --- |
 | `TrackBoard` | Linear, circular, or branching tracks |
-| `SquareGrid` | Chess-like or tile-grid boards |
+| `SquareGrid` / `Board.SquareGrid` | Chess-like, tile-grid, or roll-and-write square boards |
 | `HexGrid` | Hex maps with tiles, edges, and vertices |
 | `NetworkGraph` | Nodes, connections, and route graphs |
 | `ZoneMap` | Region or area control boards |
@@ -529,6 +532,16 @@ Board renderers are still UI code. The reducer should provide:
 - highlight states
 - labels and annotations
 - grouped piece and card data in the shape the component expects
+
+For scorecards, use generated board surfaces plus `Board.SquareGrid` instead
+of a separate sheet model. The board topology remains the gameplay target; the
+game UI chooses how to frame and style it.
+
+### OutcomeDialog and StandingsTable
+
+Use outcome presentation components for `GameOutcome` data produced by the
+reducer. They should receive the outcome payload and player labels; they should
+not sort scores or decide winners themselves.
 
 ## Exported types
 
