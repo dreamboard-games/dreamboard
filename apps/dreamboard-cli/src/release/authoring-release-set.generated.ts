@@ -7,7 +7,7 @@ export const AUTHORING_RELEASE_SET = {
   "packages": {
     "cli": {
       "name": "@dreamboard-games/cli",
-      "version": "0.1.30-alpha.30"
+      "version": "0.1.30-alpha.31"
     },
     "sdk": {
       "name": "@dreamboard-games/sdk",
@@ -37,5 +37,5 @@ export const AUTHORING_RELEASE_SET = {
     "portable": true
   },
   "packageManager": "pnpm@10.4.1",
-  "releaseSetId": "sha256:3bd4ab3361ecffc08feeb8557d6f9cec98997cc1b838984ec56bd37908539d01"
+  "releaseSetId": "sha256:d4c979aab04c28c64e3b2f069051eecd00b968ec67fcbe5a7b133ca370e24462"
 } as const satisfies AuthoringReleaseSetV1;

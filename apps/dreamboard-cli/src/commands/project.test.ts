@@ -1,45 +1,6 @@
 import { expect, mock, test } from "bun:test";
-import type {
-  ProjectCommitStatus,
-  ProjectRepository,
-} from "@dreamboard-games/api-client";
+import type { ProjectCommitStatus } from "@dreamboard-games/api-client";
 
-const retryProjectRepositoryReconciliationSdk = mock(
-  async (): Promise<ProjectRepository> => ({
-    repoBindingId: "repo-binding-1",
-    cloneUrl: "https://git.example.com/project-1.git",
-    defaultBranch: "main",
-    headCommit: "",
-    provisioningState: "REQUESTED",
-    desiredGeneration: 2,
-    observedGeneration: 1,
-    retryable: false,
-  }),
-);
-const getProjectRepositorySdk = mock(
-  async (): Promise<ProjectRepository> => ({
-    repoBindingId: "repo-binding-1",
-    cloneUrl: "https://git.example.com/project-1.git",
-    defaultBranch: "main",
-    headCommit: "",
-    provisioningState: "PROVISIONING",
-    desiredGeneration: 2,
-    observedGeneration: 1,
-    retryable: false,
-  }),
-);
-const pollProjectRepository = mock(
-  async (): Promise<ProjectRepository> => ({
-    repoBindingId: "repo-binding-1",
-    cloneUrl: "https://git.example.com/project-1.git",
-    defaultBranch: "main",
-    headCommit: "",
-    provisioningState: "READY",
-    desiredGeneration: 2,
-    observedGeneration: 2,
-    retryable: false,
-  }),
-);
 const getProjectCommitStatusSdk = mock(
   async (): Promise<ProjectCommitStatus> => ({
     projectId: "project-1",
@@ -109,17 +70,13 @@ mock.module("../flags.js", () => ({
     _commandName: string,
     args: Record<string, unknown>,
   ) => args,
-  parseProjectRepositoryCommandArgs: (
-    _commandName: string,
-    args: Record<string, unknown>,
-  ) => args,
   parseNewCommandArgs: (args: Record<string, unknown>) => args,
   parseCloneCommandArgs: (args: Record<string, unknown>) => args,
 }));
 
 mock.module("../services/api/index.js", () => ({
   ensureProjectRepositorySdk: async () => {
-    throw new Error("unexpected ensure call");
+    throw new Error("unexpected repository ensure call");
   },
   ensureProjectSdk: async () => {
     throw new Error("unexpected project ensure call");
@@ -133,10 +90,10 @@ mock.module("../services/api/index.js", () => ({
   findProjectCompiledResultsForRevision: async () => {
     throw new Error("unexpected compiled result lookup call");
   },
-  getProjectRepositorySdk,
   getProjectCommitStatusSdk,
-  pollProjectRepository,
-  retryProjectRepositoryReconciliationSdk,
+  pollProjectRepository: async () => {
+    throw new Error("unexpected repository poll call");
+  },
 }));
 
 mock.module("@dreamboard-games/cli-core", () => ({
@@ -165,10 +122,7 @@ async function captureConsoleLog(run: () => Promise<void>): Promise<string> {
 }
 
 test("project status waits on server commit status", async () => {
-  getProjectRepositorySdk.mockClear();
   getProjectCommitStatusSdk.mockClear();
-  retryProjectRepositoryReconciliationSdk.mockClear();
-  pollProjectRepository.mockClear();
   getProjectCommitStatusSdk
     .mockResolvedValueOnce({
       projectId: "project-1",
@@ -233,9 +187,6 @@ test("project status waits on server commit status", async () => {
     projectId: "project-1",
     commitOid: "0123456789abcdef",
   });
-  expect(getProjectRepositorySdk).not.toHaveBeenCalled();
-  expect(retryProjectRepositoryReconciliationSdk).not.toHaveBeenCalled();
-  expect(pollProjectRepository).not.toHaveBeenCalled();
   expect(JSON.parse(output)).toMatchObject({
     projectId: "project-1",
     commitOid: "0123456789abcdef",

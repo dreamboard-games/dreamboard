@@ -24,6 +24,8 @@ import { parseAuthCommandArgs } from "../flags.js";
 import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
 import { runGitCredentialHelper } from "../services/git/git-credential-helper.js";
 
+const PUBLISHED_AUTH_ACTIONS = new Set(["login", "logout", "status"]);
+
 async function loginWithBrowser(
   config: ReturnType<typeof resolveConfig>,
   quiet: boolean,
@@ -95,9 +97,9 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
     return;
   }
 
-  if (IS_PUBLISHED_BUILD && action !== "login" && action !== "logout") {
+  if (IS_PUBLISHED_BUILD && !PUBLISHED_AUTH_ACTIONS.has(action)) {
     throw new Error(
-      "The published Dreamboard CLI only supports browser login and logout. Use `dreamboard auth login` or `dreamboard auth logout`.",
+      "The published Dreamboard CLI supports auth login, logout, and status.",
     );
   }
 
@@ -311,7 +313,7 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
 
   throw new Error(
     IS_PUBLISHED_BUILD
-      ? "Usage:\n  dreamboard auth login\n  dreamboard auth logout"
+      ? "Usage:\n  dreamboard auth login\n  dreamboard auth logout\n  dreamboard auth status"
       : "Usage:\n  dreamboard auth login [--env <local|staging|prod>] [--jwt]\n  dreamboard auth logout\n  dreamboard auth set <token>\n  dreamboard auth env <local|staging|prod>\n  dreamboard auth status [--env <local|staging|prod>]",
   );
 }
