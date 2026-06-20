@@ -7,7 +7,11 @@ import type {
   ResolvedConfig,
 } from "../types.js";
 import type { ConfigFlags } from "../flags.js";
-import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
+import {
+  CAN_SELECT_ENVIRONMENT,
+  IS_PUBLISHED_BUILD,
+  PUBLISHED_ENVIRONMENT,
+} from "../build-target.js";
 import {
   DEFAULT_API_BASE_URL,
   DEFAULT_WEB_BASE_URL,
@@ -63,42 +67,44 @@ export function resolveConfig(
     assertPublicRuntimeFlags(flags);
   }
 
-  const envEnvironment = IS_PUBLISHED_BUILD
-    ? undefined
-    : environmentFromProcess();
-  const projectEnvironment = IS_PUBLISHED_BUILD
-    ? undefined
-    : project?.environment;
-  const environment = IS_PUBLISHED_BUILD
-    ? PUBLISHED_ENVIRONMENT
-    : flags.env ||
+  const envEnvironment = CAN_SELECT_ENVIRONMENT
+    ? environmentFromProcess()
+    : undefined;
+  const projectEnvironment = CAN_SELECT_ENVIRONMENT
+    ? project?.environment
+    : undefined;
+  const environment = CAN_SELECT_ENVIRONMENT
+    ? flags.env ||
       envEnvironment ||
       projectEnvironment ||
       globalConfig.environment ||
-      "staging";
+      (IS_PUBLISHED_BUILD ? PUBLISHED_ENVIRONMENT : "staging")
+    : PUBLISHED_ENVIRONMENT;
   const envConfig = ENVIRONMENT_CONFIGS[environment];
   const publishedEnvConfig = ENVIRONMENT_CONFIGS[PUBLISHED_ENVIRONMENT];
   const hasExplicitEnvironmentOverride =
-    !IS_PUBLISHED_BUILD &&
+    CAN_SELECT_ENVIRONMENT &&
     Boolean(flags.env || envEnvironment || projectEnvironment);
 
-  const resolvedApiBaseUrl = IS_PUBLISHED_BUILD
-    ? (publishedEnvConfig?.apiBaseUrl ?? DEFAULT_API_BASE_URL)
-    : hasExplicitEnvironmentOverride
-      ? projectLocalBaseUrl(project?.apiBaseUrl, environment) ||
-        envConfig?.apiBaseUrl ||
-        DEFAULT_API_BASE_URL
-      : project?.apiBaseUrl || envConfig?.apiBaseUrl || DEFAULT_API_BASE_URL;
+  const resolvedApiBaseUrl =
+    IS_PUBLISHED_BUILD && !CAN_SELECT_ENVIRONMENT
+      ? (publishedEnvConfig?.apiBaseUrl ?? DEFAULT_API_BASE_URL)
+      : hasExplicitEnvironmentOverride
+        ? projectLocalBaseUrl(project?.apiBaseUrl, environment) ||
+          envConfig?.apiBaseUrl ||
+          DEFAULT_API_BASE_URL
+        : project?.apiBaseUrl || envConfig?.apiBaseUrl || DEFAULT_API_BASE_URL;
   const apiBaseUrl =
     valueOrUndefined(process.env.DREAMBOARD_API_BASE_URL) ?? resolvedApiBaseUrl;
 
-  const resolvedWebBaseUrl = IS_PUBLISHED_BUILD
-    ? (publishedEnvConfig?.webBaseUrl ?? DEFAULT_WEB_BASE_URL)
-    : hasExplicitEnvironmentOverride
-      ? projectLocalBaseUrl(project?.webBaseUrl, environment) ||
-        envConfig?.webBaseUrl ||
-        DEFAULT_WEB_BASE_URL
-      : project?.webBaseUrl || envConfig?.webBaseUrl || DEFAULT_WEB_BASE_URL;
+  const resolvedWebBaseUrl =
+    IS_PUBLISHED_BUILD && !CAN_SELECT_ENVIRONMENT
+      ? (publishedEnvConfig?.webBaseUrl ?? DEFAULT_WEB_BASE_URL)
+      : hasExplicitEnvironmentOverride
+        ? projectLocalBaseUrl(project?.webBaseUrl, environment) ||
+          envConfig?.webBaseUrl ||
+          DEFAULT_WEB_BASE_URL
+        : project?.webBaseUrl || envConfig?.webBaseUrl || DEFAULT_WEB_BASE_URL;
   const webBaseUrl =
     valueOrUndefined(process.env.DREAMBOARD_WEB_BASE_URL) ?? resolvedWebBaseUrl;
 
@@ -272,10 +278,18 @@ function projectLocalBaseUrl(
   }
 }
 
-function assertPublicRuntimeFlags(flags: ConfigFlags): void {
-  const argv = process.argv.slice(2);
+export function assertPublicRuntimeFlags(
+  flags: ConfigFlags,
+  options: {
+    canSelectEnvironment?: boolean;
+    argv?: string[];
+  } = {},
+): void {
+  const canSelectEnvironment =
+    options.canSelectEnvironment ?? CAN_SELECT_ENVIRONMENT;
+  const argv = options.argv ?? process.argv.slice(2);
 
-  if (flags.env || argv.includes("--env")) {
+  if (!canSelectEnvironment && (flags.env || argv.includes("--env"))) {
     throw new Error(
       "The published Dreamboard CLI is production-only and does not accept `--env`.",
     );

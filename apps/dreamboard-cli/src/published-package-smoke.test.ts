@@ -119,4 +119,25 @@ describe("staged published package", () => {
       "only supports browser login and logout",
     );
   });
+
+  test("published alpha package accepts environment selection", async () => {
+    const temporaryHome = await mkdtemp(
+      path.join(os.tmpdir(), "dreamboard-published-alpha-env-"),
+    );
+    temporaryHomes.push(temporaryHome);
+
+    const help = runPublishedCli(["auth", "login", "--help"], {
+      HOME: temporaryHome,
+    });
+    const result = runPublishedCli(["auth", "status", "--env", "staging"], {
+      HOME: temporaryHome,
+    });
+
+    expect(help.exitCode).toBe(0);
+    expect(help.stdout).toContain("--env=<env>");
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toContain(
+      "production-only",
+    );
+  });
 });

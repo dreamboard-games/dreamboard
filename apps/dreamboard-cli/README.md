@@ -114,7 +114,7 @@ dreamboard dev
 - Project state lives in `.dreamboard/project.json`.
 - Published/public CLI installs target Node 20+ and support commit-scoped
   build, preview, release, and status workflows.
-- Published/public CLI builds are production-only; they do not support environment overrides or direct JWT injection.
+- Published stable CLI builds are production-only and do not support environment overrides or direct JWT injection. Published alpha builds allow `--env <local|staging|prod>` for operator verification, but still reject direct JWT injection.
 - Local embedded-harness testing remains Bun-only and requires a source checkout with local backend support.
 - Internal source-checkout builds may expose extra auth and environment helpers, but those are not part of the published CLI contract.
 

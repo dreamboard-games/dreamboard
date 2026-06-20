@@ -42,6 +42,7 @@ const exchangeClerkOAuthCode = mock(async () => ({
 const parseLoginCommandArgs = mock((args: Record<string, unknown>) => args);
 
 mock.module("../build-target.js", () => ({
+  CAN_SELECT_ENVIRONMENT: false,
   IS_PUBLISHED_BUILD: true,
   PUBLISHED_ENVIRONMENT: "prod",
 }));

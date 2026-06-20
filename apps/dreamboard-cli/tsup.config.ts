@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+const packageJson = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+) as { version?: string };
 
 export default defineConfig({
   entry: [
@@ -19,6 +24,9 @@ export default defineConfig({
   define: {
     __DREAMBOARD_BUILD_CHANNEL__: JSON.stringify(
       process.env.DREAMBOARD_BUILD_CHANNEL ?? "development",
+    ),
+    __DREAMBOARD_PACKAGE_VERSION__: JSON.stringify(
+      packageJson.version ?? "0.0.0-development",
     ),
   },
   noExternal: [

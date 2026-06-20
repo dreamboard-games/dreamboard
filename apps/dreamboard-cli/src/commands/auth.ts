@@ -21,7 +21,11 @@ import {
 } from "../config/credential-store.js";
 import { getAuthTokenExpiry, resolveConfig } from "../config/resolve.js";
 import { parseAuthCommandArgs } from "../flags.js";
-import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
+import {
+  CAN_SELECT_ENVIRONMENT,
+  IS_PUBLISHED_BUILD,
+  PUBLISHED_ENVIRONMENT,
+} from "../build-target.js";
 import { runGitCredentialHelper } from "../services/git/git-credential-helper.js";
 
 const PUBLISHED_AUTH_ACTIONS = new Set(["login", "logout", "status"]);
@@ -97,14 +101,18 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
     return;
   }
 
-  if (IS_PUBLISHED_BUILD && !PUBLISHED_AUTH_ACTIONS.has(action)) {
+  if (
+    IS_PUBLISHED_BUILD &&
+    !PUBLISHED_AUTH_ACTIONS.has(action) &&
+    !(CAN_SELECT_ENVIRONMENT && action === "env")
+  ) {
     throw new Error(
       "The published Dreamboard CLI supports auth login, logout, and status.",
     );
   }
 
   if (action === "env") {
-    if (IS_PUBLISHED_BUILD) {
+    if (!CAN_SELECT_ENVIRONMENT) {
       throw new Error(
         "The published Dreamboard CLI is production-only and does not support switching environments.",
       );
@@ -164,9 +172,11 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
 
   if (action === "login") {
     const shouldPrintJwt = !IS_PUBLISHED_BUILD && parsedArgs.jwt === true;
-    const environment = IS_PUBLISHED_BUILD
+    const environment = !CAN_SELECT_ENVIRONMENT
       ? PUBLISHED_ENVIRONMENT
-      : parsedArgs.env || globalConfig.environment || "staging";
+      : parsedArgs.env ||
+        globalConfig.environment ||
+        (IS_PUBLISHED_BUILD ? PUBLISHED_ENVIRONMENT : "staging");
 
     const storedSession = await getStoredSession();
     const resolvedConfig = resolveConfig(
@@ -255,7 +265,7 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
       undefined,
       storedSession,
     );
-    const environment = parsedArgs.env || globalConfig.environment || "staging";
+    const environment = resolvedConfig.environment;
     const status =
       await createUserSessionManager(resolvedConfig).inspectSession();
     const backendName = await getActiveCredentialBackendName();
@@ -345,18 +355,22 @@ export default defineCommand({
       name: "login",
       description: "Open browser login and store a refreshable session",
       action: "login",
-      args: IS_PUBLISHED_BUILD
-        ? {}
-        : {
+      args: CAN_SELECT_ENVIRONMENT
+        ? {
             env: {
               type: "string" as const,
               description: "Environment: local | staging | prod",
             },
-            jwt: {
-              type: "boolean" as const,
-              description: "Print auth token JSON to stdout",
-            },
-          },
+            ...(IS_PUBLISHED_BUILD
+              ? {}
+              : {
+                  jwt: {
+                    type: "boolean" as const,
+                    description: "Print auth token JSON to stdout",
+                  },
+                }),
+          }
+        : {},
     }),
     logout: defineAuthActionCommand({
       name: "logout",
@@ -367,14 +381,14 @@ export default defineCommand({
       name: "status",
       description: "Show stored Dreamboard session status",
       action: "status",
-      args: IS_PUBLISHED_BUILD
-        ? {}
-        : {
+      args: CAN_SELECT_ENVIRONMENT
+        ? {
             env: {
               type: "string" as const,
               description: "Environment: local | staging | prod",
             },
-          },
+          }
+        : {},
     }),
     "git-credential": defineAuthActionCommand({
       name: "git-credential",

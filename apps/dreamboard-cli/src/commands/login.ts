@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { defineCommand } from "citty";
 import consola from "consola";
 import { DEFAULT_LOGIN_TIMEOUT_MS } from "../constants.js";
-import { IS_PUBLISHED_BUILD } from "../build-target.js";
+import { CAN_SELECT_ENVIRONMENT } from "../build-target.js";
 import { resolveConfig } from "../config/resolve.js";
 import { parseLoginCommandArgs } from "../flags.js";
 import {
@@ -26,14 +26,14 @@ export default defineCommand({
       "Open browser login and store a refreshable Dreamboard session",
   },
   args: {
-    ...(IS_PUBLISHED_BUILD
-      ? {}
-      : {
+    ...(CAN_SELECT_ENVIRONMENT
+      ? {
           env: {
             type: "string" as const,
             description: "Environment: local | staging | prod",
           },
-        }),
+        }
+      : {}),
   },
   async run({ args }) {
     const parsedArgs = parseLoginCommandArgs(args);

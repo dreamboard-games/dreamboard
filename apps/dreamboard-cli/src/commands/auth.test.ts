@@ -56,6 +56,7 @@ mock.module("consola", () => ({
 }));
 
 mock.module("../build-target.js", () => ({
+  CAN_SELECT_ENVIRONMENT: true,
   IS_PUBLISHED_BUILD: false,
   PUBLISHED_ENVIRONMENT: "prod",
 }));
