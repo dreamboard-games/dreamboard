@@ -11,15 +11,11 @@
  *    no longer carries credentials, so attempting to persist one through
  *    the config path is a type error.
  *
- * 2. The mutating surface is intentionally narrow:
- *      - `setCredentials(c)` for refreshable sessions (both tokens present)
- *      - `setAccessOnlySession(accessToken)` for the `auth set` / `config set
- *        --token` power-user path, which has no refresh token by
- *        construction
- *      - `clearCredentials()` wipes the file entirely
- *    There is no "partial update" API. `Credentials` requires both
- *    `accessToken` and `refreshToken`, so it is impossible to persist a
- *    half-populated refreshable session.
+ * 2. Product credential mutations are owned by `user-session-manager.ts`.
+ *    This module exposes the locked backend operations it needs, but no
+ *    command-level write helpers. `Credentials` requires both the Clerk
+ *    access and refresh tokens, while derived Dreamboard audience tokens are
+ *    optional caches.
  *
  * 3. Writes go through `atomicWriteFile` + `withFileLock`, so a crash or
  *    interrupt during CLI writes cannot leave `auth.json`
@@ -100,7 +96,6 @@ export type CredentialLockOps = {
 export type CredentialClearReason =
   | "auth_clear_command"
   | "logout_command"
-  | "user_token_manager_logout"
   | "credential_store_clear";
 
 type DiskShape = Partial<{
@@ -478,29 +473,6 @@ export async function getCredentials(): Promise<Credentials | null> {
     clerkOAuthTokenUrl: snapshot.clerkOAuthTokenUrl,
     environment: snapshot.environment,
   };
-}
-
-export async function setCredentials(creds: Credentials): Promise<void> {
-  await withFileLock(getCredentialLockPath(), async () => {
-    const backend = await getCredentialBackend();
-    await backend.writeFull(creds);
-  });
-}
-
-export async function setAccessOnlySession(accessToken: string): Promise<void> {
-  await withFileLock(getCredentialLockPath(), async () => {
-    const backend = await getCredentialBackend();
-    await backend.writeAccessOnly(accessToken);
-  });
-}
-
-export async function clearCredentials(
-  reason: CredentialClearReason = "credential_store_clear",
-): Promise<void> {
-  await withFileLock(getCredentialLockPath(), async () => {
-    const backend = await getCredentialBackend();
-    await backend.clear(reason);
-  });
 }
 
 /**

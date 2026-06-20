@@ -7,7 +7,7 @@ import {
   createPkcePair,
   exchangeClerkOAuthCode,
 } from "../auth/clerk-oauth.js";
-import { exchangeDreamboardUserToken } from "../auth/token-exchange.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
 import { DEFAULT_LOGIN_TIMEOUT_MS } from "../constants.js";
 import {
   getGlobalAuthPath,
@@ -16,17 +16,10 @@ import {
   saveGlobalConfig,
 } from "../config/global-config.js";
 import {
-  clearCredentials,
   getActiveCredentialBackendName,
   getStoredSession,
-  setAccessOnlySession,
-  setCredentials,
 } from "../config/credential-store.js";
-import {
-  getAuthTokenExpiry,
-  refreshResolvedAuthSession,
-  resolveConfig,
-} from "../config/resolve.js";
+import { getAuthTokenExpiry, resolveConfig } from "../config/resolve.js";
 import { parseAuthCommandArgs } from "../flags.js";
 import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
 import { runGitCredentialHelper } from "../services/git/git-credential-helper.js";
@@ -140,17 +133,27 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
     const token = parsedArgs.tokenValue ?? parsedArgs.token ?? "";
     if (!token) throw new Error("Usage: dreamboard auth set <token>");
 
-    // `auth set` is the power-user "paste a JWT" path. It has no
-    // refresh token by construction; calling `setAccessOnlySession`
-    // keeps the intent explicit at the storage layer rather than
-    // piggybacking on a partial `setCredentials` write.
-    await setAccessOnlySession(token);
+    // `auth set` is the power-user "paste a JWT" path. It has no refresh
+    // token by construction, so establish an explicit access-only session.
+    const config = resolveConfig(
+      globalConfig,
+      { env: parsedArgs.env },
+      undefined,
+      await getStoredSession(),
+    );
+    await createUserSessionManager(config).establishAccessOnlySession(token);
     consola.success(`Auth token saved to ${getGlobalAuthPath()}.`);
     return;
   }
 
   if (action === "logout") {
-    await clearCredentials("logout_command");
+    const config = resolveConfig(
+      globalConfig,
+      { env: parsedArgs.env },
+      undefined,
+      await getStoredSession(),
+    );
+    await createUserSessionManager(config).logout();
     consola.success(
       `Stored Dreamboard session cleared from ${getGlobalAuthPath()}.`,
     );
@@ -164,86 +167,69 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
       : parsedArgs.env || globalConfig.environment || "staging";
 
     const storedSession = await getStoredSession();
-    let accessToken = storedSession?.accessToken;
-    let refreshToken = storedSession?.refreshToken;
-    let tokenExpiresAt = storedSession?.tokenExpiresAt;
-    let clerkOAuthTokenUrl = storedSession?.clerkOAuthTokenUrl;
-    let didRefreshStoredSession = false;
-    let didUseBrowserLogin = false;
     const resolvedConfig = resolveConfig(
       globalConfig,
       { env: environment },
       undefined,
       storedSession,
     );
+    const sessionManager = createUserSessionManager(resolvedConfig);
+    const existingStatus = await sessionManager.inspectSession();
 
-    if (accessToken && refreshToken) {
-      try {
-        const refreshed = await refreshResolvedAuthSession(resolvedConfig);
-        accessToken = refreshed?.accessToken ?? accessToken;
-        refreshToken = refreshed?.refreshToken ?? refreshToken;
-        tokenExpiresAt = refreshed?.tokenExpiresAt ?? tokenExpiresAt;
-        clerkOAuthTokenUrl = refreshed?.clerkOAuthTokenUrl ?? clerkOAuthTokenUrl;
-        didRefreshStoredSession = Boolean(refreshed);
-      } catch (error) {
-        consola.warn(
-          error instanceof Error
-            ? error.message
-            : "Stored Dreamboard CLI session refresh failed.",
+    if (existingStatus.kind === "active") {
+      if (shouldPrintJwt) {
+        const current = await getStoredSession();
+        process.stdout.write(
+          `${JSON.stringify(
+            {
+              token: current?.accessToken ?? existingStatus.apiToken.token,
+              refreshToken: current?.refreshToken ?? null,
+              environment,
+            },
+            null,
+            2,
+          )}\n`,
         );
-        accessToken = undefined;
-        refreshToken = undefined;
+      } else if (existingStatus.repaired) {
+        consola.success(
+          `Stored Dreamboard session repaired and saved to ${getGlobalAuthPath()}`,
+        );
+      } else {
+        consola.success(
+          `Stored Dreamboard session is active in ${getGlobalAuthPath()}`,
+        );
       }
+      return;
     }
 
-    if (!accessToken) {
-      const browserLogin = await loginWithBrowser(
-        resolvedConfig,
-        shouldPrintJwt,
-      );
-      accessToken = browserLogin.token;
-      refreshToken = browserLogin.refreshToken;
-      tokenExpiresAt = browserLogin.expiresAt;
-      clerkOAuthTokenUrl = browserLogin.tokenUrl;
-      didUseBrowserLogin = true;
+    if (
+      existingStatus.kind === "degraded" ||
+      existingStatus.kind === "invalid"
+    ) {
+      consola.warn(existingStatus.message);
     }
 
-    if (!accessToken) {
-      throw new Error("Login completed but no access token was returned.");
-    }
-
+    const browserLogin = await loginWithBrowser(resolvedConfig, shouldPrintJwt);
     await saveGlobalConfig({
       ...globalConfig,
       environment: environment as any,
     });
-
-    if (refreshToken) {
-      const dreamboardApiToken = await exchangeDreamboardUserToken({
-        apiBaseUrl: resolvedConfig.apiBaseUrl,
-        clerkAccessToken: accessToken,
-        audience: "dreamboard-api",
-      });
-      await setCredentials({
-        accessToken,
-        refreshToken,
-        tokenExpiresAt,
-        dreamboardApiToken: dreamboardApiToken.accessToken,
-        dreamboardApiExpiresAt: dreamboardApiToken.expiresAt,
-        clerkOAuthIssuer: resolvedConfig.clerkOAuthIssuer,
-        clerkOAuthClientId: resolvedConfig.clerkOAuthClientId,
-        clerkOAuthTokenUrl,
-        environment,
-      });
-    } else {
-      await setAccessOnlySession(accessToken);
-    }
+    await sessionManager.establishRefreshableSession({
+      clerkAccessToken: browserLogin.token,
+      refreshToken: browserLogin.refreshToken,
+      clerkAccessExpiresAt: browserLogin.expiresAt,
+      clerkOAuthIssuer: resolvedConfig.clerkOAuthIssuer,
+      clerkOAuthClientId: resolvedConfig.clerkOAuthClientId,
+      clerkOAuthTokenUrl: browserLogin.tokenUrl,
+      environment,
+    });
 
     if (shouldPrintJwt) {
       process.stdout.write(
         `${JSON.stringify(
           {
-            token: accessToken,
-            refreshToken: refreshToken ?? null,
+            token: browserLogin.token,
+            refreshToken: browserLogin.refreshToken,
             environment,
           },
           null,
@@ -253,19 +239,9 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
       return;
     }
 
-    if (didUseBrowserLogin) {
-      consola.success(
-        `Browser login successful. Session saved to ${getGlobalAuthPath()}`,
-      );
-    } else if (storedSession?.accessToken && didRefreshStoredSession) {
-      consola.success(
-        `Stored auth session refreshed and saved to ${getGlobalAuthPath()}`,
-      );
-    } else if (storedSession?.accessToken) {
-      consola.success(
-        `Stored auth token found. Session data remains in ${getGlobalAuthPath()}`,
-      );
-    }
+    consola.success(
+      `Browser login successful. Session saved to ${getGlobalAuthPath()}`,
+    );
     return;
   }
 
@@ -278,7 +254,8 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
       storedSession,
     );
     const environment = parsedArgs.env || globalConfig.environment || "staging";
-    const authTokenExpiry = getAuthTokenExpiry(resolvedConfig.authToken);
+    const status =
+      await createUserSessionManager(resolvedConfig).inspectSession();
     const backendName = await getActiveCredentialBackendName();
 
     consola.log(`Environment: ${environment}`);
@@ -306,48 +283,44 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
     }
     consola.log(`Config path: ${getGlobalConfigPath()}`);
 
-    if (!resolvedConfig.authToken) {
+    if (status.kind === "none") {
+      consola.log("Session state: none");
       consola.warn("No Dreamboard session found.");
       return;
     }
 
-    if (authTokenExpiry) {
-      const isExpired = authTokenExpiry.getTime() <= Date.now();
-      consola.log(
-        `Access token expires at: ${authTokenExpiry.toISOString()} (${isExpired ? "expired" : "active"})`,
+    if (status.kind === "degraded") {
+      consola.log("Session state: degraded (refreshable)");
+      consola.warn(
+        `Stored Dreamboard session is refreshable but currently API-unusable: ${status.message}`,
       );
-
-      if (isExpired) {
-        if (!resolvedConfig.refreshToken) {
-          consola.warn(
-            "Access token is expired and no refresh token is available. Run `dreamboard auth login` to authenticate again.",
-          );
-          return;
-        }
-
-        const refreshed = await refreshResolvedAuthSession(resolvedConfig);
-
-        if (!refreshed?.accessToken) {
-          consola.warn(
-            "Access token is expired and refresh did not return a new session.",
-          );
-          return;
-        }
-
-        const refreshedExpiry = getAuthTokenExpiry(refreshed.accessToken);
-        consola.success("Access token was expired and has been refreshed.");
-        if (refreshedExpiry) {
-          consola.log(
-            `Refreshed access token expires at: ${refreshedExpiry.toISOString()}`,
-          );
-        }
-        return;
-      }
-    } else {
-      consola.log("Access token expiry: unavailable");
+      return;
     }
 
-    consola.success("Dreamboard session is active.");
+    if (status.kind === "invalid") {
+      consola.log(`Session state: invalid (${status.sessionKind})`);
+      consola.warn(status.message);
+      return;
+    }
+
+    consola.log(`Session state: active (${status.sessionKind})`);
+    const authTokenExpiry =
+      status.apiToken.expiresAt !== undefined
+        ? new Date(status.apiToken.expiresAt)
+        : getAuthTokenExpiry(status.apiToken.token);
+    if (authTokenExpiry && Number.isFinite(authTokenExpiry.getTime())) {
+      consola.log(
+        `Dreamboard API token expires at: ${authTokenExpiry.toISOString()} (active)`,
+      );
+    } else {
+      consola.log("Dreamboard API token expiry: unavailable");
+    }
+
+    consola.success(
+      status.repaired
+        ? "Dreamboard session was repaired and is active."
+        : "Dreamboard session is active.",
+    );
     return;
   }
 

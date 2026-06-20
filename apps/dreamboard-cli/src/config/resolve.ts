@@ -16,18 +16,14 @@ import {
 import { loadGlobalConfig } from "./global-config.js";
 import { findProjectRoot, loadProjectConfig } from "./project-config.js";
 import {
-  type Credentials,
   type StoredSessionSnapshot,
   getStoredSession,
-  setCredentials,
 } from "./credential-store.js";
 import { classifyRefreshError } from "../auth/refresh-error.js";
-import { refreshClerkOAuthToken } from "../auth/clerk-oauth.js";
-import { createUserTokenManager } from "../auth/user-token-manager.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
 import { resolveLocalHarnessAccessToken } from "./local-harness-auth.js";
 
 const LOGIN_HINT = "Run `dreamboard auth login` to authenticate again.";
-const DEFAULT_REFRESH_WINDOW_MS = 5 * 60 * 1000;
 const TRANSIENT_READ_RETRY_DELAYS_MS = [100, 300];
 
 export type CredentialSnapshot = {
@@ -50,8 +46,8 @@ export type CredentialSnapshot = {
  * `resolveConfig` is pure and synchronous: it takes pre-loaded inputs
  * (global config, flags, optional project config, optional credential
  * snapshot) and assembles a read-only `ResolvedConfig`. It intentionally
- * does not touch disk or the network - refreshing/persisting credentials
- * is the job of `configureClient` + `RefreshCoordinator`.
+ * does not touch disk or the network - refreshing, repairing, and persisting
+ * credentials is owned by `UserSessionManager`.
  *
  * Passing `credentials = undefined` is equivalent to "no stored session
  * for this call", used by contexts that should never inherit the local
@@ -313,7 +309,7 @@ export async function configureClient(config: ResolvedConfig): Promise<void> {
   const localHarnessToken = resolveLocalHarnessAccessToken(config);
   const resolvedToken = localHarnessToken
     ? { token: localHarnessToken }
-    : await createUserTokenManager(config).resolveApiToken();
+    : await createUserSessionManager(config).resolveApiToken();
   const effectiveAccessToken = resolvedToken?.token;
 
   client.setConfig({
@@ -390,89 +386,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function ensureEffectiveAccessToken(
-  config: ResolvedConfig,
-): Promise<string | undefined> {
-  const localHarnessToken = resolveLocalHarnessAccessToken(config);
-  if (localHarnessToken) return localHarnessToken;
-
-  if (!usesStoredSession(config)) {
-    // Env/flag-provided tokens are not owned by CredentialStore and must
-    // not be written back. Use them as-is.
-    return config.authToken;
-  }
-
-  if (config.refreshToken) {
-    const credentials = await refreshClerkOAuthSessionIfNeeded(config);
-    return credentials?.dreamboardApiToken ?? config.authToken;
-  }
-
-  return config.authToken;
-}
-
-/**
- * Explicit "force a refresh attempt right now" entrypoint used by
- * `dreamboard auth status`. Returns the resulting credentials or throws
- * a classified error.
- */
-export async function refreshResolvedAuthSession(
-  config: ResolvedConfig,
-): Promise<Credentials | null> {
-  if (!usesStoredSession(config)) return null;
-  if (config.refreshToken) {
-    return refreshClerkOAuthSession(config);
-  }
-  return null;
-}
-
-async function refreshClerkOAuthSessionIfNeeded(
-  config: ResolvedConfig,
-): Promise<Credentials | null> {
-  const expiry = config.tokenExpiresAt
-    ? new Date(config.tokenExpiresAt)
-    : getAuthTokenExpiry(config.clerkAccessToken);
-  if (expiry && expiry.getTime() > Date.now() + DEFAULT_REFRESH_WINDOW_MS) {
-    if (!config.clerkAccessToken || !config.refreshToken) return null;
-    return {
-      accessToken: config.clerkAccessToken,
-      refreshToken: config.refreshToken,
-      tokenExpiresAt: config.clerkAccessExpiresAt,
-      dreamboardApiToken: config.dreamboardApiToken,
-      dreamboardApiExpiresAt: config.dreamboardApiExpiresAt,
-      clerkOAuthIssuer: config.clerkOAuthIssuer,
-      clerkOAuthClientId: config.clerkOAuthClientId,
-      clerkOAuthTokenUrl: config.clerkOAuthTokenUrl,
-      environment: config.environment,
-    };
-  }
-  return refreshClerkOAuthSession(config);
-}
-
-async function refreshClerkOAuthSession(
-  config: ResolvedConfig,
-): Promise<Credentials | null> {
-  if (!config.refreshToken) return null;
-  const payload = await refreshClerkOAuthToken({
-    config: {
-      issuer: config.clerkOAuthIssuer,
-      clientId: config.clerkOAuthClientId,
-      tokenUrl: config.clerkOAuthTokenUrl,
-    },
-    refreshToken: config.refreshToken,
-  });
-  const credentials = {
-    accessToken: payload.accessToken,
-    refreshToken: payload.refreshToken,
-    tokenExpiresAt: payload.expiresAt,
-    clerkOAuthIssuer: config.clerkOAuthIssuer,
-    clerkOAuthClientId: config.clerkOAuthClientId,
-    clerkOAuthTokenUrl: payload.tokenUrl,
-    environment: config.environment,
-  };
-  await setCredentials(credentials);
-  return credentials;
-}
-
 export function requireAuth(config: ResolvedConfig): void {
   if (
     !config.authToken &&
@@ -527,10 +440,6 @@ export function isInvalidRefreshTokenMessage(
 export function formatStoredSessionInvalidMessage(reason?: string): string {
   const detail = reason ? ` (${reason})` : "";
   return `Stored Dreamboard session is expired or invalid${detail}. ${LOGIN_HINT}`;
-}
-
-function usesStoredSession(config: ResolvedConfig): boolean {
-  return config.refreshTokenSource === "global";
 }
 
 export async function loadProjectContextCredentials(

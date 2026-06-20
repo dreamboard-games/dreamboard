@@ -21,8 +21,10 @@ export {
 export type { BootstrapGit, CommitReader } from "./ports/bootstrap-git.js";
 export type {
   AccessToken,
-  UserTokenManager,
-} from "./ports/user-token-manager.js";
+  RefreshableUserSession,
+  UserSessionManager,
+  UserSessionStatus,
+} from "./ports/user-session-manager.js";
 export {
   formatGitCredentialResponse,
   parseGitCredentialRequest,

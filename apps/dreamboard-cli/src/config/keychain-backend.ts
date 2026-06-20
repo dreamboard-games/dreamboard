@@ -147,7 +147,7 @@ function clear(entry: EntryInstance): void {
     entry.deletePassword();
   } catch {
     // keyring-rs throws when the entry does not exist. That is fine -
-    // `clearCredentials` contracts as idempotent.
+    // Session clearing is idempotent.
   }
 }
 

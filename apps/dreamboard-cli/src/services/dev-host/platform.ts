@@ -1,4 +1,4 @@
-import { createUserTokenManager } from "../../auth/user-token-manager.js";
+import { createUserSessionManager } from "../../auth/user-session-manager.js";
 import { resolveLocalHarnessAccessToken } from "../../config/local-harness-auth.js";
 import type { ResolvedConfig } from "../../types.js";
 import type { DevHostPlatform, DevHostResolvedBearer } from "./contract.js";
@@ -31,6 +31,6 @@ export async function resolveDevHostBearer(
     };
   }
 
-  const resolved = await createUserTokenManager(config).resolveApiToken();
+  const resolved = await createUserSessionManager(config).resolveApiToken();
   return { kind: "ok", token: resolved?.token ?? null };
 }
