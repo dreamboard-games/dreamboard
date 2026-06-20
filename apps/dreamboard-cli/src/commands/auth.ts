@@ -259,8 +259,6 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
     const backendName = await getActiveCredentialBackendName();
 
     consola.log(`Environment: ${environment}`);
-    consola.log(`Auth token source: ${resolvedConfig.authTokenSource}`);
-    consola.log(`Refresh token source: ${resolvedConfig.refreshTokenSource}`);
     consola.log(
       `Credential backend: ${backendName}${
         backendName === "keychain"
@@ -268,19 +266,6 @@ async function runAuthAction(rawArgs: unknown): Promise<void> {
           : ` (${getGlobalAuthPath()})`
       }`,
     );
-    const preference = globalConfig.credentialBackend;
-    if (preference) {
-      consola.log(`Credential backend preference (config): ${preference}`);
-    } else {
-      consola.log(
-        'Credential backend preference (config): file (default; set `"credentialBackend": "keychain"` in config.json to opt in)',
-      );
-    }
-    if (process.env.DREAMBOARD_CREDENTIAL_BACKEND) {
-      consola.log(
-        `Backend override: DREAMBOARD_CREDENTIAL_BACKEND=${process.env.DREAMBOARD_CREDENTIAL_BACKEND}`,
-      );
-    }
     consola.log(`Config path: ${getGlobalConfigPath()}`);
 
     if (status.kind === "none") {
