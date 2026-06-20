@@ -6,19 +6,21 @@ import {
 import { getStoredSession } from "../../config/credential-store.js";
 import { loadGlobalConfig } from "../../config/global-config.js";
 import { resolveConfig } from "../../config/resolve.js";
-import { createUserTokenManager } from "../../auth/user-token-manager.js";
+import { createUserSessionManager } from "../../auth/user-session-manager.js";
 
 const DEFAULT_ALLOWED_GIT_HOSTS = [
   "git.staging.dreamboard.games",
   "git.dreamboard.games",
 ];
 
-export async function runGitCredentialHelper(input: {
-  stdin?: NodeJS.ReadableStream;
-  stdout?: NodeJS.WritableStream;
-  stderr?: NodeJS.WritableStream;
-  env?: NodeJS.ProcessEnv;
-} = {}): Promise<void> {
+export async function runGitCredentialHelper(
+  input: {
+    stdin?: NodeJS.ReadableStream;
+    stdout?: NodeJS.WritableStream;
+    stderr?: NodeJS.WritableStream;
+    env?: NodeJS.ProcessEnv;
+  } = {},
+): Promise<void> {
   const stdin = input.stdin ?? process.stdin;
   const stdout = input.stdout ?? process.stdout;
   const env = input.env ?? process.env;
@@ -28,7 +30,7 @@ export async function runGitCredentialHelper(input: {
     policy: {
       allowedHosts: resolveAllowedGitHosts(env),
     },
-    tokenManager: createUserTokenManager(
+    tokenManager: createUserSessionManager(
       resolveConfig(
         await loadGlobalConfig(),
         {},

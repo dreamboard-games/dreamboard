@@ -20,12 +20,11 @@ mock.module("./keychain-backend.js", () => ({
 const {
   _resetCredentialStoreForTests,
   _setCredentialDirectoryForTests,
-  clearCredentials,
   getCredentialBackend,
   getCredentialAuditLogPath,
   getCredentialFilePath,
   getStoredSession,
-  setCredentials,
+  withCredentialLock,
 } = await import("./credential-store.ts");
 
 test("published builds default to the file credential backend", async () => {
@@ -76,13 +75,14 @@ test("file credential deletion writes a redacted local audit event", async () =>
   _setCredentialDirectoryForTests(credentialDir);
 
   try {
-    await setCredentials({
-      accessToken: "clerk-access-token",
-      refreshToken: "clerk-refresh-token",
-      environment: "staging",
+    await withCredentialLock(async (ops) => {
+      await ops.writeFull({
+        accessToken: "clerk-access-token",
+        refreshToken: "clerk-refresh-token",
+        environment: "staging",
+      });
+      await ops.clear("auth_clear_command");
     });
-
-    await clearCredentials("auth_clear_command");
 
     await expect(getStoredSession()).resolves.toBeNull();
     const logText = await readFile(getCredentialAuditLogPath(), "utf8");

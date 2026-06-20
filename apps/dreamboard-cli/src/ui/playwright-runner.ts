@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import type { ResolvedConfig } from "../types.js";
-import { createUserTokenManager } from "../auth/user-token-manager.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
 import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 
 /**
@@ -40,7 +40,7 @@ export async function buildBrowserAuthInitScript(
 ): Promise<string | null> {
   const resolvedToken =
     resolveLocalHarnessAccessToken(config) ??
-    (await createUserTokenManager(config).resolveApiToken())?.token;
+    (await createUserSessionManager(config).resolveApiToken())?.token;
   if (!resolvedToken) return null;
 
   return `(function(){localStorage.setItem('dreamboard_auth_token',${JSON.stringify(resolvedToken)});})();`;

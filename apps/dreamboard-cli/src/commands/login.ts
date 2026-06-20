@@ -10,17 +10,14 @@ import {
   loadGlobalConfig,
   saveGlobalConfig,
 } from "../config/global-config.js";
-import {
-  getStoredSession,
-  setCredentials,
-} from "../config/credential-store.js";
+import { getStoredSession } from "../config/credential-store.js";
 import { openBrowser, startOAuthCallbackServer } from "../auth/auth-server.js";
 import {
   buildClerkAuthorizationUrl,
   createPkcePair,
   exchangeClerkOAuthCode,
 } from "../auth/clerk-oauth.js";
-import { exchangeDreamboardUserToken } from "../auth/token-exchange.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
 
 export default defineCommand({
   meta: {
@@ -85,12 +82,6 @@ export default defineCommand({
         redirectUri: server.redirectUri,
         codeVerifier: pkce.verifier,
       });
-      const dreamboardApiToken = await exchangeDreamboardUserToken({
-        apiBaseUrl: config.apiBaseUrl,
-        clerkAccessToken: tokenResponse.accessToken,
-        audience: "dreamboard-api",
-      });
-
       const resolvedEnvironment = config.environment;
 
       // Persist environment choice separately from credentials. The
@@ -101,12 +92,10 @@ export default defineCommand({
         environment: resolvedEnvironment,
       });
 
-      await setCredentials({
-        accessToken: tokenResponse.accessToken,
+      await createUserSessionManager(config).establishRefreshableSession({
+        clerkAccessToken: tokenResponse.accessToken,
         refreshToken: tokenResponse.refreshToken,
-        tokenExpiresAt: tokenResponse.expiresAt,
-        dreamboardApiToken: dreamboardApiToken.accessToken,
-        dreamboardApiExpiresAt: dreamboardApiToken.expiresAt,
+        clerkAccessExpiresAt: tokenResponse.expiresAt,
         clerkOAuthIssuer: config.clerkOAuthIssuer,
         clerkOAuthClientId: config.clerkOAuthClientId,
         clerkOAuthTokenUrl: tokenResponse.tokenUrl,

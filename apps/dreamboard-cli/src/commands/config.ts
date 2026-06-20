@@ -15,10 +15,8 @@ import {
   loadProjectConfig,
   updateProjectState,
 } from "../config/project-config.js";
-import {
-  getStoredSession,
-  setAccessOnlySession,
-} from "../config/credential-store.js";
+import { getStoredSession } from "../config/credential-store.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
 
 export default defineCommand({
   meta: {
@@ -132,7 +130,16 @@ export default defineCommand({
         // `config set --token` is an access-only override. Never write a
         // refresh token through this path - that belongs to
         // `dreamboard auth login`.
-        await setAccessOnlySession(overrideToken);
+        const storedSession = await getStoredSession();
+        const config = resolveConfig(
+          globalConfig,
+          parsedArgs,
+          undefined,
+          storedSession,
+        );
+        await createUserSessionManager(config).establishAccessOnlySession(
+          overrideToken,
+        );
       }
       consola.success("Config updated.");
       return;

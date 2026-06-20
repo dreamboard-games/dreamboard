@@ -14,7 +14,14 @@ const resolveConfig = mock(() => resolvedConfig);
 const loadGlobalConfig = mock(async () => ({}));
 const saveGlobalConfig = mock(async () => undefined);
 const getStoredSession = mock(async () => null);
-const setCredentials = mock(async () => undefined);
+const establishRefreshableSession = mock(async () => ({
+  token: "dreamboard-api-token",
+  expiresAt: "2026-06-16T00:10:00.000Z",
+  audience: "dreamboard-api" as const,
+}));
+const createUserSessionManager = mock(() => ({
+  establishRefreshableSession,
+}));
 const closeServer = mock(() => undefined);
 const startOAuthCallbackServer = mock(async () => ({
   redirectUri: "http://127.0.0.1:6207/oauth/callback",
@@ -31,13 +38,6 @@ const exchangeClerkOAuthCode = mock(async () => ({
   refreshToken: "refresh-token",
   expiresAt: "2026-06-16T00:00:00.000Z",
   tokenUrl: "https://clerk.example.test/oauth/token",
-}));
-const exchangeDreamboardUserToken = mock(async () => ({
-  accessToken: "dreamboard-api-token",
-  tokenType: "Bearer" as const,
-  audience: "dreamboard-api" as const,
-  expiresIn: 600,
-  expiresAt: "2026-06-16T00:10:00.000Z",
 }));
 const parseLoginCommandArgs = mock((args: Record<string, unknown>) => args);
 
@@ -58,7 +58,6 @@ mock.module("../config/global-config.js", () => ({
 
 mock.module("../config/credential-store.js", () => ({
   getStoredSession,
-  setCredentials,
 }));
 
 mock.module("../auth/auth-server.js", () => ({
@@ -94,8 +93,8 @@ mock.module("../auth/clerk-oauth.js", () => ({
   exchangeClerkOAuthCode,
 }));
 
-mock.module("../auth/token-exchange.js", () => ({
-  exchangeDreamboardUserToken,
+mock.module("../auth/user-session-manager.js", () => ({
+  createUserSessionManager,
 }));
 
 mock.module("../flags.js", () => ({
@@ -109,13 +108,13 @@ test("published login uses direct Clerk OAuth and stores refreshable credentials
   loadGlobalConfig.mockClear();
   saveGlobalConfig.mockClear();
   getStoredSession.mockClear();
-  setCredentials.mockClear();
+  createUserSessionManager.mockClear();
+  establishRefreshableSession.mockClear();
   startOAuthCallbackServer.mockClear();
   closeServer.mockClear();
   openBrowser.mockClear();
   createPkcePair.mockClear();
   exchangeClerkOAuthCode.mockClear();
-  exchangeDreamboardUserToken.mockClear();
   parseLoginCommandArgs.mockClear();
 
   await loginCommand.run({
@@ -151,17 +150,11 @@ test("published login uses direct Clerk OAuth and stores refreshable credentials
   expect(saveGlobalConfig).toHaveBeenCalledWith({
     environment: "prod",
   });
-  expect(exchangeDreamboardUserToken).toHaveBeenCalledWith({
-    apiBaseUrl: "https://api.dreamboard.games",
+  expect(createUserSessionManager).toHaveBeenCalledWith(resolvedConfig);
+  expect(establishRefreshableSession).toHaveBeenCalledWith({
     clerkAccessToken: "access-token",
-    audience: "dreamboard-api",
-  });
-  expect(setCredentials).toHaveBeenCalledWith({
-    accessToken: "access-token",
     refreshToken: "refresh-token",
-    tokenExpiresAt: "2026-06-16T00:00:00.000Z",
-    dreamboardApiToken: "dreamboard-api-token",
-    dreamboardApiExpiresAt: "2026-06-16T00:10:00.000Z",
+    clerkAccessExpiresAt: "2026-06-16T00:00:00.000Z",
     clerkOAuthIssuer: "https://clerk.example.test",
     clerkOAuthClientId: "public-client-id",
     clerkOAuthTokenUrl: "https://clerk.example.test/oauth/token",

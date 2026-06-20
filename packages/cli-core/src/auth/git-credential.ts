@@ -1,4 +1,4 @@
-import type { UserTokenManager } from "../ports/user-token-manager.js";
+import type { UserSessionManager } from "../ports/user-session-manager.js";
 
 export type GitCredentialRequest = {
   readonly protocol?: string;
@@ -42,7 +42,7 @@ export function formatGitCredentialResponse(
 export async function resolveGitCredential(input: {
   request: GitCredentialRequest;
   policy: GitCredentialPolicy;
-  tokenManager: Pick<UserTokenManager, "resolveGitToken">;
+  tokenManager: Pick<UserSessionManager, "resolveGitToken">;
 }): Promise<GitCredentialResponse | null> {
   const protocol = input.request.protocol?.toLowerCase();
   const host = input.request.host?.toLowerCase();
@@ -50,7 +50,8 @@ export async function resolveGitCredential(input: {
   const allowedHosts = new Set(
     input.policy.allowedHosts.map((value) => value.toLowerCase()),
   );
-  const pathPattern = input.policy.allowedPathPattern ?? DEFAULT_REPOSITORY_PATH;
+  const pathPattern =
+    input.policy.allowedPathPattern ?? DEFAULT_REPOSITORY_PATH;
 
   if (protocol !== "https" || !host || !allowedHosts.has(host)) {
     return null;

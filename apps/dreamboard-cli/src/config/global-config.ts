@@ -55,8 +55,7 @@ export async function loadGlobalConfig(): Promise<GlobalConfig> {
  *
  * This function cannot write credentials, by construction: the
  * `GlobalConfig` type has no credential fields. Credentials must be
- * persisted through `setCredentials` / `clearCredentials` from
- * `credential-store.ts`.
+ * persisted through the user session manager.
  */
 export async function saveGlobalConfig(config: GlobalConfig): Promise<void> {
   const configDir = path.join(os.homedir(), PROJECT_DIR_NAME);
