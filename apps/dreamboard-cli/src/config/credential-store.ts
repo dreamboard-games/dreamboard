@@ -22,7 +22,7 @@
  *    half-populated refreshable session.
  *
  * 3. Writes go through `atomicWriteFile` + `withFileLock`, so a crash or
- *    interrupt during `dreamboard sync`/`compile` cannot leave `auth.json`
+ *    interrupt during CLI writes cannot leave `auth.json`
  *    truncated, and parallel CLI invocations cannot clobber each other's
  *    rotated refresh tokens.
  *
@@ -542,7 +542,9 @@ export function _resetCredentialStoreForTests(): void {
 }
 
 /** Test-only override of the credential directory. Not exported through the barrel. */
-export function _setCredentialDirectoryForTests(directory: string | null): void {
+export function _setCredentialDirectoryForTests(
+  directory: string | null,
+): void {
   credentialDirectoryOverrideForTests = directory;
   cachedBackend = null;
   migrationCompleted = false;

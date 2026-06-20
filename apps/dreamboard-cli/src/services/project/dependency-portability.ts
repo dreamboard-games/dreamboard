@@ -87,7 +87,7 @@ export async function assertCompilerPortableDependencies(options: {
       [
         "Compiler-bound workspaces must install Dreamboard packages from a registry.",
         `Found unportable Dreamboard dependency specifier(s): ${details}.`,
-        "Run `dreamboard sync` from a workspace that uses registry-pinned @dreamboard-games/* and dreamboard versions before compiling.",
+        "Use a workspace created or cloned with the current Dreamboard CLI so @dreamboard-games/* and dreamboard versions are registry-pinned before building.",
       ].join(" "),
     );
   }
@@ -98,7 +98,7 @@ export async function assertCompilerPortableDependencies(options: {
   );
   if (hasLocalSnapshotPackage && !profile.dreamboardRegistryUrl) {
     throw new Error(
-      "This workspace references local Dreamboard snapshot versions but has no @dreamboard registry configured. Run `dreamboard sync --env local` to refresh .npmrc before compiling.",
+      "This workspace references local Dreamboard snapshot versions but has no @dreamboard registry configured. Recreate or reclone the workspace with the local registry configuration before building.",
     );
   }
 
@@ -266,8 +266,7 @@ function throwLegacyDreamboardPackageError(
 
 function isPortableDreamboardPackage(packageName: string): boolean {
   return (
-    packageName === "dreamboard" ||
-    packageName.startsWith("@dreamboard-games/")
+    packageName === "dreamboard" || packageName.startsWith("@dreamboard-games/")
   );
 }
 

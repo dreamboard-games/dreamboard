@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import consola from "consola";
-import type { CommandDef } from "citty";
 import type { ConfigFlags } from "../flags.js";
 import type { ProjectConfig, ResolvedConfig } from "../types.js";
 import { resolveProjectContext } from "../config/resolve.js";
@@ -43,12 +42,11 @@ Usage:
 
 async function materializePreparedWorkspace(args: string[]) {
   const inputPath = readRequiredOption(args, "--input");
-  const { materializeWorkspaceProject } = await import(
-    "../services/project/materialize-workspace.js"
-  );
-  const input = JSON.parse(
-    await readFile(inputPath, "utf8"),
-  ) as Parameters<typeof materializeWorkspaceProject>[0];
+  const { materializeWorkspaceProject } =
+    await import("../services/project/materialize-workspace.js");
+  const input = JSON.parse(await readFile(inputPath, "utf8")) as Parameters<
+    typeof materializeWorkspaceProject
+  >[0];
   await materializeWorkspaceProject({
     ...input,
     agentManaged: true,
@@ -71,11 +69,6 @@ async function verifyAgentWorkspace(rawMode: string, args: string[]) {
     return;
   }
 
-  if (process.env.DREAMBOARD_AGENT_FINAL_SYNC_VERIFY === "1") {
-    await runFullBackendConnectedVerification(parsedFlags);
-    return;
-  }
-
   if (
     requestedMode === "cloud-local" ||
     requestedMode === "verify" ||
@@ -88,30 +81,6 @@ async function verifyAgentWorkspace(rawMode: string, args: string[]) {
   throw new Error(
     "Agent workspaces now run cloud-local verification directly. Use `fin` only through the generated wrapper.",
   );
-}
-
-async function runFullBackendConnectedVerification(
-  parsedFlags: ConfigFlags,
-): Promise<void> {
-  const [{ default: cmdSync }, { default: cmdCompile }, { default: cmdTest }] =
-    await Promise.all([
-      import("../commands/sync.js"),
-      import("../commands/compile.js"),
-      import("../commands/test.js"),
-    ]);
-  await runCommandDefinition(cmdSync, { ...parsedFlags, force: true });
-  await runCommandDefinition(cmdCompile, parsedFlags);
-  await runCommandDefinition(cmdTest, parsedFlags);
-}
-
-async function runCommandDefinition(
-  command: CommandDef<any>,
-  args: Record<string, unknown>,
-) {
-  if (!command.run) {
-    throw new Error("Verifier command is missing a runnable step.");
-  }
-  await command.run({ args, rawArgs: [], cmd: command } as any);
 }
 
 function parseVerificationMode(value: unknown): VerificationMode {
@@ -212,9 +181,7 @@ async function runCloudLocalVerification(
     generateReducerNativeArtifacts,
     isReducerNativeTestingWorkspace,
     runReducerNativeScenarios,
-  } = await import(
-    "../services/testing/reducer-native-test-harness.js"
-  );
+  } = await import("../services/testing/reducer-native-test-harness.js");
 
   if (await isReducerNativeTestingWorkspace(projectRoot)) {
     const { bases } = await generateReducerNativeArtifacts({
@@ -226,7 +193,6 @@ async function runCloudLocalVerification(
       projectRoot,
       projectConfig,
       resolvedConfig: config,
-      runner: "reducer",
       gameId: projectConfig.gameId,
       compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
     });

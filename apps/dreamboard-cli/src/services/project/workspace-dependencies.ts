@@ -108,6 +108,28 @@ export async function installWorkspaceDependencies(
   return result.required;
 }
 
+export async function installFrozenWorkspaceDependencies(
+  projectRoot: string,
+): Promise<boolean> {
+  const packageJsonPath = path.join(projectRoot, "package.json");
+  if (!(await pathExists(packageJsonPath))) {
+    return false;
+  }
+
+  await assertNoNpmLockfileConflict(projectRoot);
+  await assertPnpmLockfilePresent(projectRoot);
+  await runPackageManagerCommand(projectRoot, {
+    args: [
+      "install",
+      "--ignore-workspace",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--config.shared-workspace-lockfile=false",
+    ],
+  });
+  return true;
+}
+
 export async function reconcileWorkspaceDependencies(
   projectRoot: string,
 ): Promise<WorkspaceDependencyReconciliationResult> {

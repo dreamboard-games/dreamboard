@@ -1,11 +1,8 @@
 import { defineCommand } from "citty";
 import consola from "consola";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
-import { configureClient, resolveProjectContext } from "../config/resolve.js";
-import { parseConfigFlags } from "../flags.js";
-import { uploadInitialProjectionSdk } from "../services/api/index.js";
+import { resolveProjectContext } from "../config/resolve.js";
+import { parseConfigFlags, type ConfigFlags } from "../flags.js";
 import { assertReleaseEnvironmentPortableDependencies } from "../services/project/dependency-portability.js";
 import {
   generateReducerNativeArtifacts,
@@ -13,17 +10,21 @@ import {
   runReducerNativeScenarios,
   type ReducerNativeScenarioSummary,
 } from "../services/testing/reducer-native-test-harness.js";
-import { shouldUseRemoteTestRuntime } from "../services/testing/runtime-mode.js";
-import { resolveLatestCompiledResult } from "../services/workflows/resolve-latest-compiled-result.js";
-import type { ProjectConfig } from "../types.js";
 import {
-  isDreamboardApiError,
   isStaleContractArtifactMessage,
   STALE_CONTRACT_ARTIFACT_CODE,
   STALE_CONTRACT_ARTIFACT_EXIT_CODE,
 } from "../utils/errors.js";
 
-type RequestedTestRunner = "reducer" | "remote" | "browser";
+type TestCommandArgs = ConfigFlags & {
+  scenario?: string;
+  debug?: boolean;
+  "update-snapshots"?: boolean;
+};
+
+export type TestCommandPlan = {
+  updateSnapshots: boolean;
+};
 
 export const REDUCER_NATIVE_TEST_WORKSPACE_ERROR =
   "dreamboard test now requires a reducer-native workspace with app/game.ts, shared/generated/ui-contract.ts, test/bases/*.base.ts, and test/scenarios/*.scenario.ts. Legacy test/base-scenarios.json workspaces are no longer supported.";
@@ -34,66 +35,31 @@ export const NO_REDUCER_NATIVE_BASES_FOUND_ERROR =
 export const NO_REDUCER_NATIVE_SCENARIOS_FOUND_ERROR =
   "No scenarios found under test/scenarios/*.scenario.ts";
 
-export function isPreviewProjectionEndpointUnavailable(
-  error: unknown,
-): boolean {
-  if (!isDreamboardApiError(error) || error.status !== 404) {
-    return false;
-  }
+export function resolveTestCommandPlan(args: TestCommandArgs): TestCommandPlan {
+  const updateSnapshots = Boolean(args["update-snapshots"]);
 
-  const endpoint = error.problem.instance ?? error.problem.context?.endpoint;
-  const message = error.problem.detail ?? error.problem.title;
-  return (
-    endpoint?.includes("/preview/initial-projection") === true &&
-    message?.toLowerCase() === "not found"
-  );
+  return {
+    updateSnapshots,
+  };
 }
 
-async function uploadGeneratedPreviewProjection(options: {
-  projectRoot: string;
-  gameId: string;
-  bases: Array<{ definition: { id: string } }>;
-}): Promise<void> {
-  const previewBase =
-    options.bases.find((base) => base.definition.id === "initial-turn") ??
-    options.bases[0];
-  if (!previewBase) {
-    return;
-  }
-  const projectionPath = path.join(
-    options.projectRoot,
-    "test",
-    "generated",
-    "bases",
-    previewBase.definition.id,
-    "player-1.projection.json",
-  );
-  const projectionJson = await readFile(projectionPath, "utf8");
-  try {
-    await uploadInitialProjectionSdk(options.gameId, projectionJson);
-  } catch (error) {
-    if (isPreviewProjectionEndpointUnavailable(error)) {
-      consola.warn(
-        "Skipping preview projection upload because the selected backend does not expose the preview projection endpoint.",
-      );
-      return;
+export function assertNoRemovedTestFlags(argv: readonly string[]): void {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === undefined) {
+      continue;
     }
-    throw error;
+    if (arg === "--runner" || arg.startsWith("--runner=")) {
+      throw new Error(
+        "dreamboard test no longer supports --runner. The public CLI runs offline reducer tests only.",
+      );
+    }
+    if (arg === "--commit" || arg.startsWith("--commit=")) {
+      throw new Error(
+        "dreamboard test no longer supports --commit. Use dreamboard verify/build/preview/release with --commit for pushed-commit workflows.",
+      );
+    }
   }
-}
-
-export function resolveRequestedRunner(
-  value: unknown,
-): RequestedTestRunner | undefined {
-  if (value == null || value === "") {
-    return undefined;
-  }
-  if (value === "reducer" || value === "remote" || value === "browser") {
-    return value;
-  }
-  throw new Error(
-    `Unsupported test runner '${String(value)}'. Expected one of reducer, remote, browser.`,
-  );
 }
 
 function isStaleContractArtifactResult(
@@ -128,111 +94,89 @@ async function assertReducerNativeTestingWorkspace(
   throw new Error(REDUCER_NATIVE_TEST_WORKSPACE_ERROR);
 }
 
-async function resolveReducerNativeRuntimeIdentity(options: {
-  projectRoot: string;
-  projectConfig: ProjectConfig;
-  useRemoteRuntime: boolean;
-  runner?: RequestedTestRunner;
-}): Promise<{
-  gameId: string;
-  compiledResultId?: string;
-}> {
-  if (
-    options.useRemoteRuntime ||
-    options.runner === "remote" ||
-    options.runner === "browser"
-  ) {
-    const latestCompiledResult = await resolveLatestCompiledResult(
-      options.projectRoot,
-      options.projectConfig,
-    );
-    return {
-      gameId: options.projectConfig.gameId,
-      compiledResultId: latestCompiledResult.id,
-    };
-  }
+type TestCommandDeps = {
+  resolveProjectContext?: typeof resolveProjectContext;
+  assertPortableDependencies?: typeof assertReleaseEnvironmentPortableDependencies;
+  assertTestingWorkspace?: typeof assertReducerNativeTestingWorkspace;
+  runScenarios?: typeof runReducerNativeScenarios;
+  generateArtifacts?: typeof generateReducerNativeArtifacts;
+};
 
-  return {
-    gameId: options.projectConfig.gameId,
-    compiledResultId: options.projectConfig.compile?.latestSuccessful?.resultId,
-  };
+export async function runTestCommand(
+  args: TestCommandArgs,
+  deps: TestCommandDeps = {},
+): Promise<void> {
+  const parsedFlags = parseConfigFlags(args);
+  const plan = resolveTestCommandPlan(args);
+
+  const { projectRoot, projectConfig, config } = await (
+    deps.resolveProjectContext ?? resolveProjectContext
+  )(parsedFlags, {
+    requireAuth: false,
+  });
+  await (
+    deps.assertPortableDependencies ??
+    assertReleaseEnvironmentPortableDependencies
+  )({
+    projectRoot,
+    projectConfig,
+    environment: config.environment,
+  });
+
+  await (deps.assertTestingWorkspace ?? assertReducerNativeTestingWorkspace)(
+    projectRoot,
+  );
+
+  const generated = await (
+    deps.generateArtifacts ?? generateReducerNativeArtifacts
+  )({
+    projectRoot,
+    scenarioPath: args.scenario,
+    compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
+    gameId: projectConfig.gameId,
+    debug: Boolean(args.debug),
+  });
+  if (generated.bases.length === 0) {
+    throw new Error(NO_REDUCER_NATIVE_BASES_FOUND_ERROR);
+  }
+  if (generated.scenarios.length === 0) {
+    throw new Error(NO_REDUCER_NATIVE_SCENARIOS_FOUND_ERROR);
+  }
+  const summary = await (deps.runScenarios ?? runReducerNativeScenarios)({
+    projectRoot,
+    projectConfig,
+    resolvedConfig: config,
+    scenarioPath: args.scenario,
+    compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
+    gameId: projectConfig.gameId,
+    debug: Boolean(args.debug),
+    updateSnapshots: plan.updateSnapshots,
+  });
+
+  printTestSummary(summary);
 }
 
-const generateCommand = defineCommand({
-  meta: {
-    name: "generate",
-    description: "Generate reducer-native base artifacts for typed scenarios",
-  },
-  args: {
-    scenario: {
-      type: "string",
-      description: "Optional scenario file path under test/scenarios",
-    },
-    debug: {
-      type: "boolean",
-      description: "Print full reducer-native validation details",
-      default: false,
-    },
-    "update-snapshots": {
-      type: "boolean",
-      description: "Refresh generated projection and scenario snapshots",
-      default: false,
-    },
-    ...CONFIG_FLAG_ARGS,
-  },
-  async run({ args }) {
-    const parsedFlags = parseConfigFlags(args);
-    const useRemoteRuntime = shouldUseRemoteTestRuntime(parsedFlags.env);
-    const { projectRoot, projectConfig, config } = await resolveProjectContext(
-      parsedFlags,
-      { requireAuth: useRemoteRuntime },
-    );
-    await assertReleaseEnvironmentPortableDependencies({
-      projectRoot,
-      projectConfig,
-      environment: config.environment,
-    });
-
-    await assertReducerNativeTestingWorkspace(projectRoot);
-
-    const runtimeIdentity = await resolveReducerNativeRuntimeIdentity({
-      projectRoot,
-      projectConfig,
-      useRemoteRuntime,
-    });
-    const { bases, scenarios } = await generateReducerNativeArtifacts({
-      projectRoot,
-      scenarioPath: args.scenario,
-      compiledResultId: runtimeIdentity.compiledResultId,
-      gameId: runtimeIdentity.gameId,
-      debug: Boolean(args.debug),
-    });
-
-    if (bases.length === 0) {
-      throw new Error(NO_REDUCER_NATIVE_BASES_FOUND_ERROR);
-    }
-    if (scenarios.length === 0) {
-      throw new Error(NO_REDUCER_NATIVE_SCENARIOS_FOUND_ERROR);
-    }
-
-    if (useRemoteRuntime && (config.authToken || config.refreshToken)) {
-      await configureClient(config);
-      await uploadGeneratedPreviewProjection({
-        projectRoot,
-        gameId: runtimeIdentity.gameId,
-        bases,
-      });
+function printTestSummary(summary: ReducerNativeScenarioSummary): void {
+  for (const result of summary.results) {
+    if (result.success) {
+      consola.success(`PASS ${result.id}`);
+    } else if (
+      result.errorCode === STALE_CONTRACT_ARTIFACT_CODE &&
+      result.error
+    ) {
+      consola.error(result.error);
     } else {
-      consola.info(
-        "Skipping preview projection upload because this test generation is local-only.",
-      );
+      consola.error(`FAIL ${result.id}: ${result.error ?? "Scenario failed"}`);
     }
+  }
 
-    consola.success(
-      `Generated ${bases.length} base state(s) for ${scenarios.length} scenario(s).`,
-    );
-  },
-});
+  consola.info(
+    `Test summary: ${summary.passed} passed, ${summary.failed} failed.`,
+  );
+  if (summary.failed > 0) {
+    process.exitCode = resolveTestRunExitCode(summary);
+  }
+}
 
 const runCommand = defineCommand({
   meta: {
@@ -254,72 +198,11 @@ const runCommand = defineCommand({
       description: "Refresh generated projection and scenario snapshots",
       default: false,
     },
-    runner: {
-      type: "string",
-      valueHint: "reducer|remote|browser",
-      description:
-        "Scenario runner: reducer (in-process, default), remote (live sessions against the configured backend), or browser (local web stack).",
-    },
     ...CONFIG_FLAG_ARGS,
   },
   async run({ args }) {
-    const parsedFlags = parseConfigFlags(args);
-    const useRemoteRuntime = shouldUseRemoteTestRuntime(parsedFlags.env);
-    const runner = resolveRequestedRunner(args.runner) ?? "reducer";
-    const { projectRoot, projectConfig, config } = await resolveProjectContext(
-      parsedFlags,
-      {
-        requireAuth:
-          useRemoteRuntime || runner === "remote" || runner === "browser",
-      },
-    );
-    await assertReleaseEnvironmentPortableDependencies({
-      projectRoot,
-      projectConfig,
-      environment: config.environment,
-    });
-
-    await assertReducerNativeTestingWorkspace(projectRoot);
-
-    const runtimeIdentity = await resolveReducerNativeRuntimeIdentity({
-      projectRoot,
-      projectConfig,
-      useRemoteRuntime,
-      runner,
-    });
-    const summary = await runReducerNativeScenarios({
-      projectRoot,
-      projectConfig,
-      resolvedConfig: config,
-      runner,
-      scenarioPath: args.scenario,
-      compiledResultId: runtimeIdentity.compiledResultId,
-      gameId: runtimeIdentity.gameId,
-      debug: Boolean(args.debug),
-      updateSnapshots: Boolean(args["update-snapshots"]),
-    });
-
-    for (const result of summary.results) {
-      if (result.success) {
-        consola.success(`PASS ${result.id}`);
-      } else if (
-        result.errorCode === STALE_CONTRACT_ARTIFACT_CODE &&
-        result.error
-      ) {
-        consola.error(result.error);
-      } else {
-        consola.error(
-          `FAIL ${result.id}: ${result.error ?? "Scenario failed"}`,
-        );
-      }
-    }
-
-    consola.info(
-      `Test summary: ${summary.passed} passed, ${summary.failed} failed.`,
-    );
-    if (summary.failed > 0) {
-      process.exitCode = resolveTestRunExitCode(summary);
-    }
+    assertNoRemovedTestFlags(process.argv.slice(2));
+    await runTestCommand(args as TestCommandArgs);
   },
 });
 

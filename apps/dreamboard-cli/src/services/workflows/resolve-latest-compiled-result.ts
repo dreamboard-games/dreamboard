@@ -19,7 +19,7 @@ export async function resolveLatestCompiledResult(
   const authoring = getProjectAuthoringState(projectConfig);
   if (getProjectPendingAuthoringSync(projectConfig)) {
     throw new Error(
-      "Previous sync did not finish updating local scaffold files. Run 'dreamboard sync' again first.",
+      "Previous source preparation did not finish updating local scaffold files. Recreate or reclone the project workspace first.",
     );
   }
   if (authoring.revisionDigest) {
@@ -45,12 +45,13 @@ export async function resolveLatestCompiledResult(
 
     if (!resolvedSuccess?.success) {
       throw new Error(
-        "No successful compile exists for the current authored revision. Run 'dreamboard compile' first.",
+        "No successful compile exists for the current authored revision. Build the exact commit with dreamboard build --commit <rev>, or run remote tests with --commit.",
       );
     }
 
-    const resultRevisionDigest = (resolvedSuccess as { revisionDigest?: string })
-      .revisionDigest;
+    const resultRevisionDigest = (
+      resolvedSuccess as { revisionDigest?: string }
+    ).revisionDigest;
     if (
       resultRevisionDigest &&
       resultRevisionDigest !== authoring.revisionDigest
@@ -68,6 +69,6 @@ export async function resolveLatestCompiledResult(
   }
 
   throw new Error(
-    "This workspace does not know its project revision yet. Run 'dreamboard sync' first.",
+    "This workspace does not know its project revision yet. Use an exact pushed commit with --commit.",
   );
 }

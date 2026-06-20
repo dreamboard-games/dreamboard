@@ -13,8 +13,7 @@
  *   writes here removes that entire failure mode at the primitive level.
  *
  * Additionally, `withFileLock` provides a cross-process advisory lock built on
- * `O_CREAT | O_EXCL` so that parallel CLI invocations (e.g. `dreamboard sync`
- * running while `dreamboard compile` is in flight) serialize around mutations
+ * `O_CREAT | O_EXCL` so that parallel CLI invocations serialize around mutations
  * of the same credential state.
  */
 

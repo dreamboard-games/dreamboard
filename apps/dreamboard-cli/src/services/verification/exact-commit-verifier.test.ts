@@ -99,7 +99,6 @@ test("exact commit source policy rejects lfs configuration and pointers", async 
 
 test("exact commit source policy rejects generated and credential-like files", async () => {
   const message = await expectPolicyRejects([
-    blob("shared/generated/ui-contract.ts"),
     blob("test/generated/scenario-manifest.generated.ts"),
     blob(".dreamboard/state.json"),
     blob(".env.local"),
@@ -113,6 +112,19 @@ test("exact commit source policy rejects generated and credential-like files", a
   expect(message).toContain("only .dreamboard/project.json may be tracked");
   expect(message).toContain("credential-like files are not allowed");
   expect(message).toContain("credential-like content is not allowed");
+});
+
+test("exact commit source policy allows deterministic scaffold facade files", async () => {
+  await assertExactCommitSourcePolicy({
+    worktreeRoot: "/repo",
+    entries: [
+      blob("shared/generated/ui-contract.ts"),
+      blob("app/index.ts"),
+      blob("shared/manifest-runtime.ts"),
+      blob("ui/tsconfig.framework.json"),
+    ],
+    readFile: async () => Buffer.from("export {};\n"),
+  });
 });
 
 test("exact commit verifier removes detached worktree when policy rejects the commit", async () => {

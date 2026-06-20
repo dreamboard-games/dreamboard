@@ -78,6 +78,20 @@ test("scaffolds static framework files locally", async () => {
   }
 });
 
+test("ignores local dependency installs in authored Git state", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+
+  try {
+    await scaffoldStaticWorkspace(tempRoot, "new");
+
+    const gitignore = await Bun.file(path.join(tempRoot, ".gitignore")).text();
+    expect(gitignore).toContain("node_modules/");
+    expect(gitignore).toContain("ui/node_modules/");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("migrates legacy scenario testing import to local testing-types", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
 
@@ -117,7 +131,7 @@ test("fails compile preflight when shared static files are missing", async () =>
     await rm(missingFilePath, { force: true });
 
     await expect(assertCliStaticScaffoldComplete(tempRoot)).rejects.toThrow(
-      "dreamboard sync",
+      "dreamboard project create or dreamboard project clone",
     );
     await expect(assertCliStaticScaffoldComplete(tempRoot)).rejects.toThrow(
       "app/tsconfig.json",
@@ -170,7 +184,7 @@ test("fails compile preflight when cli static files are deleted locally", async 
     ).rejects.toThrow("deleted");
     await expect(
       assertCliStaticScaffoldComplete(tempRoot, ["ui/index.tsx"]),
-    ).rejects.toThrow("dreamboard sync");
+    ).rejects.toThrow("dreamboard project create or dreamboard project clone");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

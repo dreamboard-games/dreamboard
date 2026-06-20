@@ -105,8 +105,11 @@ mock.module("../config/credential-store.js", () => ({
 }));
 
 mock.module("../flags.js", () => ({
-  parseProjectRepositoryCommandArgs: (args: Record<string, unknown>) => args,
   parseCommitScopedCommandArgs: (
+    _commandName: string,
+    args: Record<string, unknown>,
+  ) => args,
+  parseProjectRepositoryCommandArgs: (
     _commandName: string,
     args: Record<string, unknown>,
   ) => args,

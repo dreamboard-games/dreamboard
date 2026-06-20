@@ -43,8 +43,8 @@ function parsePositiveIntegerFlag(
 
 export default defineCommand({
   meta: {
-    name: "new",
-    description: "Create a new game and scaffold a local workspace",
+    name: "create",
+    description: "Create a new project and scaffold a local workspace",
   },
   args: {
     slug: { type: "positional", description: "Game slug", required: true },

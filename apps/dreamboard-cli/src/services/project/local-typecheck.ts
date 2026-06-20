@@ -59,7 +59,7 @@ async function ensureTypecheckDependencies(
     return null;
   }
 
-  return `Skipping local typecheck: workspace dependencies are not installed at ${getProjectNodeModules(projectRoot)}. Run \`dreamboard sync\` to reconcile workspace dependencies first.`;
+  return `Skipping local typecheck: workspace dependencies are not installed at ${getProjectNodeModules(projectRoot)}. Run \`pnpm install --frozen-lockfile\` or recreate the workspace with \`dreamboard project create\` / \`dreamboard project clone\` first.`;
 }
 
 async function resolveTypecheckRunner(

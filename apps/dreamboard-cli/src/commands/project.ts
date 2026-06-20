@@ -9,8 +9,8 @@ import {
 import { getStoredSession } from "../config/credential-store.js";
 import { loadGlobalConfig } from "../config/global-config.js";
 import {
-  parseProjectRepositoryCommandArgs,
   parseCommitScopedCommandArgs,
+  parseProjectRepositoryCommandArgs,
   type ProjectRepositoryCommandArgs,
 } from "../flags.js";
 import {
@@ -24,17 +24,17 @@ import type {
   ProjectCommitStatus,
   ProjectRepository,
 } from "@dreamboard-games/api-client";
-import cmdCreateProject from "./new.js";
-import cmdCloneProject from "./clone.js";
+import cmdCreateProject from "./project-create.js";
+import cmdCloneProject from "./project-clone.js";
 import {
   printJsonOrSummary,
   resolveCommitScopedProjectContext,
 } from "./commit-scoped.js";
 
-const DEFAULT_REPOSITORY_WAIT_TIMEOUT_MS = 120_000;
-const DEFAULT_REPOSITORY_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 120_000;
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 1_000;
+const DEFAULT_REPOSITORY_WAIT_TIMEOUT_MS = 120_000;
+const DEFAULT_REPOSITORY_POLL_INTERVAL_MS = 1_000;
 
 function parsePositiveIntegerFlag(
   value: string | undefined,
@@ -49,6 +49,10 @@ function parsePositiveIntegerFlag(
     throw new Error(`${flagName} must be a positive integer.`);
   }
   return parsed;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function configureAuthenticatedClient(
@@ -92,10 +96,6 @@ async function maybePollRepository(options: {
     timeoutMs: options.timeoutMs,
     intervalMs: options.intervalMs,
   });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isPendingStatus(status: ProjectCommitStatus): boolean {
@@ -209,10 +209,11 @@ const repositoryArgs = {
 };
 
 async function runRepositoryCommand(
+  commandName: string,
   args: unknown,
   action: (projectId: string) => Promise<ProjectRepository | null>,
 ): Promise<void> {
-  const parsedArgs = parseProjectRepositoryCommandArgs(args);
+  const parsedArgs = parseProjectRepositoryCommandArgs(commandName, args);
   const waitTimeoutMs = parsePositiveIntegerFlag(
     parsedArgs["wait-timeout-ms"],
     "--wait-timeout-ms",
@@ -238,12 +239,11 @@ async function runRepositoryCommand(
     initialRepository: repository,
   });
 
-  if (parsedArgs.json) {
-    console.log(JSON.stringify(finalRepository, null, 2));
-    return;
-  }
-
-  consola.info(repositorySummary(finalRepository));
+  printJsonOrSummary({
+    json: parsedArgs.json,
+    value: finalRepository,
+    summary: repositorySummary(finalRepository),
+  });
 }
 
 const cmdProjectRepositoryGet = defineCommand({
@@ -253,7 +253,11 @@ const cmdProjectRepositoryGet = defineCommand({
   },
   args: repositoryArgs,
   async run({ args }) {
-    await runRepositoryCommand(args, getProjectRepositorySdk);
+    await runRepositoryCommand(
+      "project repository get",
+      args,
+      getProjectRepositorySdk,
+    );
   },
 });
 
@@ -264,7 +268,11 @@ const cmdProjectRepositoryEnsure = defineCommand({
   },
   args: repositoryArgs,
   async run({ args }) {
-    await runRepositoryCommand(args, ensureProjectRepositorySdk);
+    await runRepositoryCommand(
+      "project repository ensure",
+      args,
+      ensureProjectRepositorySdk,
+    );
   },
 });
 
@@ -275,7 +283,11 @@ const cmdProjectRepositoryRetry = defineCommand({
   },
   args: repositoryArgs,
   async run({ args }) {
-    await runRepositoryCommand(args, retryProjectRepositoryReconciliationSdk);
+    await runRepositoryCommand(
+      "project repository retry",
+      args,
+      retryProjectRepositoryReconciliationSdk,
+    );
   },
 });
 
@@ -368,24 +380,15 @@ const cmdProjectStatus = defineCommand({
   },
 });
 
-function renameCommand(command: any, name: string) {
-  return {
-    ...command,
-    meta: {
-      ...command.meta,
-      name,
-    },
-  };
-}
-
 export default defineCommand({
   meta: {
     name: "project",
     description: "Manage Dreamboard projects",
   },
   subCommands: {
-    create: renameCommand(cmdCreateProject, "create"),
-    clone: renameCommand(cmdCloneProject, "clone"),
+    create: cmdCreateProject,
+    clone: cmdCloneProject,
+    repository: cmdProjectRepository,
     status: cmdProjectStatus,
   },
 });

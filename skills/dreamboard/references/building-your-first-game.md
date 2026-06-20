@@ -34,12 +34,12 @@ By the end of the tutorial you will have:
 ## Prerequisites
 
 - Dreamboard CLI installed: `npm install -g dreamboard`
-- authenticated with `dreamboard login`
+- authenticated with `dreamboard auth login`
 
 ## 1. Create the workspace
 
 ```bash
-dreamboard new race-to-ten --description "A tiny scoring game with one shared die"
+dreamboard project create race-to-ten --description "A tiny scoring game with one shared die"
 cd race-to-ten
 ```
 
@@ -138,15 +138,16 @@ This game needs player-count metadata and one shared die.
 }
 ```
 
-Run:
+Commit and push the authored source with Git, then wait for the server to
+observe and verify the exact commit:
 
 ```bash
-dreamboard sync
-dreamboard compile
+git add .
+git commit -m "Build Race to Ten"
+git push -u origin main
+dreamboard project status --commit HEAD --wait
+dreamboard verify --commit HEAD
 ```
-
-`dreamboard sync` refreshes generated contracts from authored files.
-`dreamboard compile` builds the current authored head.
 
 ## 4. Define the reducer contract
 
@@ -471,23 +472,22 @@ export default defineScenario({
 });
 ```
 
-Generate artifacts and run the test suite:
+Run the test suite:
 
 ```bash
-dreamboard test generate
-dreamboard test run
+dreamboard test
 ```
 
 ## 10. Run the game locally
 
-Use the local runtime to verify the same flow manually:
+Use the local dev host to verify the same flow manually:
 
 ```bash
-dreamboard run
+dreamboard dev
 ```
 
-If you edit `rule.md` or `manifest.json`, run `dreamboard sync` again before
-continuing.
+If you edit `rule.md` or `manifest.json`, commit and push the changes before
+running commit-scoped build, preview, release, or remote test commands.
 
 ## Where to go next
 

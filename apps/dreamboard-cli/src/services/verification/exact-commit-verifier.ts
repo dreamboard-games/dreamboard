@@ -20,7 +20,6 @@ import {
   isReducerNativeTestingWorkspace,
   runReducerNativeScenarios,
 } from "../testing/reducer-native-test-harness.js";
-import { isDynamicGeneratedPath } from "../project/scaffold-ownership.js";
 import type { ProjectConfig } from "../../types.js";
 import type { ReducerNativeScenarioSummary } from "../testing/reducer-native-test-harness.js";
 
@@ -73,11 +72,24 @@ export type ExactCommitVerifierDeps = {
     projectRoot: string;
     projectConfig: ProjectConfig;
     resolvedConfig: ResolvedConfig;
-    runner: "reducer";
     gameId: string;
     compiledResultId?: string;
   }) => Promise<ReducerNativeScenarioSummary>;
 };
+
+export type ExactCommitWorktreeDeps = Pick<
+  ExactCommitVerifierDeps,
+  "git" | "makeTempDir" | "readGitTree" | "readPolicyFile"
+>;
+
+export type ExactCommitWorkspacePreparationDeps = Pick<
+  ExactCommitVerifierDeps,
+  | "loadProjectConfig"
+  | "assertPortableDependencies"
+  | "runInstall"
+  | "loadManifest"
+  | "applyCodegen"
+>;
 
 export type GitTreeEntry = {
   mode: string;
@@ -121,12 +133,134 @@ export async function runExactCommitVerification(
   },
   deps: ExactCommitVerifierDeps = {},
 ): Promise<ExactCommitVerificationResult> {
+  const steps: VerificationStep[] = [];
+
+  return withExactCommitWorktree(
+    {
+      projectRoot: options.projectRoot,
+      commitOid: options.commitOid,
+      onStep: (step) => steps.push(step),
+    },
+    async (worktreeRoot) => {
+      const { projectConfig, manifest } = await prepareExactCommitWorkspace(
+        {
+          worktreeRoot,
+          onStep: (step) => steps.push(step),
+        },
+        deps,
+      );
+
+      await (deps.assertContract ?? assertReducerContractPreflight)(
+        worktreeRoot,
+      );
+      steps.push("contract");
+
+      const typecheck = await (deps.runTypecheck ?? runLocalTypecheck)(
+        worktreeRoot,
+      );
+      if (typecheck.skipped) {
+        throw new Error(
+          "Exact commit verification requires installed workspace dependencies before typecheck.",
+        );
+      }
+      if (!typecheck.success) {
+        throw new Error(
+          ["Exact commit typecheck failed.", typecheck.output?.trim() || null]
+            .filter(Boolean)
+            .join("\n"),
+        );
+      }
+      steps.push("typecheck");
+
+      await (deps.assertReducerBundle ?? assertReducerBundleSmoke)({
+        projectRoot: worktreeRoot,
+        manifest,
+      });
+      steps.push("reducer-bundle");
+
+      if (
+        !(await (deps.isTestingWorkspace ?? isReducerNativeTestingWorkspace)(
+          worktreeRoot,
+        ))
+      ) {
+        throw new Error(
+          "Exact commit verification requires reducer-native bases and scenarios.",
+        );
+      }
+      const runtimeIdentity = {
+        gameId: projectConfig.gameId,
+        compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
+      };
+      const generated = await (
+        deps.generateArtifacts ?? generateReducerNativeArtifacts
+      )({
+        projectRoot: worktreeRoot,
+        gameId: runtimeIdentity.gameId,
+        compiledResultId: runtimeIdentity.compiledResultId,
+      });
+      if (generated.bases.length === 0) {
+        throw new Error("No bases found under test/bases/*.base.ts.");
+      }
+      if (generated.scenarios.length === 0) {
+        throw new Error(
+          "No scenarios found under test/scenarios/*.scenario.ts.",
+        );
+      }
+      const scenarioSummary = await (
+        deps.runScenarios ?? runReducerNativeScenarios
+      )({
+        projectRoot: worktreeRoot,
+        projectConfig,
+        resolvedConfig: options.config,
+        gameId: runtimeIdentity.gameId,
+        compiledResultId: runtimeIdentity.compiledResultId,
+      });
+      steps.push("scenarios");
+      if (scenarioSummary.failed > 0) {
+        const failures = scenarioSummary.results
+          .filter((result) => !result.success)
+          .map((result) => `FAIL ${result.id}: ${result.error ?? "failed"}`);
+        throw new Error(
+          [
+            `Exact commit scenario verification failed: ${scenarioSummary.failed} failed, ${scenarioSummary.passed} passed.`,
+            ...failures,
+          ].join("\n"),
+        );
+      }
+
+      return {
+        projectId: projectConfig.projectId,
+        commitOid: options.commitOid,
+        status: "passed",
+        hook: options.hook,
+        steps,
+        scenarioSummary: {
+          passed: scenarioSummary.passed,
+          failed: scenarioSummary.failed,
+          total: scenarioSummary.results.length,
+        },
+      };
+    },
+    deps,
+  );
+}
+
+export async function withExactCommitWorktree<T>(
+  options: {
+    projectRoot: string;
+    commitOid: string;
+    onStep?: (
+      step: Extract<VerificationStep, "worktree" | "source-policy">,
+    ) => void;
+  },
+  run: (worktreeRoot: string) => Promise<T>,
+  deps: ExactCommitWorktreeDeps = {},
+): Promise<T> {
   const git = deps.git ?? new SystemGit();
   const tempRoot =
     (await deps.makeTempDir?.()) ??
     (await mkdtemp(path.join(os.tmpdir(), "dreamboard-verify-")));
   const worktreeRoot = path.join(tempRoot, "worktree");
-  const steps: VerificationStep[] = [];
   let worktreeCreated = false;
 
   try {
@@ -136,7 +270,7 @@ export async function runExactCommitVerification(
       worktreeRoot,
     );
     worktreeCreated = true;
-    steps.push("worktree");
+    options.onStep?.("worktree");
 
     const treeEntries =
       (await deps.readGitTree?.(options.projectRoot, options.commitOid)) ??
@@ -146,121 +280,54 @@ export async function runExactCommitVerification(
       entries: treeEntries,
       readFile: deps.readPolicyFile,
     });
-    steps.push("source-policy");
+    options.onStep?.("source-policy");
 
-    const projectConfig = await (deps.loadProjectConfig ?? loadProjectConfig)(
-      worktreeRoot,
-    );
-    await (deps.assertPortableDependencies ??
-      assertCompilerPortableDependencies)({
-      projectRoot: worktreeRoot,
-      projectConfig,
-    });
-
-    await (deps.runInstall ?? runFrozenNoScriptsInstall)(worktreeRoot);
-    steps.push("dependencies");
-
-    const manifest = await (deps.loadManifest ?? loadManifest)(worktreeRoot);
-    await (deps.applyCodegen ?? applyWorkspaceCodegen)({
-      projectRoot: worktreeRoot,
-      manifest,
-    });
-    steps.push("codegen");
-
-    await (deps.assertContract ?? assertReducerContractPreflight)(worktreeRoot);
-    steps.push("contract");
-
-    const typecheck = await (deps.runTypecheck ?? runLocalTypecheck)(
-      worktreeRoot,
-    );
-    if (typecheck.skipped) {
-      throw new Error(
-        "Exact commit verification requires installed workspace dependencies before typecheck.",
-      );
-    }
-    if (!typecheck.success) {
-      throw new Error(
-        [
-          "Exact commit typecheck failed.",
-          typecheck.output?.trim() || null,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      );
-    }
-    steps.push("typecheck");
-
-    await (deps.assertReducerBundle ?? assertReducerBundleSmoke)({
-      projectRoot: worktreeRoot,
-      manifest,
-    });
-    steps.push("reducer-bundle");
-
-    if (
-      !(await (deps.isTestingWorkspace ?? isReducerNativeTestingWorkspace)(
-        worktreeRoot,
-      ))
-    ) {
-      throw new Error(
-        "Exact commit verification requires reducer-native bases and scenarios.",
-      );
-    }
-    const runtimeIdentity = {
-      gameId: projectConfig.gameId,
-      compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
-    };
-    const generated = await (deps.generateArtifacts ??
-      generateReducerNativeArtifacts)({
-      projectRoot: worktreeRoot,
-      gameId: runtimeIdentity.gameId,
-      compiledResultId: runtimeIdentity.compiledResultId,
-    });
-    if (generated.bases.length === 0) {
-      throw new Error("No bases found under test/bases/*.base.ts.");
-    }
-    if (generated.scenarios.length === 0) {
-      throw new Error("No scenarios found under test/scenarios/*.scenario.ts.");
-    }
-    const scenarioSummary = await (deps.runScenarios ??
-      runReducerNativeScenarios)({
-      projectRoot: worktreeRoot,
-      projectConfig,
-      resolvedConfig: options.config,
-      runner: "reducer",
-      gameId: runtimeIdentity.gameId,
-      compiledResultId: runtimeIdentity.compiledResultId,
-    });
-    steps.push("scenarios");
-    if (scenarioSummary.failed > 0) {
-      const failures = scenarioSummary.results
-        .filter((result) => !result.success)
-        .map((result) => `FAIL ${result.id}: ${result.error ?? "failed"}`);
-      throw new Error(
-        [
-          `Exact commit scenario verification failed: ${scenarioSummary.failed} failed, ${scenarioSummary.passed} passed.`,
-          ...failures,
-        ].join("\n"),
-      );
-    }
-
-    return {
-      projectId: projectConfig.projectId,
-      commitOid: options.commitOid,
-      status: "passed",
-      hook: options.hook,
-      steps,
-      scenarioSummary: {
-        passed: scenarioSummary.passed,
-        failed: scenarioSummary.failed,
-        total: scenarioSummary.results.length,
-      },
-    };
+    return await run(worktreeRoot);
   } finally {
     if (worktreeCreated) {
-      await git.removeWorktree(options.projectRoot, worktreeRoot).catch(() => {});
+      await git
+        .removeWorktree(options.projectRoot, worktreeRoot)
+        .catch(() => {});
     }
     await rm(tempRoot, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+export async function prepareExactCommitWorkspace(
+  options: {
+    worktreeRoot: string;
+    onStep?: (
+      step: Extract<VerificationStep, "dependencies" | "codegen">,
+    ) => void;
+  },
+  deps: ExactCommitWorkspacePreparationDeps = {},
+): Promise<{
+  projectConfig: ProjectConfig;
+  manifest: GameTopologyManifest;
+}> {
+  const projectConfig = await (deps.loadProjectConfig ?? loadProjectConfig)(
+    options.worktreeRoot,
+  );
+  await (deps.assertPortableDependencies ?? assertCompilerPortableDependencies)(
+    {
+      projectRoot: options.worktreeRoot,
+      projectConfig,
+    },
+  );
+
+  await (deps.runInstall ?? runFrozenNoScriptsInstall)(options.worktreeRoot);
+  options.onStep?.("dependencies");
+
+  const manifest = await (deps.loadManifest ?? loadManifest)(
+    options.worktreeRoot,
+  );
+  await (deps.applyCodegen ?? applyWorkspaceCodegen)({
+    projectRoot: options.worktreeRoot,
+    manifest,
+  });
+  options.onStep?.("codegen");
+
+  return { projectConfig, manifest };
 }
 
 export async function assertExactCommitSourcePolicy(options: {
@@ -300,21 +367,33 @@ export async function assertExactCommitSourcePolicy(options: {
       continue;
     }
     if (isCredentialLikePath(normalizedPath)) {
-      violations.push(`${normalizedPath}: credential-like files are not allowed`);
+      violations.push(
+        `${normalizedPath}: credential-like files are not allowed`,
+      );
       continue;
     }
 
     if (entry.type === "blob") {
-      const content = await readPolicyFile(options.worktreeRoot, normalizedPath);
+      const content = await readPolicyFile(
+        options.worktreeRoot,
+        normalizedPath,
+      );
       const textPrefix = content.subarray(0, 4096).toString("utf8");
-      if (normalizedPath === ".gitattributes" && /filter\s*=\s*lfs/.test(textPrefix)) {
+      if (
+        normalizedPath === ".gitattributes" &&
+        /filter\s*=\s*lfs/.test(textPrefix)
+      ) {
         violations.push(".gitattributes configures Git LFS");
       }
       if (textPrefix.startsWith(LFS_POINTER_PREFIX)) {
-        violations.push(`${normalizedPath}: Git LFS pointer files are not allowed`);
+        violations.push(
+          `${normalizedPath}: Git LFS pointer files are not allowed`,
+        );
       }
       if (hasCredentialLikeContent(textPrefix)) {
-        violations.push(`${normalizedPath}: credential-like content is not allowed`);
+        violations.push(
+          `${normalizedPath}: credential-like content is not allowed`,
+        );
       }
     }
   }
@@ -332,13 +411,11 @@ async function readGitTree(
   root: string,
   commitOid: string,
 ): Promise<GitTreeEntry[]> {
-  const { stdout } = await runCommand("git", [
-    "ls-tree",
-    "-r",
-    "-z",
-    "--full-tree",
-    commitOid,
-  ], root);
+  const { stdout } = await runCommand(
+    "git",
+    ["ls-tree", "-r", "-z", "--full-tree", commitOid],
+    root,
+  );
   return parseGitTree(stdout);
 }
 
@@ -442,10 +519,7 @@ function normalizeTreePath(filePath: string): string | null {
 }
 
 function isForbiddenGeneratedPath(filePath: string): boolean {
-  return (
-    isDynamicGeneratedPath(filePath) ||
-    GENERATED_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))
-  );
+  return GENERATED_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix));
 }
 
 function isForbiddenDreamboardStatePath(filePath: string): boolean {

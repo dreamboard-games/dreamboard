@@ -30,7 +30,6 @@ import {
 import type {
   BaseDefinition,
   ScenarioDefinition,
-  TestRunner,
 } from "./generated/testing-contract";
 
 export * from "./generated/testing-contract";
@@ -53,11 +52,10 @@ export function defineBase<const Definition extends BaseDefinition>(
  * \`phase\` / \`stage\` to the manifest-derived literal types.
  */
 export function defineScenario<
-  const Runners extends readonly TestRunner[] = readonly ["reducer"],
   const Phase extends PhaseName | undefined = undefined,
 >(
-  definition: ScenarioDefinition<Runners, Phase>,
-): ScenarioDefinition<Runners, Phase> {
+  definition: ScenarioDefinition<Phase>,
+): ScenarioDefinition<Phase> {
   return definition;
 }
 
@@ -114,10 +112,7 @@ import {
   type PhaseName,
   type StageName as WorkspaceStageName,
 } from "../../shared/generated/ui-contract";
-import type {
-  ExpectFn as SharedExpectFn,
-  TestRunner as SharedTestRunner,
-} from "@dreamboard-games/sdk/testing";
+import type { ExpectFn as SharedExpectFn } from "@dreamboard-games/sdk/testing";
 import type { InteractionDescriptor } from "@dreamboard-games/sdk/runtime";
 import { BASE_STATES } from "./base-states.generated";
 
@@ -150,14 +145,12 @@ export type InteractionExplanation = {
     eligibleCount: number | "lazy";
   }>;
 };
-export type TestRunner = SharedTestRunner;
 export type ExpectFn = SharedExpectFn;
 export type KnownRejectionCode = ${renderLiteralUnion(rejectionCodes)};
 export type RejectionCode = [KnownRejectionCode] extends [never]
   ? string
   : KnownRejectionCode;
 
-type DefaultRunners = readonly ["reducer"];
 type PhaseTaggedView<Phase extends PhaseName> = Extract<
   GameView,
   { phase: Phase } | { currentPhase: Phase } | { state: Phase }
@@ -179,41 +172,10 @@ type InteractionParamsForKey<Key extends InteractionKey> =
 type InteractionParamsOfId<Id extends InteractionId> =
   InteractionParamsForKey<InteractionKeyForId<Id>>;
 
-export interface BrowserRunnerSnapshot {
-  sessionId: string | null;
-  shortCode: string | null;
-  version: number;
-  currentPhase: string | null;
-  controllingPlayerId: string;
-  controllablePlayerIds: string[];
-  view: unknown;
-  availableInteractions?: string[];
-}
-
-export interface BrowserRunnerBridge {
-  snapshot(): Promise<BrowserRunnerSnapshot>;
-  submitInteraction(
-    playerId: PlayerId,
-    interactionId: string,
-    params: unknown,
-  ): Promise<void>;
-}
-
-export interface BrowserRunnerDriver {
-  onReady?(bridge: BrowserRunnerBridge): Promise<void> | void;
-  interaction?(
-    bridge: BrowserRunnerBridge,
-    input: { playerId: PlayerId; interactionId: string; params: unknown },
-  ): Promise<boolean | void> | boolean | void;
-}
-
 export interface ScenarioGameApi {
   start(): Promise<void>;
   /**
    * Patch the reducer snapshot for deterministic setup-heavy scenarios.
-   * This is limited to reducer snapshot materialization and is rejected by
-   * live replay/browser runners so authored gameplay verification still
-   * submits real interactions.
    */
   patchState(mutator: (state: Record<string, unknown>) => void): Promise<void>;
   /**
@@ -265,7 +227,6 @@ export type ScenarioContext<
 };
 
 export type ScenarioThenContext<
-  _Runners extends readonly TestRunner[] = DefaultRunners,
   Phase extends PhaseName | undefined = undefined,
 > = ScenarioContext<Phase>;
 
@@ -279,17 +240,15 @@ export interface BaseDefinition {
 }
 
 export interface ScenarioDefinition<
-  Runners extends readonly TestRunner[] = DefaultRunners,
   Phase extends PhaseName | undefined = undefined,
 > {
   id: string;
   description?: string;
   from: BaseId | string;
-  runners?: Runners;
   phase?: Phase;
   stage?: Phase extends PhaseName ? WorkspaceStageName<Phase> : never;
   when: (ctx: ScenarioContext<Phase>) => void | Promise<void>;
-  then: (ctx: ScenarioThenContext<Runners, Phase>) => void | Promise<void>;
+  then: (ctx: ScenarioThenContext<Phase>) => void | Promise<void>;
 }
 
 export type {

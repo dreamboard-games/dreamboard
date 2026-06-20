@@ -34,26 +34,20 @@ be edited manually.
 
 ## Command flow
 
-Generate reducer-native test artifacts:
-
-```bash
-dreamboard test generate
-```
-
 Run all scenarios:
 
 ```bash
-dreamboard test run
+dreamboard test
 ```
 
 Run one scenario:
 
 ```bash
-dreamboard test run --scenario test/scenarios/win-the-game.scenario.ts
+dreamboard test --scenario test/scenarios/win-the-game.scenario.ts
 ```
 
-Re-run `dreamboard test generate` after changes that affect the runtime shape of
-the game, including:
+`dreamboard test` regenerates reducer-native artifacts automatically when
+changes affect the runtime shape of the game, including:
 
 - `manifest.json`
 - reducer code under `app/`
@@ -111,7 +105,6 @@ Use `defineScenario(...)` from `test/testing-types.ts`.
 | `id` | Yes | Scenario identifier |
 | `description` | No | Short human-readable summary |
 | `from` | Yes | Base ID from `test/bases/*.base.ts` |
-| `runners` | No | Defaults to reducer runner |
 | `when` | Yes | Async action flow |
 | `then` | Yes | Assertions over state, view, and history |
 
@@ -232,7 +225,7 @@ then: ({ phase, history, expect, publicState }) => {
 
 If the generated test artifacts no longer match the compiled game, refresh them:
 
-- `dreamboard test generate`
+- `dreamboard test`
 
 Common symptoms:
 
@@ -244,6 +237,6 @@ Common symptoms:
 
 This page documents the scaffolded reducer-native test workspace.
 
-If you also use `dreamboard run` for manual debugging or operational inspection,
+If you also use `dreamboard dev` for manual debugging or operational inspection,
 treat that as a separate workflow. It is useful for ad hoc runtime exploration,
 but it is not the primary authored test surface for a new Dreamboard project.

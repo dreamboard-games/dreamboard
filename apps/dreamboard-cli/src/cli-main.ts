@@ -1,10 +1,10 @@
+import { readFileSync } from "node:fs";
 import { defineCommand, runMain, type CommandDef } from "citty";
 import consola from "consola";
 import cmdAuth from "./commands/auth.js";
 import cmdBuild from "./commands/build.js";
 import cmdDev from "./commands/dev.js";
 import cmdDoctor from "./commands/doctor.js";
-import cmdFeedback from "./commands/feedback.js";
 import cmdPreview from "./commands/preview.js";
 import cmdProject from "./commands/project.js";
 import cmdRelease from "./commands/release.js";
@@ -27,6 +27,18 @@ type FatalErrorHandler = (error: unknown) => never;
 
 let machineOutputContext: MachineOutputContext | null = null;
 
+function readCliVersion(): string {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { version?: unknown };
+
+  if (typeof packageJson.version !== "string") {
+    throw new Error("Unable to read Dreamboard CLI version from package.json.");
+  }
+
+  return packageJson.version;
+}
+
 function handleFatalError(error: unknown): never {
   if (machineOutputContext) {
     emitMachineFailureAndExit(
@@ -46,6 +58,8 @@ process.on("unhandledRejection", handleFatalError);
 
 consola.options.formatOptions.date = false;
 
+const cliVersion = readCliVersion();
+
 export const publicSubCommands = {
   auth: cmdAuth,
   project: cmdProject,
@@ -56,7 +70,6 @@ export const publicSubCommands = {
   preview: cmdPreview,
   release: cmdRelease,
   doctor: cmdDoctor,
-  feedback: cmdFeedback,
 };
 
 export type DreamboardSubCommand = CommandDef<any>;
@@ -124,7 +137,7 @@ export function runDreamboardCli(
   const main = defineCommand({
     meta: {
       name: "dreamboard",
-      version: "0.1.29",
+      version: cliVersion,
       description: "Dreamboard CLI — game development platform",
     },
     subCommands,

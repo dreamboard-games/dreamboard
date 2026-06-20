@@ -123,6 +123,24 @@ test("resolves Git token in memory without storing it", async () => {
   expect(JSON.stringify(writes)).not.toContain("dreamboard-git-token");
 });
 
+test("exchanges injected agent token before returning Git credentials", async () => {
+  const token = await createUserTokenManager({
+    ...baseConfig(),
+    authToken: "agent-api-token",
+    refreshToken: undefined,
+    clerkAccessToken: undefined,
+    authTokenSource: "agent-env",
+    refreshTokenSource: "none",
+  }).resolveGitToken();
+
+  expect(token.token).toBe("dreamboard-git-token");
+  expect(exchangeDreamboardUserToken).toHaveBeenCalledWith({
+    apiBaseUrl: "https://api.dreamboard.test",
+    clerkAccessToken: "agent-api-token",
+    audience: "dreamboard-git",
+  });
+});
+
 function baseConfig() {
   return {
     environment: "prod" as const,

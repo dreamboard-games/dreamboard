@@ -17,12 +17,12 @@ const ALLOWED_PUBLIC_COMMAND_IDS = [
   "release.publish",
   "release.current",
   "doctor",
-  "feedback.submit",
 ] as const;
 
-const HIDDEN_COMMAND_IDS = new Set(["auth.git-credential"]);
+const ALLOWED_HIDDEN_COMMAND_IDS = ["auth.git-credential"] as const;
+const HIDDEN_COMMAND_IDS = new Set<string>(ALLOWED_HIDDEN_COMMAND_IDS);
 
-function collectPublicCommandIds(
+function collectLeafCommandIds(
   commands: Record<string, CommandDef<any>>,
   prefix: readonly string[] = [],
 ): string[] {
@@ -35,20 +35,26 @@ function collectPublicCommandIds(
       | Record<string, CommandDef<any>>
       | undefined;
     if (subCommands && Object.keys(subCommands).length > 0) {
-      ids.push(...collectPublicCommandIds(subCommands, path));
+      ids.push(...collectLeafCommandIds(subCommands, path));
       continue;
     }
-    const id = path.join(".");
-    if (!HIDDEN_COMMAND_IDS.has(id)) {
-      ids.push(id);
-    }
+    ids.push(path.join("."));
   }
   return ids;
 }
 
 describe("public command tree", () => {
-  test("matches the Phase 8 allowlist exactly", () => {
-    expect(collectPublicCommandIds(publicSubCommands)).toEqual(
+  test("matches the Phase 8 public allowlist with only declared hidden protocol commands", () => {
+    const leafCommandIds = collectLeafCommandIds(publicSubCommands);
+    const hiddenCommandIds = leafCommandIds.filter((id) =>
+      HIDDEN_COMMAND_IDS.has(id),
+    );
+    const publicCommandIds = leafCommandIds.filter(
+      (id) => !HIDDEN_COMMAND_IDS.has(id),
+    );
+
+    expect(hiddenCommandIds).toEqual([...ALLOWED_HIDDEN_COMMAND_IDS].sort());
+    expect(publicCommandIds).toEqual(
       [...ALLOWED_PUBLIC_COMMAND_IDS].sort(),
     );
   });

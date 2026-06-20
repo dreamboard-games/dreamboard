@@ -265,8 +265,8 @@ function isGameNotFoundProblem(problem: ApiProblem): boolean {
 function getProblemResolution(problem: ApiProblem): string | undefined {
   if (isGameNotFoundProblem(problem)) {
     return [
-      "Run `dreamboard sync --force` to recreate the remote game state from your current local files if this is a local workspace.",
-      "If you meant to use an existing remote game, check that your selected `--env` points at the backend that has that game.",
+      "Verify the project binding with `dreamboard project status --commit <rev>` after pushing the exact commit.",
+      "If you meant to use an existing remote project, check that your selected account and environment point at the backend that has that project.",
     ].join(" ");
   }
 
@@ -286,14 +286,14 @@ function getProblemResolution(problem: ApiProblem): string | undefined {
     case CLI_PROBLEM_TYPES.GAME_SLUG_CONFLICT:
       return "Choose a different game slug, or use the existing workspace for that slug.";
     case CLI_PROBLEM_TYPES.SOURCE_REVISION_NOT_FOUND:
-      return "Run `dreamboard sync --force` to recreate the remote source revision from your current local files.";
+      return "Push the exact Git commit, then run `dreamboard project status --commit <rev> --wait` before retrying.";
     case CLI_PROBLEM_TYPES.SOURCE_REVISION_DRIFT:
     case CLI_PROBLEM_TYPES.AUTHORING_STATE_DRIFT:
     case CLI_PROBLEM_TYPES.STATE_CONFLICT:
-      return "Run `dreamboard pull` to reconcile remote changes before retrying. If this local workspace is the source of truth, rerun the command with `--force` when supported.";
+      return "Resolve the Git/source conflict in your worktree, push the intended exact commit, and retry the command against that commit.";
     case CLI_PROBLEM_TYPES.SOURCE_REVISION_BASE_MISSING:
     case CLI_PROBLEM_TYPES.AUTHORING_STATE_BASE_MISSING:
-      return "Run `dreamboard pull --force` in a clean workspace to recover the remote authored state. If the remote has no authored state, run `dreamboard sync --force` from the local source-of-truth workspace.";
+      return "Clone the project repository into a clean workspace or push the intended exact commit before retrying.";
     case CLI_PROBLEM_TYPES.INTERNAL_ERROR:
       return "Retry the command. If it still fails, include the request id when asking for help.";
     default:

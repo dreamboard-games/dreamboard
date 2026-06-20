@@ -56,8 +56,18 @@ export function createUserTokenManager(
     },
 
     async resolveGitToken() {
-      const localOrInjected = resolveNonStoredToken(config, "dreamboard-git");
-      if (localOrInjected) return localOrInjected;
+      if (!usesStoredSession(config) && config.authToken) {
+        const exchanged = await exchangeDreamboardUserToken({
+          apiBaseUrl: config.apiBaseUrl,
+          clerkAccessToken: config.authToken,
+          audience: "dreamboard-git",
+        });
+        return {
+          token: exchanged.accessToken,
+          expiresAt: exchanged.expiresAt,
+          audience: "dreamboard-git",
+        };
+      }
 
       if (!usesStoredSession(config)) {
         throw new Error(

@@ -18,10 +18,10 @@ describe("git credential helper core", () => {
     });
     expect(
       formatGitCredentialResponse({
-        username: "x-dreamboard-token",
+        username: "dreamboard",
         password: "git.jwt",
       }),
-    ).toBe("username=x-dreamboard-token\npassword=git.jwt\n\n");
+    ).toBe("username=dreamboard\npassword=git.jwt\n\n");
   });
 
   test("mints a token only for allowed HTTPS Dreamboard repository paths", async () => {
@@ -44,7 +44,7 @@ describe("git credential helper core", () => {
         tokenManager,
       }),
     ).resolves.toEqual({
-      username: "x-dreamboard-token",
+      username: "dreamboard",
       password: "git.jwt",
     });
 
@@ -73,6 +73,20 @@ describe("git credential helper core", () => {
     await expect(
       resolveGitCredential({
         request: {
+          protocol: "http",
+          host: "127.0.0.1:59478",
+          path: "repos/019ede02-6ad3-7365-a71a-d9ee16bc639b.git",
+        },
+        policy: { allowedHosts: ["127.0.0.1:59478"] },
+        tokenManager,
+      }),
+    ).resolves.toEqual({
+      username: "dreamboard",
+      password: "git.jwt",
+    });
+    await expect(
+      resolveGitCredential({
+        request: {
           protocol: "https",
           host: "forgejo.example.com",
           path: "repos/019ede02-6ad3-7365-a71a-d9ee16bc639b.git",
@@ -81,6 +95,6 @@ describe("git credential helper core", () => {
         tokenManager,
       }),
     ).resolves.toBeNull();
-    expect(mintCount).toBe(1);
+    expect(mintCount).toBe(2);
   });
 });

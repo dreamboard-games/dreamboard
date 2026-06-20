@@ -51,13 +51,16 @@ type RootPackageJsonShape = {
   [key: string]: unknown;
 };
 
-const DREAMBOARD_SYNC_COMMAND = "dreamboard sync";
+const DREAMBOARD_SCAFFOLD_REFRESH_COMMAND =
+  "dreamboard project create or dreamboard project clone";
 const DREAMBOARD_GITIGNORE_BLOCK = [
   "# Dreamboard local state",
   ".dreamboard/state.json",
   ".dreamboard/snapshot.json",
   ".dreamboard/dev/",
   ".dreamboard/generated/",
+  "node_modules/",
+  "ui/node_modules/",
   "",
 ].join("\n");
 const TESTING_TYPES_STUB =
@@ -233,7 +236,7 @@ export async function assertCliStaticScaffoldComplete(
   }
 
   throw new Error(
-    `CLI static scaffold is incomplete (${problems.join("; ")}). Run \`${DREAMBOARD_SYNC_COMMAND}\` to refresh the scaffold before compiling.`,
+    `CLI static scaffold is incomplete (${problems.join("; ")}). Refresh the project scaffold with ${DREAMBOARD_SCAFFOLD_REFRESH_COMMAND} before building or testing.`,
   );
 }
 
@@ -319,7 +322,7 @@ async function writeTestReadme(projectRoot: string): Promise<void> {
   await writeWorkspaceTextFile(
     projectRoot,
     "test/README.md",
-    "# Dreamboard Test Workspace\n\nTypeScript bases live in `test/bases/*.base.ts` and scenarios live in `test/scenarios/*.scenario.ts`.\n\n1. Define reusable seeded bases with `defineBase({ id, seed, players, setupProfileId?, setup })`.\n2. Define scenarios with `defineScenario({ id, from, when, then })`.\n3. Scenario assertions can read `players()`, `state()`, `view(playerId)`, and `interactions(playerId)`.\n4. Generate deterministic base snapshots: `dreamboard test generate`.\n5. Run tests: `dreamboard test run`.\n\nImport test helpers from `../testing-types`.\n\nGenerated artifacts are written to `test/generated/*` and should not be edited manually.\n",
+    "# Dreamboard Test Workspace\n\nTypeScript bases live in `test/bases/*.base.ts` and scenarios live in `test/scenarios/*.scenario.ts`.\n\n1. Define reusable seeded bases with `defineBase({ id, seed, players, setupProfileId?, setup })`.\n2. Define scenarios with `defineScenario({ id, from, when, then })`.\n3. Scenario assertions can read `players()`, `state()`, `view(playerId)`, and `interactions(playerId)`.\n4. Run deterministic scenario tests: `dreamboard test`.\n5. Run a single scenario when needed: `dreamboard test --scenario <scenario-id>`.\n\nImport test helpers from `../testing-types`.\n\nGenerated artifacts are written to `test/generated/*` and should not be edited manually.\n",
   );
 }
 
@@ -423,7 +426,7 @@ async function writeGeneratedTestingStubs(
   await writeGeneratedTestingStubFile(
     projectRoot,
     "test/generated/testing-contract.ts",
-    `${header}export type BaseId = string;\nexport type GameView = unknown;\nexport type InteractionId = string;\nexport type InteractionParamsOf<_Id extends string> = Record<string, unknown>;\nexport type PhaseName = string;\nexport type PlayerId = string;\nexport type RejectionCode = string;\nexport type StateName = string;\nexport type TestRunner = "reducer" | "remote" | "browser";\nexport type ViewByPhase = Record<string, GameView>;\nexport type WorkspaceStageName<_Phase extends string = string> = string;\nexport type Expectation = { [matcher: string]: (...args: unknown[]) => unknown; not: Expectation };\nexport type ExpectFn = (actual: unknown) => Expectation;\nexport type InteractionExplanation = { interactionId: string; phase: string; step: string | null; availability: "available" | "notYourTurn" | "wrongPhase" | "wrongStep" | "blocked"; rules: readonly { ruleId: string; outcome: "passed" | "failed" | "notEvaluated"; errorCode?: string; message?: string; }[]; actor: { required: readonly string[]; playerIsActor: boolean }; inputs: readonly { key: string; kind: string; eligibleCount: number | "lazy"; }[]; };\nexport interface InteractionDescriptorFor<Id extends string = string> { interactionId: Id; [key: string]: unknown; }\nexport interface ScenarioGameApi { start(): Promise<void>; submit<Id extends InteractionId>(playerId: PlayerId, interactionId: Id, params?: InteractionParamsOf<Id>): Promise<void>; }\nexport interface BaseContext { game: ScenarioGameApi; players(): readonly PlayerId[]; seat(index: number): PlayerId; }\nexport interface SharedScenarioContext { game: ScenarioGameApi; players(): readonly PlayerId[]; seat(index: number): PlayerId; state(): StateName; view(playerId: PlayerId): GameView; interactions(playerId: PlayerId): readonly InteractionDescriptorFor[]; explain(playerId: PlayerId, interactionId: InteractionId): InteractionExplanation; expect: ExpectFn; }\nexport type ScenarioContext<Phase extends PhaseName | undefined = undefined> = Omit<SharedScenarioContext, "state" | "view"> & { state(): Phase extends PhaseName ? Phase : StateName; view(playerId: PlayerId): Phase extends PhaseName ? ViewByPhase[Phase] : GameView; };\nexport type ScenarioThenContext<_Runners extends readonly TestRunner[] = readonly ["reducer"], Phase extends PhaseName | undefined = undefined> = ScenarioContext<Phase>;\nexport interface BaseDefinition { id: string; seed?: number; players?: number; setupProfileId?: string; extends?: BaseId | string; setup: (ctx: BaseContext) => void | Promise<void>; }\nexport interface ScenarioDefinition<Runners extends readonly TestRunner[] = readonly ["reducer"], Phase extends PhaseName | undefined = undefined> { id: string; description?: string; from: BaseId | string; runners?: Runners; phase?: Phase; stage?: Phase extends PhaseName ? WorkspaceStageName<Phase> : never; when: (ctx: ScenarioContext<Phase>) => void | Promise<void>; then: (ctx: ScenarioThenContext<Runners, Phase>) => void | Promise<void>; }\n`,
+    `${header}export type BaseId = string;\nexport type GameView = unknown;\nexport type InteractionId = string;\nexport type InteractionParamsOf<_Id extends string> = Record<string, unknown>;\nexport type PhaseName = string;\nexport type PlayerId = string;\nexport type RejectionCode = string;\nexport type StateName = string;\nexport type ViewByPhase = Record<string, GameView>;\nexport type WorkspaceStageName<_Phase extends string = string> = string;\nexport type Expectation = { [matcher: string]: (...args: unknown[]) => unknown; not: Expectation };\nexport type ExpectFn = (actual: unknown) => Expectation;\nexport type InteractionExplanation = { interactionId: string; phase: string; step: string | null; availability: "available" | "notYourTurn" | "wrongPhase" | "wrongStep" | "blocked"; rules: readonly { ruleId: string; outcome: "passed" | "failed" | "notEvaluated"; errorCode?: string; message?: string; }[]; actor: { required: readonly string[]; playerIsActor: boolean }; inputs: readonly { key: string; kind: string; eligibleCount: number | "lazy"; }[]; };\nexport interface InteractionDescriptorFor<Id extends string = string> { interactionId: Id; [key: string]: unknown; }\nexport interface ScenarioGameApi { start(): Promise<void>; submit<Id extends InteractionId>(playerId: PlayerId, interactionId: Id, params?: InteractionParamsOf<Id>): Promise<void>; }\nexport interface BaseContext { game: ScenarioGameApi; players(): readonly PlayerId[]; seat(index: number): PlayerId; }\nexport interface SharedScenarioContext { game: ScenarioGameApi; players(): readonly PlayerId[]; seat(index: number): PlayerId; state(): StateName; view(playerId: PlayerId): GameView; interactions(playerId: PlayerId): readonly InteractionDescriptorFor[]; explain(playerId: PlayerId, interactionId: InteractionId): InteractionExplanation; expect: ExpectFn; }\nexport type ScenarioContext<Phase extends PhaseName | undefined = undefined> = Omit<SharedScenarioContext, "state" | "view"> & { state(): Phase extends PhaseName ? Phase : StateName; view(playerId: PlayerId): Phase extends PhaseName ? ViewByPhase[Phase] : GameView; };\nexport type ScenarioThenContext<Phase extends PhaseName | undefined = undefined> = ScenarioContext<Phase>;\nexport interface BaseDefinition { id: string; seed?: number; players?: number; setupProfileId?: string; extends?: BaseId | string; setup: (ctx: BaseContext) => void | Promise<void>; }\nexport interface ScenarioDefinition<Phase extends PhaseName | undefined = undefined> { id: string; description?: string; from: BaseId | string; phase?: Phase; stage?: Phase extends PhaseName ? WorkspaceStageName<Phase> : never; when: (ctx: ScenarioContext<Phase>) => void | Promise<void>; then: (ctx: ScenarioThenContext<Phase>) => void | Promise<void>; }\n`,
     mode,
   );
   await writeGeneratedTestingStubFile(

@@ -27,8 +27,16 @@ export class SystemGit implements BootstrapGit, CommitReader {
     });
   }
 
-  async clone(url: string, destination: string): Promise<void> {
-    await this.runGit(["clone", url, destination]);
+  async clone(
+    url: string,
+    destination: string,
+    options?: { config?: ReadonlyArray<readonly [string, string]> },
+  ): Promise<void> {
+    const configArgs = (options?.config ?? []).flatMap(([key, value]) => [
+      "-c",
+      `${key}=${value}`,
+    ]);
+    await this.runGit([...configArgs, "clone", url, destination]);
   }
 
   async setRemote(root: string, name: "origin", url: string): Promise<void> {
@@ -68,6 +76,14 @@ export class SystemGit implements BootstrapGit, CommitReader {
     } catch {
       return null;
     }
+  }
+
+  async statusPorcelain(root: string): Promise<string> {
+    const result = await this.runGit(
+      ["status", "--porcelain", "--untracked-files=no"],
+      { cwd: root },
+    );
+    return result.stdout.trim();
   }
 
   async createDetachedWorktree(

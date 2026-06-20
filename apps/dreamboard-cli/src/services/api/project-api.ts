@@ -1,5 +1,4 @@
 import {
-  createGameRevision,
   createProjectSession,
   createProjectSessionFromReducerSnapshot,
   ensureProject,
@@ -7,19 +6,13 @@ import {
   getApiVersion,
   getCurrentAuthUser,
   getProjectBySlug,
-  getProjectRevisionSources,
-  getProjectSources,
   type CreateSessionFromReducerSnapshotRequest,
   type CreateSessionRequest,
   type CreateSessionResponse,
-  type CreateGameRevisionRequest,
   type EnsureDevCompileRequest,
   type EnsureDevCompileResponse,
-  type GameRevision,
-  type GameSourcesResponse,
   type HostSessionSnapshot,
   type Project,
-  type ProjectRevisionSourcesResponse,
 } from "@dreamboard-games/api-client";
 import { toDreamboardApiError } from "../../utils/errors.js";
 import { titleFromSlug } from "../../utils/strings.js";
@@ -94,69 +87,6 @@ export async function getProjectBySlugSdk(slug: string): Promise<Project> {
       error,
       response,
       `Project '${slug}' not found`,
-    );
-  }
-
-  return data;
-}
-
-export async function createGameRevisionSdk(options: {
-  projectId: string;
-  request: CreateGameRevisionRequest;
-}): Promise<GameRevision> {
-  const { data, error, response } = await createGameRevision({
-    path: { projectId: options.projectId },
-    body: options.request,
-  });
-
-  if (error || !data) {
-    throw toDreamboardApiError(
-      error,
-      response,
-      "Failed to create game revision",
-    );
-  }
-
-  return data;
-}
-
-export async function getProjectSourcesSdk(
-  projectId: string,
-): Promise<GameSourcesResponse | null> {
-  const { data, error, response } = await getProjectSources({
-    path: { projectId },
-  });
-
-  if (response?.status === 404) {
-    return null;
-  }
-  if (error || !data) {
-    throw toDreamboardApiError(
-      error,
-      response,
-      "Failed to fetch project sources",
-    );
-  }
-
-  return data;
-}
-
-export async function getProjectRevisionSourcesSdk(options: {
-  projectId: string;
-  revisionDigest: string;
-}): Promise<ProjectRevisionSourcesResponse> {
-  const { data, error, response } = await getProjectRevisionSources({
-    path: {
-      projectId: options.projectId,
-      revisionDigest: options.revisionDigest,
-    },
-  });
-
-  if (error || !data) {
-    throw toDreamboardApiError(
-      error,
-      response,
-      "Failed to fetch project revision sources",
     );
   }
 

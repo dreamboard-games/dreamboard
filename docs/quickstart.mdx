@@ -12,13 +12,13 @@ npm install -g dreamboard
 Log in:
 
 ```bash
-dreamboard login
+dreamboard auth login
 ```
 
-Create a game:
+Create a project:
 
 ```bash
-dreamboard new my-game --description "A trick-taking card game"
+dreamboard project create my-game --description "A trick-taking card game"
 cd my-game
 ```
 
@@ -28,25 +28,27 @@ Edit `rule.md` and `manifest.json`. Use
 [Manifest authoring](/docs/reference/manifest-authoring) for the manifest
 schema.
 
-Regenerate scaffolded files from your authored source:
+Commit and push your authored source with Git:
 
 ```bash
-dreamboard sync
+git add .
+git commit -m "Create my game"
+git push -u origin main
 ```
 
-Compile the current authored head:
+Check server state for the pushed commit:
 
 ```bash
-dreamboard compile
+dreamboard project status --commit HEAD --wait
 ```
 
-Run the game locally:
+Verify the exact commit:
 
 ```bash
-dreamboard run
+dreamboard verify --commit HEAD
 ```
 
-Start a local server to play the compiled game
+Start a local server to play the project:
 
 ```bash
 dreamboard dev
@@ -54,9 +56,10 @@ dreamboard dev
 
 Useful follow-up commands:
 
-- `dreamboard pull` reconciles authored changes when the remote has advanced.
-- `dreamboard status` compares local and remote state.
-- `dreamboard clone <game-slug>` pulls an existing game into a local workspace.
+- `dreamboard project clone <project>` clones an existing project repository.
+- `dreamboard test` runs offline reducer tests.
+- `dreamboard build --commit HEAD` creates a server build for a pushed commit.
+- `dreamboard preview --commit HEAD` creates a preview for a pushed commit.
 
 For a concise command reference, see [CLI](/docs/reference/cli).
 

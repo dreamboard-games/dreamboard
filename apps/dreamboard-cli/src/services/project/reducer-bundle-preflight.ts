@@ -141,7 +141,9 @@ async function loadProjectReducerPreflightModules(
   const requireFromProject = createRequire(
     path.join(projectRoot, "package.json"),
   );
-  const reducerPath = requireFromProject.resolve("@dreamboard-games/sdk/reducer");
+  const reducerPath = requireFromProject.resolve(
+    "@dreamboard-games/sdk/reducer",
+  );
   const reducerContractPath = requireFromProject.resolve(
     "@dreamboard-games/sdk/reducer-contract",
   );
@@ -477,8 +479,8 @@ export async function runReducerBundleSmoke(options: {
     const summary = summarizeError(error);
     throw new Error(
       [
-        `Dreamboard could not import \`${REDUCER_BUNDLE_ENTRY_PATH}\` during \`dreamboard sync\`.`,
-        "Fix the reducer bundle entry so it can be imported locally, then run `dreamboard sync` again.",
+        `Dreamboard could not import \`${REDUCER_BUNDLE_ENTRY_PATH}\`.`,
+        "Fix the reducer bundle entry so it can be imported locally, then rerun the command.",
         `Original error: ${summary.headline}`,
       ].join(" "),
     );
@@ -493,7 +495,8 @@ export async function runReducerBundleSmoke(options: {
     );
   }
 
-  const preflightModules = await loadProjectReducerPreflightModules(projectRoot);
+  const preflightModules =
+    await loadProjectReducerPreflightModules(projectRoot);
   return driveReducerBundleThroughScenarios({
     manifest,
     bundle,
@@ -514,11 +517,11 @@ function formatFailureLines(
 }
 
 /**
- * Preflight wrapper used by `dreamboard sync`. Runs
+ * Preflight wrapper used before build, verify, test, and dev workflows. Runs
  * `runReducerBundleSmoke` and throws an aggregated error if any scenario
  * failed so the author sees every broken seat/profile in one shot.
  *
- * Sync already guarantees that the authored contract imports cleanly
+ * The surrounding workflow already guarantees that the authored contract imports cleanly
  * (via `assertReducerContractPreflight`) and that `tsc --noEmit` is
  * green (via `runLocalTypecheck`) before this runs, so failures from
  * this step are always runtime-shaped (`initialize`/`projectSeatsDynamic` rejecting,
@@ -535,8 +538,8 @@ export async function assertReducerBundleSmoke(options: {
   }
   throw new Error(
     [
-      "Reducer bundle preflight failed during `dreamboard sync`.",
-      "Fix the reported scenarios locally before syncing so the backend does not catch them after start-game:",
+      "Reducer bundle preflight failed.",
+      "Fix the reported scenarios locally before building or starting dev:",
       formatFailureLines(failures),
     ].join("\n"),
   );

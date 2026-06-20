@@ -176,6 +176,20 @@ export async function updateProjectState(
   );
 }
 
+export async function updateProjectEnvironmentState(
+  rootDir: string,
+  config: ProjectConfig,
+): Promise<void> {
+  const dir = path.join(rootDir, PROJECT_DIR_NAME);
+  await ensureDir(dir);
+  const existingState = await loadProjectEnvironmentState(rootDir);
+  await atomicWriteFile(
+    path.join(dir, PROJECT_STATE_FILE),
+    `${JSON.stringify(normalizeProjectState(config, existingState), null, 2)}\n`,
+    { mode: 0o600 },
+  );
+}
+
 export async function findProjectRoot(
   startDir: string,
 ): Promise<string | null> {

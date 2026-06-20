@@ -32,16 +32,15 @@ The published CLI targets Node 20+.
 Use browser login:
 
 ```bash
-dreamboard login
+dreamboard auth login
 ```
 
-The published CLI stores your refreshable session in:
+The published CLI stores your refreshable session in the Dreamboard credential
+store. Direct JWT injection is intentionally not part of the published CLI flow.
 
 ```bash
-~/.dreamboard/config.json
+dreamboard auth status
 ```
-
-That stored session includes the refresh token the CLI needs to renew access automatically. Direct JWT injection is intentionally not part of the published CLI flow.
 
 ## Source Checkout Setup
 
@@ -51,7 +50,7 @@ For local source-checkout development, install workspace dependencies with pnpm 
 pnpm install
 ```
 
-Playwright (for `dreamboard run`):
+Playwright is only needed for browser-oriented local checks:
 
 ```bash
 npx playwright install
@@ -59,140 +58,59 @@ npx playwright install
 
 ## Commands
 
-Create a new game:
+Create a project workspace:
 
 ```bash
-dreamboard new my-game --description "A trick-taking card game"
+dreamboard project create my-game --description "A trick-taking card game"
 ```
 
-Clone an existing game:
+Clone an initialized project repository:
 
 ```bash
-dreamboard clone my-game
+dreamboard project clone owner/my-game
 ```
 
-Update local manifest/rule changes and regenerate scaffolded files:
+Work with native Git as the source-control boundary:
 
 ```bash
-dreamboard update
-dreamboard update --update-sdk
+git status --porcelain=v2 --branch
+git diff --check
+git add -A
+git diff --cached --check
+git commit -m "Implement scoring changes"
+
+dreamboard verify --commit HEAD
+git push --porcelain --set-upstream origin HEAD
+dreamboard project status --commit HEAD --wait
 ```
 
-If the remote has advanced unexpectedly, `dreamboard update` fails fast and keeps the local workspace as the source of truth. Reconcile explicitly with:
+Run authored tests:
 
 ```bash
-dreamboard update --pull
+dreamboard test
+dreamboard test --scenario test/scenarios/player-two-wins.scenario.ts
+dreamboard test --runner browser
+dreamboard test --runner remote --commit HEAD
 ```
 
-Push local edits (recompile):
+Build, preview, and publish exact commits:
 
 ```bash
-dreamboard push
-dreamboard push --force
+dreamboard build --commit HEAD
+dreamboard preview --commit HEAD
+dreamboard release publish --commit HEAD --yes
+dreamboard release current
 ```
 
-Inspect local vs remote state:
+Start the local development host:
 
 ```bash
-dreamboard status
-dreamboard status --json
-```
-
-Run the game locally (server-compiled UI):
-
-```bash
-dreamboard run
-dreamboard run --players 4
-dreamboard run --seed 1337
-dreamboard run --new-session
-```
-
-If no successful compile exists yet, `dreamboard run` will compile from the latest scaffolded snapshot automatically.
-By default, the CLI uses `manifest.json`'s `playerConfig.minPlayers` to decide how many seats to create.
-
-`dreamboard run` now defaults to a wait-and-observe loop when no scenario is provided:
-
-1. Reuse the previous active session (`--resume` defaults to true) unless `--new-session` is set.
-2. Subscribe to session SSE events.
-3. Exit when `YOUR_TURN` (default `--until`) or `GAME_ENDED` is received.
-4. Persist artifacts in `.dreamboard/run/`:
-   - `session.json`
-   - `events.ndjson`
-   - `latest-your-turn.json`
-   - `last-run-summary.json`
-
-`dreamboard run` is deterministic-by-default for new sessions: if `--seed` is not provided, it uses `1337`.
-
-Useful flags:
-
-- `--until YOUR_TURN|GAME_ENDED|ANY`
-- `--observe-events turns|all` (default `turns`; persist `YOUR_TURN` and `ACTION_REJECTED` messages)
-- `--seed <int>` (deterministic RNG seed for new sessions, default `1337`)
-- `--timeout-ms <ms>`
-- `--max-events <count>`
-- `--screenshot` (capture one Playwright screenshot for the selected run session)
-- `--output <path>`
-- `--delay <ms>`
-- `--width <px>`
-- `--height <px>`
-- `--scenario-driver api|ui` (default `api`)
-
-Playwright launch is now optional:
-
-1. It is launched when `--scenario-driver ui` is used.
-2. It is launched when `--screenshot` is used.
-3. Default API scenarios (`--scenario` with `--scenario-driver api`) do not require Playwright.
-4. Pure observe runs (`dreamboard run` without scenario/screenshot) do not require a browser session.
-
-## Scenario Files
-
-`dreamboard run --scenario <file>` supports scenario JSON (API driver by default):
-
-```json
-{
-  "steps": [
-    {
-      "playerId": "player-1",
-      "actionType": "playCard",
-      "parameters": { "cardId": "hearts-7" },
-      "turns": 1
-    },
-    {
-      "playerId": "player-1",
-      "actionType": "endTurn",
-      "parameters": {},
-      "turns": 1
-    }
-  ]
-}
-```
-
-`playerId` is required on every scenario step. The CLI executes all steps in order per invocation:
-
-```bash
-dreamboard run
-dreamboard run --scenario path/to/scenario.json
-dreamboard run --scenario path/to/scenario.json --scenario-driver ui
-```
-
-If there is no current `.dreamboard/run/latest-your-turn.json` for the active session (for example with `--new-session`), `dreamboard run --scenario ...` first observes SSE until it receives the initial `YOUR_TURN`, then starts executing scenario steps.
-
-API-driven scenarios are strict per step: after each `submitAction`, the CLI waits for either `ACTION_EXECUTED` or `ACTION_REJECTED`. On rejection, it stops immediately with `stopReason=scenario_rejected`.
-
-Screenshots are saved to `.dreamboard/screenshots/` by default. The CLI captures the same session selected by `--resume` / `--new-session`.
-
-To capture a screenshot during observe or scenario runs:
-
-```bash
-dreamboard run --screenshot
-dreamboard run --scenario path/to/scenario.json --screenshot
-dreamboard run --screenshot --output ./shot.png --delay 1500 --width 1440 --height 900
+dreamboard dev
 ```
 
 ## Notes
 
 - Project state lives in `.dreamboard/project.json`.
-- Snapshots for `status` are stored in `.dreamboard/snapshot.json`.
 - Published/public CLI installs target Node 20+ and support remote workflows.
 - Published/public CLI builds are production-only; they do not support environment overrides or direct JWT injection.
 - Local embedded-harness testing remains Bun-only and requires a source checkout with local backend support.
@@ -201,8 +119,6 @@ dreamboard run --screenshot --output ./shot.png --delay 1500 --width 1440 --heig
 ## Skill Source
 
 - Public skill source lives under repo-root `skills/dreamboard/`.
-- `dreamboard new` installs the bundled skill into `.agents/skills/dreamboard/` in the generated game project.
-- The Node helper script for run-artifact inspection is `.agents/skills/dreamboard/scripts/events-extract.mjs`.
 - Install the public skill directly with `skills.sh`:
 
 ```bash

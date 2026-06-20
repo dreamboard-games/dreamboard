@@ -12,7 +12,7 @@ export type GitCredentialPolicy = {
 };
 
 export type GitCredentialResponse = {
-  readonly username: "x-dreamboard-token";
+  readonly username: "dreamboard";
   readonly password: string;
 };
 
@@ -52,7 +52,13 @@ export async function resolveGitCredential(input: {
   );
   const pathPattern = input.policy.allowedPathPattern ?? DEFAULT_REPOSITORY_PATH;
 
-  if (protocol !== "https" || !host || !allowedHosts.has(host)) {
+  if (!protocol || !host || !allowedHosts.has(host)) {
+    return null;
+  }
+
+  const secureProtocol =
+    protocol === "https" || (protocol === "http" && isLoopbackHost(host));
+  if (!secureProtocol) {
     return null;
   }
 
@@ -62,9 +68,14 @@ export async function resolveGitCredential(input: {
 
   const token = await input.tokenManager.resolveGitToken();
   return {
-    username: "x-dreamboard-token",
+    username: "dreamboard",
     password: token.token,
   };
+}
+
+function isLoopbackHost(host: string): boolean {
+  const hostname = host.replace(/:\d+$/, "");
+  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
 }
 
 function normalizeCredentialPath(value: string | undefined): string | null {

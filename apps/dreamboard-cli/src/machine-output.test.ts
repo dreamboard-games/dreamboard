@@ -43,6 +43,5 @@ describe("machine output mode", () => {
     expect(commandPathToId(["preview"])).toBe("preview");
     expect(commandPathToId(["release", "publish"])).toBe("release.publish");
     expect(commandPathToId(["release", "current"])).toBe("release.current");
-    expect(commandPathToId(["feedback", "submit"])).toBe("feedback.submit");
   });
 });

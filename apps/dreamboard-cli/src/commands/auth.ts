@@ -363,9 +363,14 @@ function defineAuthActionCommand(options: {
   description: string;
   action: ReturnType<typeof parseAuthCommandArgs>["action"];
   args?: any;
+  hidden?: boolean;
 }) {
   return defineCommand({
-    meta: { name: options.name, description: options.description },
+    meta: {
+      name: options.name,
+      description: options.description,
+      hidden: options.hidden,
+    },
     args: options.args ?? {},
     async run({ args }) {
       await runAuthAction({ ...args, action: options.action });
@@ -415,6 +420,7 @@ export default defineCommand({
       name: "git-credential",
       description: "Resolve Git credentials for Dreamboard remotes",
       action: "git-credential",
+      hidden: true,
     }),
   },
 });

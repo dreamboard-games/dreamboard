@@ -36,7 +36,7 @@ export async function assertReducerContractPreflight(
     if (isManifestScopedIdBrandingError(message)) {
       throw new Error(
         [
-          `Dreamboard could not validate \`${GAME_CONTRACT_ENTRY_PATH}\` during \`dreamboard sync\`.`,
+          `Dreamboard could not validate \`${GAME_CONTRACT_ENTRY_PATH}\`.`,
           "This happens because a state field name looks like a manifest-scoped id, but the schema uses a plain string instead of the manifest-backed id schema.",
           "Workaround: use `gameContract.schemas.<id>` (or `manifest.ids.<id>`) for manifest ids. If the field is intentionally free-form text, rename it so it does not look like a manifest id field.",
           `Original error: ${message}`,
@@ -46,8 +46,8 @@ export async function assertReducerContractPreflight(
 
     throw new Error(
       [
-        `Dreamboard could not validate \`${GAME_CONTRACT_ENTRY_PATH}\` during \`dreamboard sync\`.`,
-        "Fix the authored reducer contract module so it can be imported locally, then run `dreamboard sync` again.",
+        `Dreamboard could not validate \`${GAME_CONTRACT_ENTRY_PATH}\`.`,
+        "Fix the authored reducer contract module so it can be imported locally, then rerun the command.",
         `Original error: ${message}`,
       ].join(" "),
     );

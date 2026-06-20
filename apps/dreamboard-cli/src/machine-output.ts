@@ -69,7 +69,6 @@ export function commandPathToId(path: readonly string[]): CommandId {
     if (second === "publish") return "release.publish";
     return "release.current";
   }
-  if (first === "feedback") return "feedback.submit";
   switch (first) {
     case "verify":
       return "verify";

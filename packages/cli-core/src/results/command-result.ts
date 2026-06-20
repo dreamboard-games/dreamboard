@@ -15,8 +15,7 @@ export type CommandId =
   | "preview"
   | "release.publish"
   | "release.current"
-  | "doctor"
-  | "feedback.submit";
+  | "doctor";
 
 export enum ExitCode {
   Ok = 0,

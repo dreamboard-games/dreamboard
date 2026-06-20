@@ -95,16 +95,16 @@ mock.module("../services/project/local-maintainer-registry.js", () => ({
   }),
 }));
 
-const newCommand = (await import("./new.ts")).default;
+const createCommand = (await import("./project-create.ts")).default;
 
-test("new command materializes a project-bound workspace", async () => {
+test("project create command materializes a project-bound workspace", async () => {
   ensureProjectSdk.mockClear();
   ensureProjectRepositorySdk.mockClear();
   pollProjectRepository.mockClear();
   materializeWorkspaceProject.mockClear();
   configureWorkspaceGitOrigin.mockClear();
 
-  await newCommand.run({
+  await createCommand.run({
     args: {
       slug: "test-game",
       description: "A test game",

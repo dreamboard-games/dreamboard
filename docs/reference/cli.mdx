@@ -3,21 +3,21 @@ title: "CLI"
 description: "Reference for Dreamboard CLI workflows and commands."
 ---
 
-Dreamboard CLI manages the authored workspace loop: authenticate, create or
-clone a game, sync authored changes, compile, run, and test.
+Dreamboard CLI manages the Git-native authored workspace loop: authenticate,
+create or clone a project, verify exact commits, build or preview pushed
+commits, run a local dev host, and test reducer scenarios.
 
 ## Responsibility
 
 Use the CLI for:
 
 - authenticating the current machine
-- creating or cloning game workspaces
-- syncing authored files to the remote authoring head
-- compiling the current authored head
-- inspecting local versus remote state
-- pulling remote authored changes into the workspace
-- starting or observing playable sessions
-- generating and running reducer-native tests
+- creating or cloning project workspaces
+- inspecting server state for an exact commit
+- verifying an exact commit from a detached worktree
+- building, previewing, and publishing pushed commits
+- starting the local dev host
+- running offline reducer tests
 
 ## Install targets
 
@@ -25,76 +25,76 @@ Use the published package for normal game work:
 
 ```bash
 npm install -g dreamboard
-dreamboard login
+dreamboard auth login
 ```
 
 ## Command flow
 
 Use this sequence for the normal authored loop:
 
-1. `dreamboard login`
-2. `dreamboard new ...` or `dreamboard clone ...`
+1. `dreamboard auth login`
+2. `dreamboard project create ...` or `dreamboard project clone ...`
 3. edit `rule.md`, `manifest.json`, and authored source files
-4. `dreamboard sync`
-5. `dreamboard compile`
-6. `dreamboard run` or `dreamboard start`
-7. `dreamboard test generate`
-8. `dreamboard test run`
-
-When the remote authored head moves first, run `dreamboard pull` before the
-next sync or compile. Use `dreamboard status` to decide whether the workspace is
-ahead, behind, or diverged.
+4. commit with Git and push to the configured remote
+5. `dreamboard project status --commit <rev> --wait`
+6. `dreamboard verify --commit <rev>`
+7. `dreamboard test`
+8. `dreamboard build --commit <rev>`
+9. `dreamboard preview --commit <rev>`
 
 ## Workspace commands
 
-| Command | Use it for |
-| --- | --- |
-| `dreamboard login` | Open browser login and store a refreshable session |
-| `dreamboard new <slug> --description "..."` | Create a new game and scaffold a local workspace |
-| `dreamboard clone <slug>` | Clone an existing game into a new local workspace |
-| `dreamboard sync` | Upload authored changes and refresh scaffolded files |
-| `dreamboard compile` | Compile the current remote authored head |
-| `dreamboard status` | Compare local authored and compile state with remote |
-| `dreamboard pull` | Reconcile remote authored changes into the workspace |
+| Command                                                | Use it for                                                      |
+| ------------------------------------------------------ | --------------------------------------------------------------- |
+| `dreamboard auth login`                                | Open browser login and store a refreshable session              |
+| `dreamboard auth status`                               | Show the current authenticated session                          |
+| `dreamboard project create <slug> --description "..."` | Create a project, scaffold a local workspace, and configure Git |
+| `dreamboard project clone <project>`                   | Clone an existing project repository                            |
+| `dreamboard project status --commit <rev>`             | Show server state for one exact commit                          |
+| `dreamboard verify --commit <rev>`                     | Verify one exact commit in a detached worktree                  |
 
 ```bash
-dreamboard new race-to-ten --description "A tiny scoring game"
-dreamboard sync
-dreamboard compile
-dreamboard status --json
+dreamboard auth login
+dreamboard project create race-to-ten --description "A tiny scoring game"
+git add .
+git commit -m "Create Race to Ten"
+git push -u origin main
+dreamboard project status --commit HEAD --wait
+dreamboard verify --commit HEAD
 ```
 
-## Session commands
+## Commit commands
 
-Use session commands after you have a successful compile for the current
-authored head.
+Use commit commands after the commit has been pushed to the configured Git
+remote.
 
-| Command | Use it for |
-| --- | --- |
-| `dreamboard run` | Start or resume a playable session and observe it from the CLI |
-| `dreamboard start` | Start a fresh session and open it in the browser |
+| Command                                           | Use it for                                |
+| ------------------------------------------------- | ----------------------------------------- |
+| `dreamboard test`                                 | Run offline reducer tests                 |
+| `dreamboard dev [--from-scenario <id>]`           | Start the local project dev host          |
+| `dreamboard build --commit <rev>`                 | Create a server build for a pushed commit |
+| `dreamboard preview --commit <rev>`               | Create a preview for a pushed commit      |
+| `dreamboard release publish --commit <rev> --yes` | Publish an explicit release               |
+| `dreamboard release current`                      | Show the current release pointer          |
 
 ```bash
-dreamboard run
-dreamboard run --players 4 --seed 1337
-dreamboard run --scenario path/to/scenario.json
-dreamboard start --players 2
+dreamboard test
+dreamboard dev
+dreamboard build --commit HEAD
+dreamboard preview --commit HEAD
 ```
-
-`dreamboard run` reuses the previous active session by default. Use
-`--new-session` when you want a fresh session instead.
 
 ## Test commands
 
 Use the scaffolded reducer-native test workspace for repeatable game assertions.
 
 ```bash
-dreamboard test generate
-dreamboard test run
-dreamboard test run --scenario test/scenarios/player-two-wins.scenario.ts
+dreamboard test
+dreamboard test --scenario test/scenarios/player-two-wins.scenario.ts
 ```
 
 ## Start local server
+
 ```bash
 dreamboard dev
 ```

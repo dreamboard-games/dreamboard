@@ -25,6 +25,8 @@ const newCommandArgsSchema = configFlagsSchema.extend({
 
 const cloneCommandArgsSchema = configFlagsSchema.extend({
   slug: z.string().min(1),
+  "wait-timeout-ms": z.string().optional(),
+  "repository-poll-interval-ms": z.string().optional(),
 });
 
 const queryCommandArgsSchema = configFlagsSchema.extend({
@@ -49,16 +51,16 @@ const statusCommandArgsSchema = configFlagsSchema.extend({
   json: z.boolean().default(false),
 });
 
+const commitScopedCommandArgsSchema = configFlagsSchema.extend({
+  commit: z.string().min(1),
+  json: z.boolean().default(false),
+});
+
 const projectRepositoryCommandArgsSchema = configFlagsSchema.extend({
   project: z.string().min(1),
   wait: z.boolean().default(false),
   "wait-timeout-ms": z.string().optional(),
   "repository-poll-interval-ms": z.string().optional(),
-  json: z.boolean().default(false),
-});
-
-const commitScopedCommandArgsSchema = configFlagsSchema.extend({
-  commit: z.string().min(1),
   json: z.boolean().default(false),
 });
 
@@ -124,11 +126,11 @@ export type PullCommandArgs = z.infer<typeof pullCommandArgsSchema>;
 export type SyncCommandArgs = z.infer<typeof syncCommandArgsSchema>;
 export type CompileCommandArgs = z.infer<typeof compileCommandArgsSchema>;
 export type StatusCommandArgs = z.infer<typeof statusCommandArgsSchema>;
-export type ProjectRepositoryCommandArgs = z.infer<
-  typeof projectRepositoryCommandArgsSchema
->;
 export type CommitScopedCommandArgs = z.infer<
   typeof commitScopedCommandArgsSchema
+>;
+export type ProjectRepositoryCommandArgs = z.infer<
+  typeof projectRepositoryCommandArgsSchema
 >;
 export type BuildCommandArgs = z.infer<typeof buildCommandArgsSchema>;
 export type ReleasePublishCommandArgs = z.infer<
@@ -199,21 +201,18 @@ export function parseStatusCommandArgs(args: unknown): StatusCommandArgs {
   return parseArgs("status", statusCommandArgsSchema, args);
 }
 
-export function parseProjectRepositoryCommandArgs(
-  args: unknown,
-): ProjectRepositoryCommandArgs {
-  return parseArgs(
-    "project repository",
-    projectRepositoryCommandArgsSchema,
-    args,
-  );
-}
-
 export function parseCommitScopedCommandArgs(
   commandName: string,
   args: unknown,
 ): CommitScopedCommandArgs {
   return parseArgs(commandName, commitScopedCommandArgsSchema, args);
+}
+
+export function parseProjectRepositoryCommandArgs(
+  commandName: string,
+  args: unknown,
+): ProjectRepositoryCommandArgs {
+  return parseArgs(commandName, projectRepositoryCommandArgsSchema, args);
 }
 
 export function parseBuildCommandArgs(args: unknown): BuildCommandArgs {
