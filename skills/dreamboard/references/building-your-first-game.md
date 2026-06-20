@@ -33,7 +33,7 @@ By the end of the tutorial you will have:
 
 ## Prerequisites
 
-- Dreamboard CLI installed: `npm install -g dreamboard`
+- Dreamboard installed: `npm install -g dreamboard`
 - authenticated with `dreamboard auth login`
 
 ## 1. Create the workspace

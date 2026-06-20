@@ -1,6 +1,6 @@
 # dreamboard
 
-Dreamboard CLI for working with Dreamboard games from your own editor/tooling.
+Dreamboard for working with Dreamboard games from your own editor/tooling.
 
 Dreamboard is built to take you from napkin sketch to playable prototype without the paper cuts:
 
@@ -18,7 +18,7 @@ Published npm package:
 npm install -g dreamboard
 ```
 
-The published CLI targets Node 20+.
+The published `dreamboard` package targets Node 20+.
 
 ## Why Dreamboard
 
@@ -35,11 +35,11 @@ Use browser login:
 dreamboard auth login
 ```
 
-The CLI stores your refreshable session in `~/.dreamboard/auth.json` by default. The file is written atomically with owner-only permissions (`0600`).
+Dreamboard stores your refreshable session in `~/.dreamboard/auth.json` by default. The file is written atomically with owner-only permissions (`0600`).
 
 The operating system keychain is optional. Set `"credentialBackend": "keychain"` in `~/.dreamboard/config.json`, or use `DREAMBOARD_CREDENTIAL_BACKEND=keychain`, to opt in.
 
-That stored session includes the Clerk refresh token the CLI needs to renew and exchange for short-lived Dreamboard API tokens automatically. Direct JWT injection is intentionally not part of the published CLI flow.
+That stored session includes the Clerk refresh token Dreamboard needs to renew and exchange for short-lived Dreamboard API tokens automatically. Direct JWT injection is intentionally not part of the published Dreamboard flow.
 
 ## Source Checkout Setup
 
@@ -112,15 +112,15 @@ dreamboard dev
 ## Notes
 
 - Project state lives in `.dreamboard/project.json`.
-- Published/public CLI installs target Node 20+ and support commit-scoped
+- Published/public `dreamboard` installs target Node 20+ and support commit-scoped
   build, preview, release, and status workflows.
-- Published stable CLI builds are production-only and do not support environment overrides or direct JWT injection. Published alpha builds allow `--env <local|staging|prod>` for operator verification, but still reject direct JWT injection.
+- Published stable `dreamboard` builds are production-only and do not support environment overrides or direct JWT injection. Published alpha builds allow `--env <local|staging|prod>` for operator verification, but still reject direct JWT injection.
 - Local embedded-harness testing remains Bun-only and requires a source checkout with local backend support.
-- Internal source-checkout builds may expose extra auth and environment helpers, but those are not part of the published CLI contract.
+- Internal source-checkout builds may expose extra auth and environment helpers, but those are not part of the published Dreamboard contract.
 
 ## Skill Source
 
 - Public skill source lives under `skills/dreamboard/`.
 - `skills/dreamboard/references/*.md` are generated from `docs/` via `pnpm run sync:skill-docs`.
 - `dreamboard project create` installs the bundled skill into `.agents/skills/dreamboard/` in the generated game project.
-- Public GitHub repo for the CLI is [dreamboard-games/dreamboard-cli](https://github.com/dreamboard-games/dreamboard-cli).
+- Public GitHub repo for Dreamboard is [dreamboard-games/dreamboard](https://github.com/dreamboard-games/dreamboard).

@@ -6,16 +6,16 @@ metadata:
   tags: [dreamboard, cli, game-dev, board-game, turn-based, multiplayer]
 ---
 
-# Dreamboard CLI
+# Dreamboard
 
 ## Goal
 
 Create and iterate on a Dreamboard game locally with the Git-native Dreamboard
-CLI, then verify exact commits, run tests, and use the local dev host.
+command, then verify exact commits, run tests, and use the local dev host.
 
 ## Prereqs
 
-- Dreamboard CLI installed and available as `dreamboard`
+- Dreamboard installed and available as `dreamboard`
   Install with `npm install -g dreamboard`
 - Authenticated via `dreamboard auth login`
 

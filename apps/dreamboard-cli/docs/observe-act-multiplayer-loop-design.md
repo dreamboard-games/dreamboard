@@ -1,4 +1,4 @@
-# Dreamboard CLI Observe/Act Multiplayer Loop Design
+# Dreamboard Observe/Act Multiplayer Loop Design
 
 ## Status
 
@@ -10,7 +10,7 @@ Proposed
 
 ## Owner
 
-Dreamboard CLI
+Dreamboard
 
 ## Problem Statement
 
@@ -29,8 +29,8 @@ SSE is already available and strongly typed through the public generated API cli
 
 ## Requirements From Product Direction
 
-1. No in-process `agent.decide` callback inside CLI.
-2. Main loop is external (coding agent or operator repeatedly invokes CLI).
+1. No in-process `agent.decide` callback inside Dreamboard.
+2. Main loop is external (coding agent or operator repeatedly invokes Dreamboard).
 3. Multiplayer must be first-class.
 4. Agent should only be asked to act when `YOUR_TURN` is received.
 5. `playerId` must be explicit in turn context.
@@ -44,7 +44,7 @@ SSE is already available and strongly typed through the public generated API cli
 
 ## Current State Context
 
-## CLI command
+## Dreamboard command
 
 `apps/dreamboard-cli/src/commands/run.ts` currently:
 
@@ -55,7 +55,7 @@ SSE is already available and strongly typed through the public generated API cli
 5. Runs scenario if `--scenario` exists.
 6. Otherwise idles.
 
-## SSE in CLI
+## SSE in Dreamboard
 
 `apps/dreamboard-cli/src/ui/playwright-runner.ts` currently:
 
@@ -79,11 +79,11 @@ This is enough to implement resumable observe/act loops without server changes.
 External coding agent loop:
 
 1. Run `dreamboard run --resume`.
-2. CLI blocks on SSE and exits when `YOUR_TURN` (or `GAME_ENDED`/timeout).
-3. CLI writes typed turn context file with `playerId` candidates and `gameState`.
+2. Dreamboard blocks on SSE and exits when `YOUR_TURN` (or `GAME_ENDED`/timeout).
+3. Dreamboard writes typed turn context file with `playerId` candidates and `gameState`.
 4. Coding agent reads turn context and updates scenario file.
 5. Run `dreamboard run --resume --scenario <file>`.
-6. CLI validates turn ownership and executes scenario steps.
+6. Dreamboard validates turn ownership and executes scenario steps.
 7. Repeat.
 
 ## High-Level Architecture

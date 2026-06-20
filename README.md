@@ -1,6 +1,6 @@
 # dreamboard
 
-Dreamboard CLI for working with Dreamboard games from your own editor/tooling.
+Dreamboard for working with Dreamboard games from your own editor/tooling.
 
 Dreamboard is built to take you from napkin sketch to playable prototype without the paper cuts:
 
@@ -18,7 +18,7 @@ Published npm package:
 npm install -g dreamboard
 ```
 
-The published CLI targets Node 20+.
+The published `dreamboard` package targets Node 20+.
 
 ## Why Dreamboard
 
@@ -35,8 +35,8 @@ Use browser login:
 dreamboard auth login
 ```
 
-The published CLI stores your refreshable session in the Dreamboard credential
-store. Direct JWT injection is intentionally not part of the published CLI flow.
+Dreamboard stores your refreshable session in the Dreamboard credential
+store. Direct JWT injection is intentionally not part of the published Dreamboard flow.
 
 ```bash
 dreamboard auth status
@@ -111,10 +111,10 @@ dreamboard dev
 ## Notes
 
 - Project state lives in `.dreamboard/project.json`.
-- Published/public CLI installs target Node 20+ and support remote workflows.
-- Published/public CLI builds are production-only; they do not support environment overrides or direct JWT injection.
+- Published/public `dreamboard` installs target Node 20+ and support remote workflows.
+- Published/public `dreamboard` builds are production-only; they do not support environment overrides or direct JWT injection.
 - Local embedded-harness testing remains Bun-only and requires a source checkout with local backend support.
-- Internal source-checkout builds may expose extra auth and environment helpers, but those are not part of the published CLI contract.
+- Internal source-checkout builds may expose extra auth and environment helpers, but those are not part of the published Dreamboard contract.
 
 ## Skill Source
 
@@ -122,7 +122,7 @@ dreamboard dev
 - Install the public skill directly with `skills.sh`:
 
 ```bash
-npx skills add https://github.com/dreamboard-games/dreamboard-cli --skill dreamboard
+npx skills add https://github.com/dreamboard-games/dreamboard --skill dreamboard
 ```
 
 ## Publish Prep

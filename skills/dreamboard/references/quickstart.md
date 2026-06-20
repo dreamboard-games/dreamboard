@@ -3,9 +3,9 @@
 
 # Quickstart
 
-Install Dreamboard CLI, create a game, and iterate on manifest-driven scaffolding.
+Install Dreamboard, create a game, and iterate on manifest-driven scaffolding.
 
-Install the CLI:
+Install Dreamboard:
 
 ```bash
 npm install -g dreamboard
@@ -63,7 +63,7 @@ Useful follow-up commands:
 - `dreamboard build --commit HEAD` creates a server build for a pushed commit.
 - `dreamboard preview --commit HEAD` creates a preview for a pushed commit.
 
-For a concise command reference, see [CLI](./cli.md).
+For a concise command reference, see [Dreamboard command reference](./cli.md).
 
 For a full walkthrough, continue with
 [Building your first game](./building-your-first-game.md).
