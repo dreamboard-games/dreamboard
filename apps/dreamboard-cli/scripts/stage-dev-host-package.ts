@@ -70,16 +70,27 @@ await cp(path.join(packageRoot, "dist"), path.join(stageRoot, "dist"), {
   force: true,
 });
 await mkdir(path.join(stageRoot, "src", "dev-host"), { recursive: true });
+await mkdir(path.join(stageRoot, "dist", "dev-host"), { recursive: true });
 for (const asset of [
   "host-main.css",
   "index.html",
   "plugin.html",
   "shared-styles.css",
 ]) {
+  const sourcePath = path.join(packageRoot, "src", "dev-host", asset);
   await cp(
-    path.join(packageRoot, "src", "dev-host", asset),
+    sourcePath,
     path.join(stageRoot, "src", "dev-host", asset),
     { force: true },
+  );
+  const content = await readFile(sourcePath, "utf8");
+  const publishedContent = content
+    .replace('/host-main.tsx"', '/host-main.js"')
+    .replace('/plugin-main.ts"', '/plugin-main.js"');
+  await writeFile(
+    path.join(stageRoot, "dist", "dev-host", asset),
+    publishedContent,
+    "utf8",
   );
 }
 await writeFile(

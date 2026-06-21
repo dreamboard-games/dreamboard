@@ -14,7 +14,6 @@ const updateProjectEnvironmentState = mock(async () => undefined);
 const loadProjectConfig = mock(async () => ({
   schemaVersion: 2,
   projectId: "project-1",
-  gameId: "project-1",
   slug: "test-game",
 }));
 const getProjectBySlugSdk = mock(async () => ({
@@ -197,7 +196,6 @@ test("project clone uses native Git clone and verifies tracked project identity"
     "/tmp/.test-game.dreamboard-clone-abc",
     expect.objectContaining({
       projectId: "project-1",
-      gameId: "project-1",
       deploymentId: "deployment-1",
       ownerScopeId: "owner-scope-1",
       bindingKey: "deployment-1:owner-scope-1",
@@ -246,7 +244,6 @@ test("project clone removes temporary checkout when project identity mismatches"
   loadProjectConfig.mockImplementationOnce(async () => ({
     schemaVersion: 2,
     projectId: "different-project",
-    gameId: "different-project",
     slug: "test-game",
   }));
 

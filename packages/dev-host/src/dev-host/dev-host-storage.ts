@@ -1,7 +1,7 @@
 export type ActiveSession = {
   sessionId: string;
   shortCode: string;
-  gameId: string;
+  projectId: string;
   seed: number | null;
 };
 

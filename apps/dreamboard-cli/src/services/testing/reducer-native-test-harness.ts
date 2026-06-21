@@ -198,7 +198,7 @@ type BaseStateArtifact = {
     uiContractHash: string;
     setupProfileId?: string | null;
     compiledResultId?: string;
-    gameId?: string;
+    projectId?: string;
     parentBaseId?: string | null;
     parentFingerprintHash?: string | null;
     contractFingerprint?: string;
@@ -299,7 +299,7 @@ function escapeRegExp(value: string): string {
 export type SeededScenarioSession = {
   sessionId: string;
   shortCode: string;
-  gameId: string;
+  projectId: string;
   seed: number;
   playerCount: number;
   setupProfileId: string | null;
@@ -349,7 +349,7 @@ export type LiveReplayScenarioResult = SeededScenarioSession & {
 export type LiveReplayActionPlanSession = SeededScenarioSession;
 
 export type LiveReplayActionPlan = {
-  gameId: string;
+  projectId: string;
   seed: number;
   playerCount: number;
   setupProfileId: string | null;
@@ -713,7 +713,7 @@ async function collectKnownRejectionCodes(
       }
     }
   } catch {
-    // Keep the generated contract usable even if the game module fails to load.
+    // Keep the generated contract usable even if the project module fails to load.
   }
 
   return Array.from(knownCodes).sort((left, right) =>
@@ -1054,7 +1054,7 @@ class ShadowReducerRuntime {
       !("contract" in gameModuleDefault)
     ) {
       throw new Error(
-        "app/game.ts must export a reducer-native game definition.",
+        "app/game.ts must export a reducer-native project definition.",
       );
     }
     this.bundle = this.modules.createReducerBundle(gameModuleDefault);
@@ -1578,7 +1578,6 @@ export async function createSessionFromScenario(options: {
   scenarioId: string;
   compiledResultId: string;
   projectId: string;
-  gameId: string;
   debug?: boolean;
   trustGeneratedFingerprint?: boolean;
 }): Promise<SeededScenarioSession> {
@@ -1616,7 +1615,7 @@ export async function createSessionFromScenario(options: {
   return {
     sessionId: snapshot.context.sessionId,
     shortCode: snapshot.context.shortCode,
-    gameId: projectIdFromSessionGameSource(snapshot.context.gameSource),
+    projectId: projectIdFromSessionGameSource(snapshot.context.gameSource),
     seed: materialized.seed,
     playerCount: materialized.playerCount,
     setupProfileId: materialized.setupProfileId,
@@ -1725,7 +1724,7 @@ export async function materializeScenarioReducerState(options: {
   projectRoot: string;
   scenarioId: string;
   compiledResultId?: string;
-  gameId?: string;
+  projectId?: string;
   debug?: boolean;
   trustGeneratedFingerprint?: boolean;
 }): Promise<MaterializedScenarioReducerState> {
@@ -1746,7 +1745,7 @@ export async function materializeScenarioReducerState(options: {
     if (
       generatedBase &&
       generatedBase.fingerprint.compiledResultId === options.compiledResultId &&
-      generatedBase.fingerprint.gameId === options.gameId
+      generatedBase.fingerprint.projectId === options.projectId
     ) {
       const cached = await readMaterializedScenarioCache({
         projectRoot: options.projectRoot,
@@ -1811,7 +1810,7 @@ export async function materializeScenarioReducerState(options: {
   const canTrustGeneratedFingerprint =
     options.trustGeneratedFingerprint === true &&
     generatedBase.fingerprint.compiledResultId === options.compiledResultId &&
-    generatedBase.fingerprint.gameId === options.gameId;
+    generatedBase.fingerprint.projectId === options.projectId;
   const current = canTrustGeneratedFingerprint
     ? generatedBase.fingerprint
     : await currentFingerprint({
@@ -1819,7 +1818,7 @@ export async function materializeScenarioReducerState(options: {
         base,
         basesById,
         compiledResultId: options.compiledResultId,
-        gameId: options.gameId,
+        projectId: options.projectId,
       });
   if (!canTrustGeneratedFingerprint) {
     validateGeneratedFingerprint({
@@ -1931,7 +1930,7 @@ export async function replayScenarioThroughBackend(options: {
   projectRoot: string;
   scenarioId: string;
   compiledResultId: string;
-  gameId: string;
+  projectId: string;
   debug?: boolean;
   captureResponseBody?: boolean;
 }): Promise<LiveReplayScenarioResult> {
@@ -1996,7 +1995,7 @@ export async function replayScenarioThroughBackend(options: {
       base,
       basesById,
       compiledResultId: options.compiledResultId,
-      gameId: options.gameId,
+      projectId: options.projectId,
     }),
   });
 
@@ -2036,7 +2035,7 @@ export async function replayScenarioThroughBackend(options: {
     error: sessionError,
     response: sessionResponse,
   } = await createProjectSession({
-    path: { projectId: options.gameId },
+    path: { projectId: options.projectId },
     body: {
       compiledResultId: options.compiledResultId,
       seed: resolvedBase.seed,
@@ -2110,7 +2109,7 @@ export async function replayScenarioThroughBackend(options: {
   return {
     sessionId: session.sessionId,
     shortCode: session.shortCode,
-    gameId: projectIdFromSessionGameSource(session.gameSource),
+    projectId: projectIdFromSessionGameSource(session.gameSource),
     seed: resolvedBase.seed,
     playerCount: resolvedBase.players,
     setupProfileId: effectiveSetup.setupProfileId,
@@ -2125,7 +2124,7 @@ export async function createScenarioActionPlan(options: {
   projectRoot: string;
   scenarioId: string;
   compiledResultId: string;
-  gameId: string;
+  projectId: string;
   debug?: boolean;
 }): Promise<LiveReplayActionPlan> {
   await ensureReducerNativeTestingFiles(options.projectRoot);
@@ -2189,7 +2188,7 @@ export async function createScenarioActionPlan(options: {
       base,
       basesById,
       compiledResultId: options.compiledResultId,
-      gameId: options.gameId,
+      projectId: options.projectId,
     }),
   });
 
@@ -2264,7 +2263,7 @@ export async function createScenarioActionPlan(options: {
   }
 
   return {
-    gameId: options.gameId,
+    projectId: options.projectId,
     seed: resolvedBase.seed,
     playerCount: resolvedBase.players,
     setupProfileId: effectiveSetup.setupProfileId,
@@ -2276,7 +2275,7 @@ export async function createScenarioActionPlan(options: {
 }
 
 export async function replayActionPlanThroughBackend(options: {
-  gameId: string;
+  projectId: string;
   compiledResultId: string;
   seed: number;
   playerCount: number;
@@ -2294,7 +2293,7 @@ export async function replayActionPlanThroughBackend(options: {
 }
 
 export async function createActionPlanReplaySession(options: {
-  gameId: string;
+  projectId: string;
   compiledResultId: string;
   seed: number;
   playerCount: number;
@@ -2306,7 +2305,7 @@ export async function createActionPlanReplaySession(options: {
     error: sessionError,
     response: sessionResponse,
   } = await createProjectSession({
-    path: { projectId: options.gameId },
+    path: { projectId: options.projectId },
     body: {
       compiledResultId: options.compiledResultId,
       seed: options.seed,
@@ -2337,7 +2336,7 @@ export async function createActionPlanReplaySession(options: {
   return {
     sessionId: session.sessionId,
     shortCode: session.shortCode,
-    gameId: projectIdFromSessionGameSource(session.gameSource),
+    projectId: projectIdFromSessionGameSource(session.gameSource),
     seed: options.seed,
     playerCount: options.playerCount,
     setupProfileId: options.setupProfileId ?? null,
@@ -2581,7 +2580,7 @@ export async function writeReducerNativeGeneratedFiles(options: {
   bases: LoadedBase[];
   scenarios: LoadedScenario[];
   compiledResultId?: string;
-  gameId?: string;
+  projectId?: string;
   debug?: boolean;
 }): Promise<void> {
   await ensureReducerNativeTestingFiles(options.projectRoot);
@@ -2706,7 +2705,7 @@ export async function writeReducerNativeGeneratedFiles(options: {
         uiContractHash,
         setupProfileId: effectiveSetup.setupProfileId,
         compiledResultId: options.compiledResultId,
-        gameId: options.gameId,
+        projectId: options.projectId,
         parentBaseId: base.definition.extends ?? null,
         parentFingerprintHash,
         contractFingerprint: contractFingerprintValue,
@@ -2830,7 +2829,7 @@ function validateGeneratedFingerprint(options: {
     mismatches.push("manifest changed");
   }
   if (options.generated.appBundleHash !== options.current.appBundleHash) {
-    mismatches.push("game reducer bundle changed");
+    mismatches.push("project reducer bundle changed");
   }
   if (options.generated.uiContractHash !== options.current.uiContractHash) {
     mismatches.push("ui contract changed");
@@ -2871,7 +2870,7 @@ async function currentFingerprint(options: {
   base: LoadedBase;
   basesById?: Map<string, LoadedBase>;
   compiledResultId?: string;
-  gameId?: string;
+  projectId?: string;
 }): Promise<BaseStateArtifact["fingerprint"]> {
   const manifest = await loadManifest(options.projectRoot);
   const [gameModule, modules] = await Promise.all([
@@ -2906,7 +2905,7 @@ async function currentFingerprint(options: {
         base: parentBase,
         basesById: options.basesById,
         compiledResultId: options.compiledResultId,
-        gameId: options.gameId,
+        projectId: options.projectId,
       }),
     );
   }
@@ -2929,7 +2928,7 @@ async function currentFingerprint(options: {
     ),
     setupProfileId: effectiveSetup.setupProfileId,
     compiledResultId: options.compiledResultId,
-    gameId: options.gameId,
+    projectId: options.projectId,
     parentBaseId: options.base.definition.extends ?? null,
     parentFingerprintHash,
     contractFingerprint: contractFingerprintValue,
@@ -2939,7 +2938,7 @@ async function currentFingerprint(options: {
 export async function generateReducerNativeArtifacts(options: {
   projectRoot: string;
   compiledResultId?: string;
-  gameId?: string;
+  projectId?: string;
   scenarioPath?: string;
   debug?: boolean;
 }): Promise<{
@@ -2960,7 +2959,7 @@ export async function generateReducerNativeArtifacts(options: {
     bases,
     scenarios,
     compiledResultId: options.compiledResultId,
-    gameId: options.gameId,
+    projectId: options.projectId,
     debug: options.debug,
   });
   return { bases, scenarios };
@@ -2972,7 +2971,7 @@ export async function runReducerNativeScenarios(options: {
   resolvedConfig: ResolvedConfig;
   scenarioPath?: string;
   compiledResultId?: string;
-  gameId?: string;
+  projectId?: string;
   webBaseUrl?: string;
   debug?: boolean;
   updateSnapshots?: boolean;
@@ -3017,7 +3016,7 @@ export async function runReducerNativeScenarios(options: {
       bases,
       scenarios,
       compiledResultId: options.compiledResultId,
-      gameId: options.gameId,
+      projectId: options.projectId,
       debug: options.debug,
     });
     generatedBaseStates = await loadGeneratedBaseStates(options.projectRoot);
@@ -3044,7 +3043,7 @@ export async function runReducerNativeScenarios(options: {
           base,
           basesById,
           compiledResultId: options.compiledResultId,
-          gameId: options.gameId,
+          projectId: options.projectId,
         }),
       });
     }

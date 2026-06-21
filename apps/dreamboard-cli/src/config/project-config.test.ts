@@ -23,7 +23,6 @@ describe("project config normalization", () => {
     await updateProjectState(rootDir, {
       schemaVersion: 2,
       projectId: "project-1",
-      gameId: "game-1",
       deploymentId: "deployment-1",
       ownerScopeId: "owner-scope-1",
       bindingKey: "deployment-1:owner-scope-1",
@@ -59,7 +58,6 @@ describe("project config normalization", () => {
     await updateProjectState(rootDir, {
       schemaVersion: 2,
       projectId: "project-1",
-      gameId: "game-1",
       deploymentId: "deployment-1",
       ownerScopeId: "owner-scope-1",
       bindingKey: "deployment-1:owner-scope-1",
@@ -111,7 +109,6 @@ describe("project config normalization", () => {
             "deployment-1:owner-scope-1": {
               deploymentId: "deployment-1",
               ownerScopeId: "owner-scope-1",
-              gameId: "game-1",
               remoteHeadDigest: "revision-digest-1",
               authoring: {
                 revisionDigest: "revision-digest-1",
@@ -136,7 +133,6 @@ describe("project config normalization", () => {
 
     const loaded = await loadProjectConfig(rootDir);
     expect(loaded.projectId).toBe("project-1");
-    expect(loaded.gameId).toBe("game-1");
     expect(loaded.bindingKey).toBe("deployment-1:owner-scope-1");
     expect(loaded.remoteHeadDigest).toBe("revision-digest-1");
     expect(loaded.authoring?.ruleId).toBe("rule-1");

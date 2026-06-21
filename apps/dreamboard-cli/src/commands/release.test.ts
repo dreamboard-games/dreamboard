@@ -23,7 +23,7 @@ mock.module("../config/resolve.js", () => ({
       schemaVersion: 2,
       projectId: "project-1",
       slug: "project-1",
-      gameId: "project-1",
+      projectId: "project-1",
     },
     config: {
       environment: "prod",

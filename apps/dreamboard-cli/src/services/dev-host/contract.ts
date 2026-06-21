@@ -22,7 +22,7 @@ export interface DevHostStartRequestV1 {
   runtimeConfig: {
     apiBaseUrl: string;
     userId: string | null;
-    gameId: string;
+    projectId: string;
     compiledResultId: string;
     setupProfileId: string | null;
     playerCount: number;
@@ -32,7 +32,7 @@ export interface DevHostStartRequestV1 {
     initialSession: {
       sessionId: string;
       shortCode: string;
-      gameId: string;
+      projectId: string;
       seed: number | null;
     };
   };

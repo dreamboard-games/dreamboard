@@ -2,7 +2,7 @@ declare module "virtual:dreamboard-dev-config" {
   export interface DreamboardDevConfig {
     apiBaseUrl: string;
     userId: string | null;
-    gameId: string;
+    projectId: string;
     compiledResultId: string;
     setupProfileId: string | null;
     playerCount: number;
@@ -12,7 +12,7 @@ declare module "virtual:dreamboard-dev-config" {
     initialSession: {
       sessionId: string;
       shortCode: string;
-      gameId: string;
+      projectId: string;
       seed: number | null;
     };
   }

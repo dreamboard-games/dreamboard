@@ -128,7 +128,6 @@ test("project create command materializes a project-bound workspace", async () =
   const materializeArgs = materializeWorkspaceProject.mock.calls[0]?.[0] as {
     targetDir: string;
     projectId: string;
-    gameId: string;
     deploymentId: string;
     ownerScopeId: string;
     bindingKey: string;
@@ -141,7 +140,6 @@ test("project create command materializes a project-bound workspace", async () =
   };
   expect(materializeArgs.targetDir.endsWith("/test-game")).toBe(true);
   expect(materializeArgs.projectId).toBe("project-uuid-1");
-  expect(materializeArgs.gameId).toBe("project-1");
   expect(materializeArgs.deploymentId).toBe("deployment-1");
   expect(materializeArgs.ownerScopeId).toBe("owner-scope-1");
   expect(materializeArgs.bindingKey).toBe("deployment-1:owner-scope-1");

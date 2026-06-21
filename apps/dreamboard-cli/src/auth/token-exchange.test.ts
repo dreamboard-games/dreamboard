@@ -3,15 +3,17 @@ import { exchangeDreamboardUserToken } from "./token-exchange.ts";
 
 test("token exchange posts Clerk bearer and requested audience", async () => {
   const fetchImpl = mock(
-    async (_url: URL | RequestInfo, init?: RequestInit) => {
-      expect(String(_url)).toBe(
+    async (input: URL | RequestInfo) => {
+      const request =
+        input instanceof Request ? input : new Request(input as RequestInfo);
+      expect(request.url).toBe(
         "https://api.dreamboard.test/api/auth/token-exchange",
       );
-      expect(init?.method).toBe("POST");
-      expect((init?.headers as Record<string, string>).Authorization).toBe(
+      expect(request.method).toBe("POST");
+      expect(request.headers.get("Authorization")).toBe(
         "Bearer clerk-access-token",
       );
-      expect(JSON.parse(String(init?.body))).toEqual({
+      expect(await request.clone().json()).toEqual({
         audience: "dreamboard-api",
       });
       return new Response(

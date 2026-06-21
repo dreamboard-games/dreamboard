@@ -2,11 +2,11 @@ import { uploadProjectInitialProjection } from "@dreamboard-games/api-client";
 import { toDreamboardApiError } from "../../utils/errors.js";
 
 export async function uploadInitialProjectionSdk(
-  gameId: string,
+  projectId: string,
   projectionJson: string,
 ): Promise<void> {
   const { error, response } = await uploadProjectInitialProjection({
-    path: { projectId: gameId },
+    path: { projectId },
     body: { projectionJson },
   });
   if (error) {

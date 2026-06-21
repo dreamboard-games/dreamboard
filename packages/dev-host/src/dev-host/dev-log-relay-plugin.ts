@@ -1,5 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readFile, stat, unlink, writeFile } from "node:fs/promises";
+import {
+  createProjectSession,
+  getSessionSnapshot,
+  startGame,
+  type CreateSessionRequest,
+  type HostSessionSnapshot,
+} from "@dreamboard-games/api-client";
 import consola from "consola";
 import type { Plugin } from "vite";
 import type { DevHostPlatform } from "./contract.js";
@@ -150,41 +157,31 @@ async function handleSnapshotSessionRequest(
     const requestedPlayerId = extractQueryParam(req, "playerId");
     let snapshot: unknown;
     try {
-      snapshot = await fetchBackendJson(
+      snapshot = await fetchBackendSessionSnapshot(
         options,
-        appendQuery(`/api/sessions/${session.sessionId}/snapshot`, {
-          playerId: requestedPlayerId,
-        }),
+        session.sessionId,
+        requestedPlayerId,
       );
     } catch (error) {
       if (!isStaleContractArtifactError(error)) {
         throw error;
       }
       session = await resetDisposableSessionPointer(options);
-      snapshot = await fetchBackendJson(
+      snapshot = await fetchBackendSessionSnapshot(
         options,
-        appendQuery(`/api/sessions/${session.sessionId}/snapshot`, {
-          playerId: requestedPlayerId,
-        }),
+        session.sessionId,
+        requestedPlayerId,
       );
     }
     if (
       options.runtimeConfig.autoStartGame &&
       isStartableLobbySnapshot(snapshot)
     ) {
-      snapshot = await fetchBackendJson(
+      snapshot = await startSessionOrLoadSnapshot(
         options,
-        `/api/sessions/${session.sessionId}/start`,
-        { method: "POST" },
+        session.sessionId,
+        requestedPlayerId,
       );
-      if (requestedPlayerId) {
-        snapshot = await fetchBackendJson(
-          options,
-          appendQuery(`/api/sessions/${session.sessionId}/snapshot`, {
-            playerId: requestedPlayerId,
-          }),
-        );
-      }
       await persistSessionId(options.sessionFilePath, session.sessionId);
     }
     respondJson(res, 200, attachLocalSeed(snapshot, session.seed ?? null));
@@ -214,39 +211,20 @@ async function handleNewSessionRequest(
     if (!Number.isSafeInteger(seed)) {
       throw new Error("Seed must be a safe integer.");
     }
-    const created = await fetchBackendJson(
-      options,
-      `/api/games/${options.runtimeConfig.gameId}/sessions`,
-      {
-        method: "POST",
-        body: {
-          compiledResultId: options.runtimeConfig.compiledResultId,
-          seed,
-          playerCount: options.runtimeConfig.playerCount,
-          autoAssignSeats: true,
-          setupProfileId: options.runtimeConfig.setupProfileId ?? undefined,
-        },
-      },
-    );
-    const sessionId = requireString(
-      (created as { sessionId?: unknown }).sessionId,
-      "sessionId",
-    );
-    let snapshot = await fetchBackendJson(
-      options,
-      `/api/sessions/${sessionId}/snapshot`,
-    );
+    const created = await createBackendProjectSession(options, {
+      compiledResultId: options.runtimeConfig.compiledResultId,
+      seed,
+      playerCount: options.runtimeConfig.playerCount,
+      autoAssignSeats: true,
+      setupProfileId: options.runtimeConfig.setupProfileId ?? undefined,
+    });
+    const sessionId = created.sessionId;
+    let snapshot = await fetchBackendSessionSnapshot(options, sessionId, null);
     if (
       options.runtimeConfig.autoStartGame &&
       isStartableLobbySnapshot(snapshot)
     ) {
-      snapshot = await fetchBackendJson(
-        options,
-        `/api/sessions/${sessionId}/start`,
-        {
-          method: "POST",
-        },
-      );
+      snapshot = await startSessionOrLoadSnapshot(options, sessionId, null);
     }
     await persistSessionId(options.sessionFilePath, sessionId);
     respondJson(res, 200, attachLocalSeed(snapshot, seed));
@@ -272,29 +250,162 @@ async function handleStartSessionRequest(
 
   try {
     let session = await loadCurrentSession(options);
-    let snapshot: unknown;
+    let snapshot: HostSessionSnapshot;
     try {
-      snapshot = await fetchBackendJson(
-        options,
-        `/api/sessions/${session.sessionId}/start`,
-        { method: "POST" },
-      );
+      snapshot = await startBackendSession(options, session.sessionId);
     } catch (error) {
-      if (!isStaleContractArtifactError(error)) {
+      if (isAlreadyStartedSessionError(error)) {
+        snapshot = await fetchBackendSessionSnapshot(
+          options,
+          session.sessionId,
+          null,
+        );
+      } else if (!isStaleContractArtifactError(error)) {
         throw error;
+      } else {
+        session = await resetDisposableSessionPointer(options);
+        snapshot = await startBackendSession(options, session.sessionId);
       }
-      session = await resetDisposableSessionPointer(options);
-      snapshot = await fetchBackendJson(
-        options,
-        `/api/sessions/${session.sessionId}/start`,
-        { method: "POST" },
-      );
     }
     await persistSessionId(options.sessionFilePath, session.sessionId);
     respondJson(res, 200, attachLocalSeed(snapshot, session.seed ?? null));
   } catch (error) {
     respondJson(res, statusForError(error), { error: formatUnknown(error) });
   }
+}
+
+async function startSessionOrLoadSnapshot(
+  options: {
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
+  },
+  sessionId: string,
+  requestedPlayerId: string | null,
+): Promise<HostSessionSnapshot> {
+  try {
+    const snapshot = await startBackendSession(options, sessionId);
+    if (!requestedPlayerId) {
+      return snapshot;
+    }
+  } catch (error) {
+    if (!isAlreadyStartedSessionError(error)) {
+      throw error;
+    }
+  }
+
+  return fetchBackendSessionSnapshot(options, sessionId, requestedPlayerId);
+}
+
+async function createBackendProjectSession(
+  connection: {
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
+    runtimeConfig: DreamboardDevRuntimeConfig;
+  },
+  body: CreateSessionRequest,
+): Promise<{ sessionId: string }> {
+  const auth = await resolveBackendAuth(connection);
+  const result = await createProjectSession({
+    baseUrl: connection.apiBaseUrl,
+    auth,
+    path: { projectId: connection.runtimeConfig.projectId },
+    body,
+  });
+  return unwrapBackendResponse(
+    result,
+    "Failed to create backend project session",
+  );
+}
+
+async function fetchBackendSessionSnapshot(
+  connection: {
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
+  },
+  sessionId: string,
+  playerId: string | null,
+): Promise<HostSessionSnapshot> {
+  const auth = await resolveBackendAuth(connection);
+  const result = await getSessionSnapshot({
+    baseUrl: connection.apiBaseUrl,
+    auth,
+    path: { sessionId },
+    ...(playerId ? { query: { playerId } } : {}),
+  });
+  return unwrapBackendResponse(result, "Failed to fetch session snapshot");
+}
+
+async function startBackendSession(
+  connection: {
+    apiBaseUrl: string;
+    platform: DevHostPlatform;
+  },
+  sessionId: string,
+): Promise<HostSessionSnapshot> {
+  const auth = await resolveBackendAuth(connection);
+  const result = await startGame({
+    baseUrl: connection.apiBaseUrl,
+    auth,
+    path: { sessionId },
+  });
+  return unwrapBackendResponse(result, "Failed to start session");
+}
+
+async function resolveBackendAuth(connection: {
+  platform: DevHostPlatform;
+}): Promise<string | undefined> {
+  const bearer = await connection.platform.resolveBearer();
+  if (bearer.kind === "permanent_invalid") {
+    throw new HttpError(401, bearer.message);
+  }
+  return bearer.token ?? undefined;
+}
+
+function unwrapBackendResponse<T>(
+  result:
+    | {
+        data: T;
+        error: undefined;
+        response: Response;
+      }
+    | {
+        data: undefined;
+        error: unknown;
+        response: Response;
+      },
+  fallback: string,
+): T {
+  if (result.error || !result.data) {
+    throw new HttpError(
+      result.response.status,
+      formatBackendError(result.error, fallback),
+    );
+  }
+  return result.data;
+}
+
+function formatBackendError(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  if (typeof error === "string") {
+    return error.trim() || fallback;
+  }
+  if (error && typeof error === "object") {
+    const detail = getObjectStringProperty(error, "detail");
+    if (detail) {
+      return detail;
+    }
+    const message = getObjectStringProperty(error, "message");
+    if (message) {
+      return message;
+    }
+    const title = getObjectStringProperty(error, "title");
+    if (title) {
+      return title;
+    }
+  }
+  return fallback;
 }
 
 async function readJsonBody(
@@ -312,33 +423,12 @@ async function readJsonBody(
   return text ? (JSON.parse(text) as Record<string, unknown>) : {};
 }
 
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Missing required field: ${field}`);
-  }
-  return value;
-}
-
 function extractQueryParam(req: IncomingMessage, name: string): string | null {
   const rawUrl = req.url ?? "";
   const value = new URL(rawUrl, "http://dreamboard.local").searchParams.get(
     name,
   );
   return value?.trim() || null;
-}
-
-function appendQuery(
-  path: string,
-  query: Record<string, string | null | undefined>,
-): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value) {
-      params.set(key, value);
-    }
-  }
-  const serialized = params.toString();
-  return serialized ? `${path}?${serialized}` : path;
 }
 
 async function loadCurrentSession(options: {
@@ -377,40 +467,6 @@ async function resetDisposableSessionPointer(options: {
   await unlink(options.sessionFilePath).catch(() => undefined);
   consola.info(STALE_DEV_SESSION_RESET_NOTICE);
   return options.runtimeConfig.initialSession;
-}
-
-async function fetchBackendJson(
-  connection: {
-    apiBaseUrl: string;
-    platform: DevHostPlatform;
-  },
-  path: string,
-  options: {
-    method?: "GET" | "POST";
-    body?: Record<string, unknown>;
-  } = {},
-): Promise<unknown> {
-  const bearer = await connection.platform.resolveBearer();
-  if (bearer.kind === "permanent_invalid") {
-    throw new HttpError(401, bearer.message);
-  }
-
-  const response = await fetch(`${connection.apiBaseUrl}${path}`, {
-    method: options.method ?? "GET",
-    headers: {
-      ...(bearer.token ? { authorization: `Bearer ${bearer.token}` } : {}),
-      ...(options.body ? { "content-type": "application/json" } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new HttpError(
-      response.status,
-      text || `Backend request failed with ${response.status}`,
-    );
-  }
-  return response.json();
 }
 
 function attachLocalSeed(snapshot: unknown, seed: number | null): unknown {
@@ -482,6 +538,13 @@ function isStaleContractArtifactError(error: unknown): boolean {
     : false;
 }
 
+function isAlreadyStartedSessionError(error: unknown): boolean {
+  if (!(error instanceof HttpError) || error.statusCode !== 400) {
+    return false;
+  }
+  return error.message.includes("Session is not in lobby phase");
+}
+
 function getObjectStringProperty(
   value: unknown,
   property: string,
@@ -516,7 +579,7 @@ function parsePersistedSessionPointer(
   return {
     sessionId,
     shortCode: "Unknown",
-    gameId: runtimeConfig.gameId,
+    projectId: runtimeConfig.projectId,
     seed: null,
   };
 }

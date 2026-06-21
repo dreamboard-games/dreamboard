@@ -183,7 +183,6 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
     schemaVersion: 2,
     projectId: "project-1",
     slug: "project-1",
-    gameId: "game-1",
     compile: {
       latestSuccessful: {
         resultId: "compiled-1",
@@ -258,18 +257,18 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
         calls.push(`is-testing:${root}`);
         return true;
       },
-      generateArtifacts: async ({ projectRoot, gameId, compiledResultId }) => {
-        calls.push(`generate:${projectRoot}:${gameId}:${compiledResultId}`);
+      generateArtifacts: async ({ projectRoot, projectId, compiledResultId }) => {
+        calls.push(`generate:${projectRoot}:${projectId}:${compiledResultId}`);
         return { bases: [{}], scenarios: [{}] };
       },
       runScenarios: async ({
         projectRoot,
         projectConfig: scenarioProjectConfig,
-        gameId,
+        projectId,
         compiledResultId,
       }) => {
         calls.push(
-          `scenarios:${projectRoot}:${scenarioProjectConfig.projectId}:${gameId}:${compiledResultId}`,
+          `scenarios:${projectRoot}:${scenarioProjectConfig.projectId}:${projectId}:${compiledResultId}`,
         );
         return {
           passed: 1,
@@ -301,8 +300,8 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
     "typecheck:/tmp/dreamboard-verify-success/worktree",
     "bundle:/tmp/dreamboard-verify-success/worktree",
     "is-testing:/tmp/dreamboard-verify-success/worktree",
-    "generate:/tmp/dreamboard-verify-success/worktree:game-1:compiled-1",
-    "scenarios:/tmp/dreamboard-verify-success/worktree:project-1:game-1:compiled-1",
+    "generate:/tmp/dreamboard-verify-success/worktree:project-1:compiled-1",
+    "scenarios:/tmp/dreamboard-verify-success/worktree:project-1:project-1:compiled-1",
     "remove:/tmp/dreamboard-verify-success/worktree",
   ]);
 });

@@ -72,7 +72,6 @@ test("test command runs reducer scenarios against the current workspace", async 
               schemaVersion: 2,
               projectId: "project-1",
               slug: "project-1",
-              gameId: "game-1",
               compile: {
                 latestSuccessful: {
                   resultId: "compiled-local",
@@ -96,7 +95,7 @@ test("test command runs reducer scenarios against the current workspace", async 
         },
         generateArtifacts: async (options) => {
           calls.push(
-            `generate:${options.projectRoot}:${options.compiledResultId}:${options.gameId}:${options.scenarioPath}:${options.debug}`,
+            `generate:${options.projectRoot}:${options.compiledResultId}:${options.projectId}:${options.scenarioPath}:${options.debug}`,
           );
           return {
             bases: [{}],
@@ -105,7 +104,7 @@ test("test command runs reducer scenarios against the current workspace", async 
         },
         runScenarios: async (options) => {
           calls.push(
-            `run:${options.projectRoot}:${options.compiledResultId}:${options.gameId}:${options.scenarioPath}:${options.debug}:${options.updateSnapshots}`,
+            `run:${options.projectRoot}:${options.compiledResultId}:${options.projectId}:${options.scenarioPath}:${options.debug}:${options.updateSnapshots}`,
           );
           return {
             passed: 1,
@@ -123,7 +122,7 @@ test("test command runs reducer scenarios against the current workspace", async 
     "resolve:false",
     "portable:prod:/workspace",
     "workspace:/workspace",
-    "generate:/workspace:compiled-local:game-1:test/scenarios/first.scenario.ts:true",
-    "run:/workspace:compiled-local:game-1:test/scenarios/first.scenario.ts:true:true",
+    "generate:/workspace:compiled-local:project-1:test/scenarios/first.scenario.ts:true",
+    "run:/workspace:compiled-local:project-1:test/scenarios/first.scenario.ts:true:true",
   ]);
 });

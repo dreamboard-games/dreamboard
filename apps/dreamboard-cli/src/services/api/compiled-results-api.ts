@@ -57,11 +57,10 @@ function compareCreatedAtDesc(
 }
 
 async function findFallbackCompiledResultForJob(options: {
-  gameId?: string;
   projectId?: string;
   job: Pick<JobDetailResponse, "createdAt">;
 }): Promise<CompiledResult | null> {
-  const { gameId, projectId, job } = options;
+  const { projectId, job } = options;
   if (!projectId) {
     return null;
   }
@@ -95,14 +94,14 @@ async function findFallbackCompiledResultForJob(options: {
 }
 
 export async function findLatestSuccessfulCompiledResult(
-  gameId: string,
+  projectId: string,
 ): Promise<CompiledResult | null> {
-  void gameId;
+  void projectId;
   return null;
 }
 
 export async function findCompiledResultsForAuthoringState(options: {
-  gameId: string;
+  projectId: string;
   authoringStateId: string;
 }): Promise<CompiledResult[]> {
   void options;
@@ -110,12 +109,12 @@ export async function findCompiledResultsForAuthoringState(options: {
 }
 
 export async function getCompiledResultSdk(
-  gameId: string,
+  projectId: string,
   compiledResultId: string,
 ): Promise<CompiledResult> {
-  void gameId;
+  void projectId;
   void compiledResultId;
-  throw new Error("Game-scoped compiled result lookup is no longer supported.");
+  throw new Error("Project-scoped compiled result lookup is no longer supported.");
 }
 
 export async function findProjectCompiledResultsForRevision(options: {
@@ -175,7 +174,6 @@ export async function queueProjectRevisionCompileSdk(options: {
 }
 
 export async function waitForCompiledResultJobSdk(options: {
-  gameId?: string;
   projectId?: string;
   jobId: string;
   onProgress?: (job: JobDetailResponse) => void;
@@ -183,7 +181,10 @@ export async function waitForCompiledResultJobSdk(options: {
   job: JobDetailResponse;
   compiledResult: CompiledResult;
 }> {
-  const { gameId, projectId, jobId, onProgress } = options;
+  const { projectId, jobId, onProgress } = options;
+  if (!projectId) {
+    throw new Error("projectId is required when waiting for a compile job.");
+  }
   let previousTransitionKey: string | null = null;
   const startedAt = Date.now();
   const timeoutMs = readCompileJobWaitTimeoutMs();
@@ -214,22 +215,14 @@ export async function waitForCompiledResultJobSdk(options: {
       const compiledResultId =
         job.createdCompiledResultId ?? job.createdAppScriptId;
       if (compiledResultId) {
-        if (projectId) {
-          const compiledResult = await getProjectCompiledResultSdk(
-            projectId,
-            compiledResultId,
-          );
-          return { job, compiledResult };
-        }
-        const compiledResult = await getCompiledResultSdk(
-          gameId!,
+        const compiledResult = await getProjectCompiledResultSdk(
+          projectId,
           compiledResultId,
         );
         return { job, compiledResult };
       }
 
       const fallbackCompiledResult = await findFallbackCompiledResultForJob({
-        gameId,
         projectId,
         job,
       });

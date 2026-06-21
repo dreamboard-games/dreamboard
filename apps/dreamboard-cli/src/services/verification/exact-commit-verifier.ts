@@ -65,14 +65,14 @@ export type ExactCommitVerifierDeps = {
   isTestingWorkspace?: (root: string) => Promise<boolean>;
   generateArtifacts?: (options: {
     projectRoot: string;
-    gameId: string;
+    projectId: string;
     compiledResultId?: string;
   }) => Promise<{ bases: unknown[]; scenarios: unknown[] }>;
   runScenarios?: (options: {
     projectRoot: string;
     projectConfig: ProjectConfig;
     resolvedConfig: ResolvedConfig;
-    gameId: string;
+    projectId: string;
     compiledResultId?: string;
   }) => Promise<ReducerNativeScenarioSummary>;
 };
@@ -188,14 +188,14 @@ export async function runExactCommitVerification(
         );
       }
       const runtimeIdentity = {
-        gameId: projectConfig.gameId,
+        projectId: projectConfig.projectId,
         compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
       };
       const generated = await (
         deps.generateArtifacts ?? generateReducerNativeArtifacts
       )({
         projectRoot: worktreeRoot,
-        gameId: runtimeIdentity.gameId,
+        projectId: runtimeIdentity.projectId,
         compiledResultId: runtimeIdentity.compiledResultId,
       });
       if (generated.bases.length === 0) {
@@ -212,7 +212,7 @@ export async function runExactCommitVerification(
         projectRoot: worktreeRoot,
         projectConfig,
         resolvedConfig: options.config,
-        gameId: runtimeIdentity.gameId,
+        projectId: runtimeIdentity.projectId,
         compiledResultId: runtimeIdentity.compiledResultId,
       });
       steps.push("scenarios");

@@ -88,7 +88,6 @@ export type ProjectManifestV2 = {
 export type ProjectEnvironmentBindingV1 = {
   deploymentId: string;
   ownerScopeId: string;
-  gameId?: string;
   remoteHeadDigest?: string;
   jobId?: string;
   agentManaged?: boolean;
@@ -109,26 +108,8 @@ export type ProjectEnvironmentStateV1 = {
   bindings: Record<string, ProjectEnvironmentBindingV1>;
 };
 
-export type LegacyProjectConfigV1 = {
-  gameId: string;
-  slug: string;
-  jobId?: string;
-  agentManaged?: boolean;
-  workspacePrepared?: boolean;
-  allowCreateGame?: boolean;
-  environment?: Environment;
-  authoring?: ProjectAuthoringState;
-  compile?: ProjectCompileState;
-  localMaintainerRegistry?: LocalMaintainerRegistryConfig;
-  apiBaseUrl?: string;
-  webBaseUrl?: string;
-  packageManifest?: Record<string, unknown>;
-  environmentManifest?: Record<string, unknown>;
-};
-
 export type ProjectConfig = ProjectManifestV2 &
-  Omit<ProjectEnvironmentBindingV1, "gameId"> & {
-    gameId: string;
+  ProjectEnvironmentBindingV1 & {
     bindingKey?: string;
   };
 

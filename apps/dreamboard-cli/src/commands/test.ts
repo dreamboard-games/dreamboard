@@ -133,7 +133,7 @@ export async function runTestCommand(
     projectRoot,
     scenarioPath: args.scenario,
     compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
-    gameId: projectConfig.gameId,
+    projectId: projectConfig.projectId,
     debug: Boolean(args.debug),
   });
   if (generated.bases.length === 0) {
@@ -148,7 +148,7 @@ export async function runTestCommand(
     resolvedConfig: config,
     scenarioPath: args.scenario,
     compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
-    gameId: projectConfig.gameId,
+    projectId: projectConfig.projectId,
     debug: Boolean(args.debug),
     updateSnapshots: plan.updateSnapshots,
   });

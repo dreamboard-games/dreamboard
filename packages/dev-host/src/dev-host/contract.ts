@@ -39,14 +39,14 @@ export interface DevHostModuleV1 {
 export type ActiveSession = {
   sessionId: string;
   shortCode: string;
-  gameId: string;
+  projectId: string;
   seed: number | null;
 };
 
 export interface DreamboardDevRuntimeConfig {
   apiBaseUrl: string;
   userId: string | null;
-  gameId: string;
+  projectId: string;
   compiledResultId: string;
   setupProfileId: string | null;
   playerCount: number;

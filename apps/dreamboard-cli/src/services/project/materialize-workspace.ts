@@ -17,9 +17,8 @@ import { updateProjectState } from "../../config/project-config.js";
 
 export type MaterializeWorkspaceProjectInput = {
   targetDir: string;
-  projectId?: string;
+  projectId: string;
   slug: string;
-  gameId: string;
   deploymentId?: string;
   ownerScopeId?: string;
   bindingKey?: string;
@@ -82,8 +81,7 @@ function baseProjectConfig(
 ): ProjectConfig {
   return {
     schemaVersion: 2,
-    projectId: input.projectId ?? input.gameId,
-    gameId: input.gameId,
+    projectId: input.projectId,
     deploymentId: input.deploymentId ?? "legacy",
     ownerScopeId: input.ownerScopeId ?? "default",
     bindingKey: input.bindingKey,

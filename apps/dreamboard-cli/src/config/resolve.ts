@@ -339,7 +339,10 @@ function createRetryingReadFetch(fetchImpl: typeof fetch): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const method = resolveFetchMethod(input, init);
     if (method !== "GET" && method !== "HEAD") {
-      return fetchImpl(input, init);
+      return fetchWithOptionalTrace(fetchImpl, input, init, {
+        attempt: 0,
+        willRetry: false,
+      });
     }
 
     let lastError: unknown;
@@ -349,7 +352,10 @@ function createRetryingReadFetch(fetchImpl: typeof fetch): typeof fetch {
       attempt += 1
     ) {
       try {
-        return await fetchImpl(input, init);
+        return await fetchWithOptionalTrace(fetchImpl, input, init, {
+          attempt,
+          willRetry: attempt < TRANSIENT_READ_RETRY_DELAYS_MS.length,
+        });
       } catch (error) {
         lastError = error;
         if (
@@ -364,6 +370,130 @@ function createRetryingReadFetch(fetchImpl: typeof fetch): typeof fetch {
 
     throw lastError;
   }) as typeof fetch;
+}
+
+async function fetchWithOptionalTrace(
+  fetchImpl: typeof fetch,
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  options: { attempt: number; willRetry: boolean },
+): Promise<Response> {
+  if (!isHttpTraceEnabled()) {
+    return fetchImpl(input, init);
+  }
+
+  const request = describeRequest(input, init);
+  const startedAt = Date.now();
+  try {
+    const response = await fetchImpl(input, init);
+    writeHttpTrace({
+      ...request,
+      attempt: options.attempt,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+    });
+    return response;
+  } catch (error) {
+    writeHttpTrace({
+      ...request,
+      attempt: options.attempt,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.name : "UnknownError",
+      willRetry: options.willRetry,
+    });
+    throw error;
+  }
+}
+
+function isHttpTraceEnabled(): boolean {
+  return process.env.DREAMBOARD_CLI_HTTP_TRACE === "1";
+}
+
+function describeRequest(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): {
+  method: string;
+  url: string;
+  hasAuthorization: boolean;
+} {
+  return {
+    method: resolveFetchMethod(input, init),
+    url: redactUrl(input),
+    hasAuthorization: hasAuthorizationHeader(input, init),
+  };
+}
+
+function redactUrl(input: RequestInfo | URL): string {
+  const rawUrl =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+  try {
+    const url = new URL(rawUrl);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return "<unparseable-url>";
+  }
+}
+
+function hasAuthorizationHeader(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): boolean {
+  return (
+    headersContainAuthorization(init?.headers) ||
+    (typeof Request !== "undefined" &&
+      input instanceof Request &&
+      input.headers.has("Authorization"))
+  );
+}
+
+function headersContainAuthorization(headers?: HeadersInit): boolean {
+  if (!headers) {
+    return false;
+  }
+  if (headers instanceof Headers) {
+    return headers.has("Authorization");
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(([name]) => name.toLowerCase() === "authorization");
+  }
+  return Object.keys(headers).some(
+    (name) => name.toLowerCase() === "authorization",
+  );
+}
+
+function writeHttpTrace(event: {
+  method: string;
+  url: string;
+  hasAuthorization: boolean;
+  attempt: number;
+  durationMs: number;
+  status?: number;
+  error?: string;
+  willRetry?: boolean;
+}): void {
+  const parts = [
+    "[dreamboard-cli:http]",
+    `method=${event.method}`,
+    `url=${event.url}`,
+    `auth=${event.hasAuthorization ? "present" : "missing"}`,
+    `attempt=${event.attempt + 1}`,
+    `durationMs=${event.durationMs}`,
+  ];
+  if (typeof event.status === "number") {
+    parts.push(`status=${event.status}`);
+  }
+  if (event.error) {
+    parts.push(`error=${event.error}`);
+  }
+  if (event.willRetry) {
+    parts.push("willRetry=true");
+  }
+  console.error(parts.join(" "));
 }
 
 function resolveFetchMethod(

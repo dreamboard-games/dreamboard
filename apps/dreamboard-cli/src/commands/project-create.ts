@@ -156,7 +156,6 @@ export default defineCommand({
       targetDir,
       projectId,
       slug: project.slug,
-      gameId: project.projectId,
       deploymentId: identity.deploymentId,
       ownerScopeId: identity.ownerScopeId,
       bindingKey: identity.bindingKey,

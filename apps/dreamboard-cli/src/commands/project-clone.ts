@@ -164,7 +164,6 @@ export default defineCommand({
 
       await updateProjectEnvironmentState(tempDir, {
         ...clonedProjectConfig,
-        gameId: project.projectId,
         deploymentId: identity.deploymentId,
         ownerScopeId: identity.ownerScopeId,
         bindingKey: identity.bindingKey,

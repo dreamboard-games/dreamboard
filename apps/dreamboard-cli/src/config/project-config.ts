@@ -1,6 +1,5 @@
 import path from "node:path";
 import type {
-  LegacyProjectConfigV1,
   ProjectConfig,
   ProjectEnvironmentBindingV1,
   ProjectEnvironmentStateV1,
@@ -32,7 +31,6 @@ function normalizeProjectBinding(
   return {
     deploymentId: config.deploymentId ?? LEGACY_DEFAULT_DEPLOYMENT_ID,
     ownerScopeId: config.ownerScopeId ?? LEGACY_DEFAULT_OWNER_SCOPE_ID,
-    gameId: config.gameId,
     remoteHeadDigest: config.remoteHeadDigest,
     jobId: config.jobId,
     agentManaged: config.agentManaged,
@@ -76,7 +74,6 @@ function mergeManifestAndBinding(
       deploymentId: LEGACY_DEFAULT_DEPLOYMENT_ID,
       ownerScopeId: LEGACY_DEFAULT_OWNER_SCOPE_ID,
     }),
-    gameId: binding?.gameId ?? manifest.projectId,
     bindingKey:
       bindingKey ??
       `${binding?.deploymentId ?? LEGACY_DEFAULT_DEPLOYMENT_ID}:${
@@ -92,32 +89,6 @@ function isProjectManifestV2(value: unknown): value is ProjectManifestV2 {
     typeof candidate.projectId === "string" &&
     typeof candidate.slug === "string"
   );
-}
-
-function normalizeLegacyProjectConfig(
-  config: LegacyProjectConfigV1 & { projectId?: string },
-): ProjectConfig {
-  return {
-    schemaVersion: 2,
-    projectId: config.projectId ?? config.gameId,
-    slug: config.slug,
-    bindingKey: LEGACY_DEFAULT_BINDING_KEY,
-    deploymentId: LEGACY_DEFAULT_DEPLOYMENT_ID,
-    ownerScopeId: LEGACY_DEFAULT_OWNER_SCOPE_ID,
-    gameId: config.gameId,
-    jobId: config.jobId,
-    agentManaged: config.agentManaged,
-    workspacePrepared: config.workspacePrepared,
-    allowCreateGame: config.allowCreateGame,
-    environment: config.environment,
-    authoring: config.authoring,
-    compile: config.compile,
-    localMaintainerRegistry: config.localMaintainerRegistry,
-    apiBaseUrl: config.apiBaseUrl,
-    webBaseUrl: config.webBaseUrl,
-    packageManifest: config.packageManifest,
-    environmentManifest: config.environmentManifest,
-  };
 }
 
 async function loadProjectEnvironmentState(
@@ -137,15 +108,11 @@ export async function loadProjectConfig(
   rootDir: string,
 ): Promise<ProjectConfig> {
   const filePath = path.join(rootDir, PROJECT_DIR_NAME, PROJECT_CONFIG_FILE);
-  const rawConfig = await readJsonFile<ProjectManifestV2 | LegacyProjectConfigV1>(
-    filePath,
-  );
+  const rawConfig = await readJsonFile<ProjectManifestV2>(filePath);
   if (!isProjectManifestV2(rawConfig)) {
-    const migrated = normalizeLegacyProjectConfig(
-      rawConfig as LegacyProjectConfigV1,
+    throw new Error(
+      `Unsupported project config at ${filePath}. Expected schemaVersion 2 with projectId and slug.`,
     );
-    await updateProjectState(rootDir, migrated);
-    return migrated;
   }
 
   const state = await loadProjectEnvironmentState(rootDir);

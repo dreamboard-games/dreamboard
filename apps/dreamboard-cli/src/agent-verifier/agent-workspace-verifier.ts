@@ -186,14 +186,14 @@ async function runCloudLocalVerification(
   if (await isReducerNativeTestingWorkspace(projectRoot)) {
     const { bases } = await generateReducerNativeArtifacts({
       projectRoot,
-      gameId: projectConfig.gameId,
+      projectId: projectConfig.projectId,
       compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
     });
     const summary = await runReducerNativeScenarios({
       projectRoot,
       projectConfig,
       resolvedConfig: config,
-      gameId: projectConfig.gameId,
+      projectId: projectConfig.projectId,
       compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
     });
     if (summary.failed > 0) {

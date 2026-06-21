@@ -1,10 +1,12 @@
-export type DreamboardTokenAudience = "dreamboard-api" | "dreamboard-git";
+import {
+  exchangeAuthToken,
+  type TokenExchangeAudience,
+  type TokenExchangeResponse,
+} from "@dreamboard-games/api-client";
 
-export type DreamboardTokenResponse = {
-  accessToken: string;
-  tokenType: "Bearer";
-  audience: DreamboardTokenAudience;
-  expiresIn?: number;
+export type DreamboardTokenAudience = TokenExchangeAudience;
+
+export type DreamboardTokenResponse = TokenExchangeResponse & {
   expiresAt?: string;
 };
 
@@ -15,57 +17,36 @@ export async function exchangeDreamboardUserToken(input: {
   fetchImpl?: typeof fetch;
 }): Promise<DreamboardTokenResponse> {
   const fetchImpl = input.fetchImpl ?? globalThis.fetch.bind(globalThis);
-  const response = await fetchImpl(
-    new URL("/api/auth/token-exchange", input.apiBaseUrl),
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${input.clerkAccessToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ audience: input.audience }),
-    },
-  );
+  const { data, error, response } = await exchangeAuthToken({
+    baseUrl: input.apiBaseUrl,
+    auth: input.clerkAccessToken,
+    body: { audience: input.audience },
+    fetch: fetchImpl,
+  });
 
-  if (!response.ok) {
+  if (error || !data) {
     throw new Error(
       `Dreamboard token exchange failed (${response.status}). Run \`dreamboard auth login\` to authenticate again.`,
     );
   }
 
-  const payload = (await response.json()) as {
-    accessToken?: unknown;
-    tokenType?: unknown;
-    audience?: unknown;
-    expiresIn?: unknown;
-  };
-
-  if (typeof payload.accessToken !== "string" || payload.accessToken === "") {
+  if (data.accessToken === "") {
     throw new Error("Dreamboard token exchange response omitted accessToken.");
   }
-  if (payload.tokenType !== "Bearer") {
+  if (data.tokenType !== "Bearer") {
     throw new Error(
       "Dreamboard token exchange response had invalid tokenType.",
     );
   }
-  if (payload.audience !== input.audience) {
+  if (data.audience !== input.audience) {
     throw new Error("Dreamboard token exchange response had wrong audience.");
   }
 
-  const expiresIn =
-    typeof payload.expiresIn === "number" && Number.isFinite(payload.expiresIn)
-      ? payload.expiresIn
-      : undefined;
-
   return {
-    accessToken: payload.accessToken,
-    tokenType: "Bearer",
-    audience: input.audience,
-    expiresIn,
+    ...data,
     expiresAt:
-      expiresIn === undefined
+      data.expiresIn === undefined
         ? undefined
-        : new Date(Date.now() + expiresIn * 1000).toISOString(),
+        : new Date(Date.now() + data.expiresIn * 1000).toISOString(),
   };
 }

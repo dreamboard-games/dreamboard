@@ -16,7 +16,7 @@ import {
 import consola from "consola";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import { PROJECT_DIR_NAME } from "../constants.js";
-import { configureClient, resolveProjectContext } from "../config/resolve.js";
+import { resolveProjectContext } from "../config/resolve.js";
 import { resolveLocalHarnessAccessToken } from "../config/local-harness-auth.js";
 import { createUserSessionManager } from "../auth/user-session-manager.js";
 import { parseDevCommandArgs, parsePlayerCountFlags } from "../flags.js";
@@ -260,7 +260,7 @@ const STALE_DEV_SESSION_RESET_NOTICE =
 type DevRunSession = {
   sessionId: string;
   shortCode: string;
-  gameId: string;
+  projectId: string;
   seed?: number;
   setupProfileId?: string;
   materialization?: {
@@ -341,11 +341,8 @@ export default defineCommand({
   },
   async run({ args }) {
     const parsedArgs = parseDevCommandArgs(args);
-    const { projectRoot, projectConfig, config } = await resolveProjectContext(
-      parsedArgs,
-      { requireAuth: false },
-    );
-    await configureClient(config);
+    const { projectRoot, projectConfig, config } =
+      await resolveProjectContext(parsedArgs);
     const remoteProject = await resolveRemoteProject({
       projectRoot,
       projectConfig,
@@ -356,11 +353,15 @@ export default defineCommand({
       resolveLocalHarnessAccessToken(config) ??
       (await createUserSessionManager(config).resolveApiToken())?.token ??
       config.authToken;
+    const authenticatedConfig = {
+      ...config,
+      authToken: effectiveAuthToken,
+    };
 
     const devCompile = await ensureDevCompiledResult({
       projectRoot,
       projectConfig: effectiveProjectConfig,
-      config,
+      config: authenticatedConfig,
       env: parsedArgs.env ?? "local",
       debug: parsedArgs.debug,
     });
@@ -433,7 +434,7 @@ export default defineCommand({
       await generateReducerNativeArtifacts({
         projectRoot,
         compiledResultId: devCompile.id,
-        gameId: effectiveProjectConfig.gameId,
+        projectId: effectiveProjectConfig.projectId,
         debug: parsedArgs.debug,
       });
       const seededScenario = await createSessionFromScenario({
@@ -441,7 +442,6 @@ export default defineCommand({
         scenarioId: requestedScenarioId,
         compiledResultId: devCompile.id,
         projectId: effectiveProjectConfig.projectId,
-        gameId: effectiveProjectConfig.gameId,
         debug: parsedArgs.debug,
         trustGeneratedFingerprint: true,
       });
@@ -451,7 +451,7 @@ export default defineCommand({
       runSession = {
         sessionId: seededScenario.sessionId,
         shortCode: seededScenario.shortCode,
-        gameId: seededScenario.gameId,
+        projectId: seededScenario.projectId,
         seed: seededScenario.seed,
         setupProfileId: seededScenario.setupProfileId ?? undefined,
         materialization: seededScenario.materialization,
@@ -499,7 +499,7 @@ export default defineCommand({
         runtimeConfig: {
           apiBaseUrl: config.apiBaseUrl,
           userId: extractUserIdFromJwt(effectiveAuthToken ?? null),
-          gameId: runSession.gameId,
+          projectId: effectiveProjectConfig.projectId,
           compiledResultId: devCompile.id,
           setupProfileId: runSession.setupProfileId ?? null,
           playerCount: resolvedPlayerCount,
@@ -509,12 +509,12 @@ export default defineCommand({
           initialSession: {
             sessionId: runSession.sessionId,
             shortCode: runSession.shortCode,
-            gameId: runSession.gameId,
+            projectId: effectiveProjectConfig.projectId,
             seed: runSession.seed ?? null,
           },
         },
       },
-      createCliDevHostPlatform(config),
+      createCliDevHostPlatform(authenticatedConfig),
     );
 
     clearPreflightOutput();
@@ -589,7 +589,7 @@ async function tryResumeSession(
   if (projectIdFromSessionGameSource(context.gameSource) !== currentGameId) {
     return {
       session: null,
-      reason: "session belongs to a different game",
+      reason: "session belongs to a different project",
     };
   }
   if ((context.setupProfileId ?? null) !== setupProfileId) {
@@ -609,7 +609,7 @@ async function tryResumeSession(
     session: {
       sessionId: context.sessionId,
       shortCode: context.shortCode,
-      gameId: projectIdFromSessionGameSource(context.gameSource),
+      projectId: projectIdFromSessionGameSource(context.gameSource),
       setupProfileId: context.setupProfileId ?? undefined,
     },
     reason: null,
@@ -921,7 +921,7 @@ async function createDevSession(options: {
   return {
     sessionId: session.sessionId,
     shortCode: session.shortCode,
-    gameId: projectIdFromSessionGameSource(session.gameSource),
+    projectId: projectIdFromSessionGameSource(session.gameSource),
     seed: options.seed,
     setupProfileId: options.setupProfileId ?? undefined,
   };

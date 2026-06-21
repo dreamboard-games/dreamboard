@@ -14,15 +14,6 @@ const mockState: {
     success: boolean;
   }>;
   latestCompiledResultResponse: MockApiResponse<{ id: string }>;
-  listCompiledResultsResponse: MockApiResponse<{
-    results: Array<{
-      id: string;
-      authoringStateId: string;
-      revisionDigest?: string;
-      success: boolean;
-      createdAt?: string;
-    }>;
-  }>;
   listProjectCompiledResultsResponse: MockApiResponse<{
     results: Array<{
       id: string;
@@ -32,10 +23,6 @@ const mockState: {
       createdAt?: string;
     }>;
   }>;
-  listCompiledResultsCalls: Array<{
-    path: { gameId: string };
-    query?: { limit?: number; authoringStateId?: string };
-  }>;
   listProjectCompiledResultsCalls: Array<{
     path: { projectId: string };
     query?: { limit?: number };
@@ -43,7 +30,7 @@ const mockState: {
   jobResponses: Array<
     MockApiResponse<{
       jobId: string;
-      gameId: string;
+      projectId: string;
       jobType: "COMPILED_RESULT_BUILD";
       status:
         | "PENDING"
@@ -76,13 +63,6 @@ const mockState: {
     error: null,
     response: { status: 200 },
   },
-  listCompiledResultsResponse: {
-    data: {
-      results: [],
-    },
-    error: null,
-    response: { status: 200 },
-  },
   listProjectCompiledResultsResponse: {
     data: {
       results: [],
@@ -90,7 +70,6 @@ const mockState: {
     error: null,
     response: { status: 200 },
   },
-  listCompiledResultsCalls: [],
   listProjectCompiledResultsCalls: [],
   jobResponses: [],
 };
@@ -111,13 +90,6 @@ mock.module("@dreamboard-games/api-client", () => ({
     error: null,
     response: { status: 200 },
   }),
-  listCompiledResults: async (options: {
-    path: { gameId: string };
-    query?: { limit?: number; authoringStateId?: string };
-  }) => {
-    mockState.listCompiledResultsCalls.push(options);
-    return mockState.listCompiledResultsResponse;
-  },
   listProjectCompiledResults: async (options: {
     path: { projectId: string };
     query?: { limit?: number };
@@ -149,13 +121,6 @@ beforeEach(() => {
     error: null,
     response: { status: 200 },
   };
-  mockState.listCompiledResultsResponse = {
-    data: {
-      results: [],
-    },
-    error: null,
-    response: { status: 200 },
-  };
   mockState.listProjectCompiledResultsResponse = {
     data: {
       results: [],
@@ -163,33 +128,18 @@ beforeEach(() => {
     error: null,
     response: { status: 200 },
   };
-  mockState.listCompiledResultsCalls = [];
   mockState.listProjectCompiledResultsCalls = [];
   mockState.jobResponses = [];
 });
 
-test("findCompiledResultsForAuthoringState no-ops after game-scoped result list removal", async () => {
-  mockState.listCompiledResultsResponse = {
-    data: {
-      results: [
-        {
-          id: "compiled-result-2",
-          authoringStateId: "authoring-state-2",
-          success: true,
-        },
-      ],
-    },
-    error: null,
-    response: { status: 200 },
-  };
-
+test("findCompiledResultsForAuthoringState no-ops after project-scoped result list removal", async () => {
   const results = await findCompiledResultsForAuthoringState({
-    gameId: "game-1",
+    projectId: "project-1",
     authoringStateId: "authoring-state-2",
   });
 
   expect(results).toEqual([]);
-  expect(mockState.listCompiledResultsCalls).toEqual([]);
+  expect(mockState.listProjectCompiledResultsCalls).toEqual([]);
 });
 
 test("findProjectCompiledResultsForRevision filters project results by revision digest", async () => {
@@ -238,7 +188,7 @@ test("waitForCompiledResultJobSdk surfaces compiler job messages when a failed j
   mockState.jobResponses.push({
     data: {
       jobId: "job-1",
-      gameId: "game-1",
+      projectId: "project-1",
       jobType: "COMPILED_RESULT_BUILD",
       status: "FAILED",
       createdAt: "2026-03-17T05:45:58Z",
@@ -252,7 +202,7 @@ test("waitForCompiledResultJobSdk surfaces compiler job messages when a failed j
 
   await expect(
     waitForCompiledResultJobSdk({
-      gameId: "game-1",
+      projectId: "project-1",
       jobId: "job-1",
     }),
   ).rejects.toThrow(
@@ -264,7 +214,7 @@ test("waitForCompiledResultJobSdk falls back to a descriptive terminal error whe
   mockState.jobResponses.push({
     data: {
       jobId: "job-2",
-      gameId: "game-1",
+      projectId: "project-1",
       jobType: "COMPILED_RESULT_BUILD",
       status: "COMPLETED",
       createdAt: "2026-03-17T05:45:58Z",
@@ -276,7 +226,7 @@ test("waitForCompiledResultJobSdk falls back to a descriptive terminal error whe
 
   await expect(
     waitForCompiledResultJobSdk({
-      gameId: "game-1",
+      projectId: "project-1",
       jobId: "job-2",
     }),
   ).rejects.toThrow(

@@ -12,6 +12,7 @@ export type LoadedDevHostModuleV1 = {
 type DevHostPackageJson = {
   name?: string;
   version?: string;
+  main?: string;
 };
 
 export async function loadProjectDevHost(
@@ -19,13 +20,11 @@ export async function loadProjectDevHost(
 ): Promise<LoadedDevHostModuleV1> {
   const requireFromProject = createRequire(path.join(projectRoot, "package.json"));
   let packageJsonPath: string;
-  let entryPath: string;
 
   try {
     packageJsonPath = requireFromProject.resolve(
       "@dreamboard-games/dev-host/package.json",
     );
-    entryPath = requireFromProject.resolve("@dreamboard-games/dev-host");
   } catch (error) {
     throw new Error(
       "Install @dreamboard-games/dev-host in this workspace before running dreamboard dev or browser tests.",
@@ -34,12 +33,6 @@ export async function loadProjectDevHost(
   }
 
   const packageRoot = path.dirname(packageJsonPath);
-  if (!isPathInside(packageRoot, entryPath)) {
-    throw new Error(
-      "@dreamboard-games/dev-host resolved outside its installed package.",
-    );
-  }
-
   const packageJson = requireFromProject(packageJsonPath) as DevHostPackageJson;
   if (
     packageJson.name !== "@dreamboard-games/dev-host" ||
@@ -47,6 +40,12 @@ export async function loadProjectDevHost(
     packageJson.version.length === 0
   ) {
     throw new Error("Installed @dreamboard-games/dev-host metadata is invalid.");
+  }
+  const entryPath = path.resolve(packageRoot, packageJson.main ?? "dist/index.js");
+  if (!isPathInside(packageRoot, entryPath)) {
+    throw new Error(
+      "@dreamboard-games/dev-host resolved outside its installed package.",
+    );
   }
 
   const loaded = (await import(pathToFileURL(entryPath).href)) as Partial<

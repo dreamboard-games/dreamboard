@@ -291,7 +291,9 @@ function resolveDevHostRoot(importMetaUrl: string): string {
     resolveCurrentPackageRoot(importMetaUrl),
     "src/dev-host",
   );
-  return existsSync(sourceDirCandidate) ? sourceDirCandidate : currentDir;
+  return existsSync(path.join(sourceDirCandidate, "host-main.tsx"))
+    ? sourceDirCandidate
+    : currentDir;
 }
 
 function resolveCurrentPackageRoot(importMetaUrl: string): string {

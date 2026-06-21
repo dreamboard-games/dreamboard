@@ -59,6 +59,7 @@ import {
   type ActiveSession,
 } from "./dev-host-storage.js";
 import { resolveInitialDevHostPlayerId } from "./dev-host-player-query.js";
+import { toHostSessionMetadataProps } from "./ui-host-runtime-contract.js";
 
 const diagnosticsLevel = resolveDevDiagnosticsLevel(devConfig.debug);
 const devLogger = createDevDiagnosticsLogger(diagnosticsLevel);
@@ -164,7 +165,7 @@ const controller = new DevHostController(
     createDevSessionSnapshot: hostSessionTransport.createDevSessionSnapshot,
     debug: devConfig.debug,
     fallbackSession: devConfig.initialSession,
-    gameId: devConfig.gameId,
+    projectId: devConfig.projectId,
     initialPlayerId: resolveInitialDevHostPlayerId(window.location.search),
     playerCount: devConfig.playerCount,
     setupProfileId: devConfig.setupProfileId,
@@ -538,9 +539,7 @@ function DevHostApp({
                 </summary>
                 <div className="dev-host-debug-shell mt-3 space-y-3 pb-1">
                   <HostSessionMetadata
-                    gameId={session.gameId}
-                    sessionId={session.sessionId}
-                    shortCode={session.shortCode}
+                    {...toHostSessionMetadataProps(session)}
                   />
                   <DebugRow label="Backend" value={devConfig.apiBaseUrl} />
                 </div>

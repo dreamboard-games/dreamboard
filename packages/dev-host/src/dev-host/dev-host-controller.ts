@@ -1,6 +1,5 @@
 import {
   PluginSessionGateway,
-  type GameSessionStoreApi,
   type HostSessionTransport,
   type LoggerLike,
   type SessionContext,
@@ -9,6 +8,7 @@ import {
 } from "@dreamboard-games/ui-host-runtime/runtime";
 import { formatConsoleArgs } from "./dev-diagnostics.js";
 import type { ActiveSession, DevHostStorage } from "./dev-host-storage.js";
+import { toGameSessionStoreApi } from "./ui-host-runtime-contract.js";
 
 const AUTO_RECOVERY_SSE_FAILURE_THRESHOLD = 2;
 const MAX_AUTO_RECOVERY_ATTEMPTS = 1;
@@ -55,7 +55,7 @@ export interface DevHostControllerConfig {
   >;
   debug: boolean;
   fallbackSession: ActiveSession;
-  gameId: string;
+  projectId: string;
   initialPlayerId?: string | null;
   playerCount: number;
   setupProfileId: string | null;
@@ -434,12 +434,6 @@ export class DevHostController {
         void params;
         return { valid: true };
       },
-      onSwitchPlayer: (playerId: string) => {
-        this.switchPlayer(playerId);
-      },
-      onRestoreHistory: async (entryId: string) => {
-        await this.restoreHistoryEntry(entryId);
-      },
       logger: this.logger,
     });
 
@@ -451,17 +445,7 @@ export class DevHostController {
       return;
     }
 
-    const storeApi: GameSessionStoreApi = {
-      getStateSnapshot: this.store.getState().getPluginSnapshot,
-      subscribe: (listener: () => void) =>
-        this.store.subscribe((_state, _previousState) => {
-          listener();
-        }),
-      onStateAck: this.store.getState().onStateAck,
-      markNotificationRead: this.store.getState().markNotificationRead,
-    };
-
-    this.gateway.attachStore(storeApi);
+    this.gateway.attachStore(toGameSessionStoreApi(this.store));
     this.gatewayStoreAttached = true;
   }
 
@@ -533,7 +517,7 @@ export class DevHostController {
     this.currentSession = {
       sessionId: snapshot.context.sessionId,
       shortCode: snapshot.context.shortCode,
-      gameId: this.config.gameId,
+      projectId: this.config.projectId,
       seed,
     };
   }
@@ -555,7 +539,7 @@ export class DevHostController {
     this.currentSession = {
       sessionId: context.identity.sessionId,
       shortCode: context.identity.shortCode,
-      gameId: context.identity.gameId,
+      projectId: context.identity.projectId,
       seed: seedOverride ?? this.currentSession.seed ?? null,
     };
     this.seedValue = String(this.currentSession.seed ?? 1337);
