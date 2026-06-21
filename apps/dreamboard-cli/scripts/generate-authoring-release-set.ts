@@ -93,18 +93,20 @@ async function readCandidateReceipt(
   if (name !== expectedName) {
     throw new Error(`${receiptPath} describes ${name}, expected ${expectedName}.`);
   }
+  const packageIntegrity =
+    stringValue(packageObject.packageIntegrity) ??
+    stringValue(packageObject.installedIntegrity) ??
+    stringValue(receipt.packageIntegrity);
+  const tarballSha512 =
+    stringValue(packageObject.tarballSha512) ??
+    stringValue(packageObject.integrity) ??
+    stringValue(receipt.tarballSha512);
   return {
     name,
     version: requireExactVersion(`${expectedName} candidate`, version),
     receiptPath,
-    packageIntegrity:
-      stringValue(packageObject.packageIntegrity) ??
-      stringValue(packageObject.installedIntegrity) ??
-      stringValue(receipt.packageIntegrity),
-    tarballSha512:
-      stringValue(packageObject.tarballSha512) ??
-      stringValue(packageObject.integrity) ??
-      stringValue(receipt.tarballSha512),
+    ...(packageIntegrity ? { packageIntegrity } : {}),
+    ...(tarballSha512 ? { tarballSha512 } : {}),
   } as never;
 }
 
@@ -193,14 +195,22 @@ const candidates = Object.fromEntries(
     ),
 );
 const packageVersions = {
-  cli: requireExactVersion("@dreamboard-games/cli", cliPackage.version),
+  cli: requireExactVersion(
+    "@dreamboard-games/cli",
+    stringValue(process.env.AUTHORING_CLI_CANDIDATE_VERSION) ??
+      cliPackage.version,
+  ),
   sdk: candidates.sdk?.version ?? sdkVersion,
   apiClient:
     candidates.apiClient?.version ??
     requireExactVersion("@dreamboard-games/api-client", apiClientPackage.version),
   devHost:
     candidates.devHost?.version ??
-    requireExactVersion("@dreamboard-games/dev-host", devHostPackage.version),
+    requireExactVersion(
+      "@dreamboard-games/dev-host",
+      stringValue(process.env.AUTHORING_DEV_HOST_CANDIDATE_VERSION) ??
+        devHostPackage.version,
+    ),
 };
 if (channel === "public") {
   for (const [name, version] of Object.entries(packageVersions)) {

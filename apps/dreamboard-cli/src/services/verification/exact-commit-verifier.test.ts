@@ -186,6 +186,7 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
     compile: {
       latestSuccessful: {
         resultId: "compiled-1",
+        revisionDigest: "revision-digest-1",
       },
     },
   };

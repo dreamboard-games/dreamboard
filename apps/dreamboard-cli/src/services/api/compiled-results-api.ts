@@ -93,30 +93,6 @@ async function findFallbackCompiledResultForJob(options: {
   return [...candidateResults].sort(compareCreatedAtDesc)[0] ?? null;
 }
 
-export async function findLatestSuccessfulCompiledResult(
-  projectId: string,
-): Promise<CompiledResult | null> {
-  void projectId;
-  return null;
-}
-
-export async function findCompiledResultsForAuthoringState(options: {
-  projectId: string;
-  authoringStateId: string;
-}): Promise<CompiledResult[]> {
-  void options;
-  return [];
-}
-
-export async function getCompiledResultSdk(
-  projectId: string,
-  compiledResultId: string,
-): Promise<CompiledResult> {
-  void projectId;
-  void compiledResultId;
-  throw new Error("Project-scoped compiled result lookup is no longer supported.");
-}
-
 export async function findProjectCompiledResultsForRevision(options: {
   projectId: string;
   revisionDigest: string;

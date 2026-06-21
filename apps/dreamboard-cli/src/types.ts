@@ -35,14 +35,12 @@ export type LocalMaintainerRegistryConfig = {
 
 export type ProjectPendingSyncPhase =
   | "source_revision_created"
-  | "authoring_state_created";
+  | "game_revision_created";
 
 export type ProjectPendingAuthoringSync = {
   phase: ProjectPendingSyncPhase;
   revisionDigest?: string;
-  authoringStateId?: string;
-  ruleId?: string;
-  manifestId?: string;
+  gameRevisionId?: string;
   manifestContentHash?: string;
   localManifestContentHash?: string;
   sourceRevisionId: string;
@@ -51,9 +49,7 @@ export type ProjectPendingAuthoringSync = {
 
 export type ProjectAuthoringState = {
   revisionDigest?: string;
-  authoringStateId?: string;
-  ruleId?: string;
-  manifestId?: string;
+  gameRevisionId?: string;
   manifestContentHash?: string;
   localManifestContentHash?: string;
   sourceRevisionId?: string;
@@ -64,8 +60,10 @@ export type ProjectAuthoringState = {
 export type ProjectCompileAttempt = {
   resultId?: string;
   jobId?: string;
-  revisionDigest?: string;
-  authoringStateId: string;
+  revisionDigest: string;
+  gameRevisionId?: string;
+  sourceRevisionId?: string;
+  sourceTreeHash?: string;
   status: "successful" | "failed";
   diagnosticsSummary?: string;
 };
@@ -74,8 +72,10 @@ export type ProjectCompileState = {
   latestAttempt?: ProjectCompileAttempt;
   latestSuccessful?: {
     resultId: string;
-    authoringStateId: string;
-    revisionDigest?: string;
+    revisionDigest: string;
+    gameRevisionId?: string;
+    sourceRevisionId?: string;
+    sourceTreeHash?: string;
   };
 };
 

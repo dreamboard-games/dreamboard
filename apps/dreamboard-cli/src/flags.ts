@@ -77,6 +77,7 @@ const devCommandArgsSchema = configFlagsSchema.extend({
   port: z.string().optional(),
   host: z.union([z.string(), z.boolean()]).optional(),
   "allowed-host": z.string().optional(),
+  "timings-json": z.string().optional(),
 });
 
 const joinCommandArgsSchema = configFlagsSchema.extend({

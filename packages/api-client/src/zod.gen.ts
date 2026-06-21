@@ -1304,7 +1304,6 @@ export const zCompiledResultStorageType = z.enum(['local', 'object_store']);
  */
 export const zCompiledResult = z.object({
     id: z.uuid(),
-    gameId: z.uuid(),
     userId: z.uuid(),
     compilationRequestId: z.optional(z.string()),
     parentResultId: z.optional(z.uuid()),
@@ -1489,6 +1488,35 @@ export const zGameSourcesResponse = z.object({
     ruleText: z.string()
 });
 
+export const zUserProjectSource = z.object({
+    kind: z.enum(['USER_PROJECT']),
+    projectId: z.uuid(),
+    revisionDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/)
+});
+
+export const zUserProjectDraftSource = z.object({
+    kind: z.enum(['USER_PROJECT_DRAFT']),
+    projectId: z.uuid()
+});
+
+export const zBundledDemoSource = z.object({
+    kind: z.enum(['BUNDLED_DEMO']),
+    demoSlug: z.string(),
+    releaseDigest: z.string()
+});
+
+export const zGameSource = z.union([
+    z.object({
+        kind: z.literal('USER_PROJECT')
+    }).and(zUserProjectSource),
+    z.object({
+        kind: z.literal('USER_PROJECT_DRAFT')
+    }).and(zUserProjectDraftSource),
+    z.object({
+        kind: z.literal('BUNDLED_DEMO')
+    }).and(zBundledDemoSource)
+]);
+
 /**
  * Type of async backend job
  */
@@ -1515,8 +1543,7 @@ export const zJobStatus = z.enum([
  */
 export const zJobSummary = z.object({
     jobId: z.uuid(),
-    gameId: z.uuid(),
-    projectId: z.optional(z.uuid()),
+    source: zGameSource,
     kind: zJobKind,
     status: zJobStatus,
     title: z.string(),
@@ -1582,8 +1609,7 @@ export const zJobTaskSummary = z.object({
  */
 export const zJobDetailResponse = z.object({
     jobId: z.uuid(),
-    gameId: z.uuid(),
-    projectId: z.optional(z.uuid()),
+    source: zGameSource,
     kind: zJobKind,
     status: zJobStatus,
     title: z.string(),
@@ -1600,8 +1626,6 @@ export const zJobDetailResponse = z.object({
     buildPhase: z.optional(z.string()),
     agentRunId: z.optional(z.string()),
     tasks: z.array(zJobTaskSummary),
-    createdRuleId: z.optional(z.uuid()),
-    createdManifestId: z.optional(z.uuid()),
     createdAppScriptId: z.optional(z.uuid()),
     createdCompiledResultId: z.optional(z.uuid())
 });
@@ -1630,7 +1654,17 @@ export const zCreateGameRunRequest = z.object({
  */
 export const zCreateGameRunResponse = z.object({
     jobId: z.uuid(),
-    gameId: z.uuid()
+    projectId: z.uuid()
+});
+
+export const zAcceptGameRunStatus = z.enum(['ACCEPTING', 'CONFLICTED']);
+
+/**
+ * Response for an accepted agent build result request.
+ */
+export const zAcceptGameRunResponse = z.object({
+    status: zAcceptGameRunStatus,
+    workJobId: z.optional(z.uuid())
 });
 
 /**
@@ -2363,24 +2397,6 @@ export const zBoardLayout = z.enum([
     'square'
 ]);
 
-export const zGame = z.object({
-    id: z.uuid(),
-    projectId: z.uuid(),
-    slug: z.string(),
-    name: z.string().min(1).max(255),
-    description: z.optional(z.string()),
-    ruleText: z.optional(z.string()),
-    public: z.boolean().default(false),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
-    scriptId: z.optional(z.string()),
-    previewStorageKey: z.optional(z.string()),
-    initialProjectionKey: z.optional(z.string()),
-    metadata: z.optional(zGameMetadata),
-    verified: z.boolean().default(false),
-    verifiedAt: z.optional(z.iso.datetime())
-});
-
 /**
  * Request to create a new game
  */
@@ -2406,11 +2422,10 @@ export const zDeleteGameResponse = z.object({
 });
 
 /**
- * Immutable authored source revision for a game.
+ * Immutable authored source revision.
  */
 export const zSourceRevision = z.object({
     id: z.uuid(),
-    gameId: z.uuid(),
     userId: z.uuid(),
     parentSourceRevisionId: z.optional(z.uuid()),
     treeHash: z.string(),
@@ -2656,11 +2671,6 @@ export const zSessionId = z.uuid();
  * Unique identifier for the player (e.g., 'player-1')
  */
 export const zPlayerId = z.string();
-
-/**
- * Unique identifier for the game
- */
-export const zGameId = z.uuid();
 
 export const zHealthCheckData = z.object({
     body: z.optional(z.never()),
@@ -3225,6 +3235,19 @@ export const zCancelGameRunData = z.object({
     query: z.optional(z.never())
 });
 
+export const zAcceptGameRunData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        jobId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Agent build result accept queued
+ */
+export const zAcceptGameRunResponse2 = zAcceptGameRunResponse;
+
 export const zGetSessionLogBatchData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -3328,19 +3351,31 @@ export const zUnassignSeatData = z.object({
  */
 export const zUnassignSeatResponse = z.void();
 
-export const zFetchUiBundleData = z.object({
+export const zGetProjectUiBundleData = z.object({
     body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.object({
-        gameId: z.optional(z.uuid()),
-        sessionId: z.optional(z.uuid())
-    }))
+    path: z.object({
+        projectId: z.uuid()
+    }),
+    query: z.optional(z.never())
 });
 
 /**
  * HTML content of the UI bundle
  */
-export const zFetchUiBundleResponse = z.string();
+export const zGetProjectUiBundleResponse = z.string();
+
+export const zGetSessionUiBundleData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        sessionId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * HTML content of the UI bundle
+ */
+export const zGetSessionUiBundleResponse = z.string();
 
 export const zListDemoGamesData = z.object({
     body: z.optional(z.never()),

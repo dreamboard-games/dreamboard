@@ -13,7 +13,6 @@ export {
   resolveProjectContext,
 } from "./config/resolve.js";
 export { parseConfigFlags } from "./flags.js";
-export { findCompiledResultsForAuthoringState } from "./services/api/compiled-results-api.js";
 export { loadManifest, writeSnapshot } from "./services/project/local-files.js";
 export { materializeWorkspaceProject } from "./services/project/materialize-workspace.js";
 export { shortHash } from "./services/project/local-maintainer-registry-shared.js";

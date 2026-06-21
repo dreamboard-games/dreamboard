@@ -6,11 +6,7 @@ const packageJson = JSON.parse(
 ) as { version?: string };
 
 export default defineConfig({
-  entry: [
-    "src/index.ts",
-    "src/internal.ts",
-    "src/authoring-compatibility-internal.ts",
-  ],
+  entry: ["src/index.ts", "src/internal.ts"],
   format: ["esm"],
   platform: "node",
   target: "node24",
@@ -26,7 +22,9 @@ export default defineConfig({
       process.env.DREAMBOARD_BUILD_CHANNEL ?? "development",
     ),
     __DREAMBOARD_PACKAGE_VERSION__: JSON.stringify(
-      packageJson.version ?? "0.0.0-development",
+      process.env.AUTHORING_CLI_CANDIDATE_VERSION ??
+        packageJson.version ??
+        "0.0.0-development",
     ),
   },
   noExternal: [

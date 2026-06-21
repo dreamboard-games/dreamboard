@@ -1,8 +1,5 @@
 export {
-  findCompiledResultsForAuthoringState,
-  findLatestSuccessfulCompiledResult,
   findProjectCompiledResultsForRevision,
-  getCompiledResultSdk,
   getProjectCompiledResultSdk,
   queueProjectRevisionCompileSdk,
   waitForCompiledResultJobSdk,

@@ -48,7 +48,7 @@ const bugsUrl =
     : (sourcePackage.bugs?.url ?? process.env.DREAMBOARD_PUBLIC_BUGS_URL);
 const packageJson: Record<string, unknown> = {
   name: "@dreamboard-games/cli",
-  version: sourcePackage.version,
+  version: AUTHORING_RELEASE_SET.packages.cli.version,
   description:
     sourcePackage.description ??
     "Design board games with AI and turn ideas into playable digital prototypes.",
@@ -58,10 +58,6 @@ const packageJson: Record<string, unknown> = {
   },
   exports: {
     ".": "./dist/index.js",
-    "./authoring-compatibility-internal": {
-      types: "./dist/authoring-compatibility-internal.d.ts",
-      default: "./dist/authoring-compatibility-internal.js",
-    },
     "./internal": {
       types: "./dist/internal.d.ts",
       default: "./dist/internal.js",

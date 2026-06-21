@@ -75,6 +75,7 @@ test("test command runs reducer scenarios against the current workspace", async 
               compile: {
                 latestSuccessful: {
                   resultId: "compiled-local",
+                  revisionDigest: "revision-digest-1",
                 },
               },
             },

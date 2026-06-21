@@ -87,17 +87,15 @@ export function finalizeProjectPendingAuthoringSync(
   return updateProjectAuthoringState(
     clearProjectPendingAuthoringSync(projectConfig),
     {
-      authoringStateId:
-        pendingSync.phase === "authoring_state_created"
-          ? pendingSync.authoringStateId
-          : authoring.authoringStateId,
+      gameRevisionId:
+        pendingSync.phase === "game_revision_created"
+          ? pendingSync.gameRevisionId
+          : authoring.gameRevisionId,
       revisionDigest: pendingSync.revisionDigest ?? authoring.revisionDigest,
       sourceRevisionId: pendingSync.sourceRevisionId,
       sourceTreeHash: pendingSync.sourceTreeHash,
-      manifestId: pendingSync.manifestId,
       manifestContentHash: pendingSync.manifestContentHash,
       localManifestContentHash: pendingSync.localManifestContentHash,
-      ruleId: pendingSync.ruleId,
     },
   );
 }
@@ -126,8 +124,10 @@ export function setLatestCompileAttempt(
       attempt.status === "successful" && attempt.resultId
         ? {
             resultId: attempt.resultId,
-            authoringStateId: attempt.authoringStateId,
             revisionDigest: attempt.revisionDigest,
+            gameRevisionId: attempt.gameRevisionId,
+            sourceRevisionId: attempt.sourceRevisionId,
+            sourceTreeHash: attempt.sourceTreeHash,
           }
         : getProjectCompileState(projectConfig).latestSuccessful,
   });

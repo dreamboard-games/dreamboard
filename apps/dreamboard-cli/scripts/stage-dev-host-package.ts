@@ -22,7 +22,11 @@ const sourcePackage = JSON.parse(
   peerDependencies?: Record<string, string>;
 };
 
-if (sourcePackage.version !== AUTHORING_RELEASE_SET.packages.devHost.version) {
+const releaseDevHostVersion = AUTHORING_RELEASE_SET.packages.devHost.version;
+if (
+  sourcePackage.version !== releaseDevHostVersion &&
+  !releaseDevHostVersion.startsWith(`${sourcePackage.version}-local.`)
+) {
   throw new Error("Dev-host package version does not match release set.");
 }
 

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { createServer, type Server } from "node:http";
 import { defineCommand } from "citty";
 import {
   getApiVersion,
@@ -68,13 +69,27 @@ import { assertReducerContractPreflight } from "../services/project/reducer-cont
 import { assertReducerBundleSmoke } from "../services/project/reducer-bundle-preflight.js";
 import { isSourceRevisionPath } from "../services/project/source-revision-paths.js";
 import { projectIdFromSessionGameSource } from "../utils/session-game-source.js";
+import {
+  DEV_STARTUP_DIAGNOSTICS_ENABLED,
+  createDevStartupTimingCollector,
+  devDiagnosticArgs,
+  hasDevStartupTimingArg,
+  sanitizeDevStartupMessage,
+  writeDevStartupTimingReport,
+  type DevStartupPhase,
+  type DevStartupTimingCollector,
+} from "./dev-startup-timings.js";
 
 async function runLoggedStep<T>(
   message: string,
   task: () => Promise<T>,
+  timing?: {
+    collector: DevStartupTimingCollector;
+    phase: DevStartupPhase;
+  },
 ): Promise<T> {
   consola.start(message);
-  return task();
+  return timing ? timing.collector.timed(timing.phase, task) : task();
 }
 
 function formatDevCompileJobProgressMessage(job: {
@@ -84,7 +99,9 @@ function formatDevCompileJobProgressMessage(job: {
   message?: string | null;
 }): string {
   const phase = job.phase ? ` [${job.phase}]` : "";
-  const detail = job.message ? ` ${job.message}` : "";
+  const detail = job.message
+    ? ` ${sanitizeDevStartupMessage(job.message)}`
+    : "";
   if (job.status === "PENDING") {
     const queue =
       typeof job.queuePosition === "number"
@@ -248,6 +265,139 @@ function warnForExplicitDevPort(port: number): void {
   );
 }
 
+function parsePreferredDevPort(value: string | undefined): number | undefined {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return undefined;
+  }
+  const preferredPort = Number.parseInt(value, 10);
+  if (!Number.isFinite(preferredPort) || preferredPort <= 0) {
+    throw new Error("Invalid --port value. Expected a positive integer.");
+  }
+  warnForExplicitDevPort(preferredPort);
+  return preferredPort;
+}
+
+type DevProgressHost = {
+  url: string;
+  close(): Promise<void>;
+};
+
+async function startDevProgressHost(options: {
+  port: number | undefined;
+  host: string | boolean | undefined;
+}): Promise<DevProgressHost> {
+  const requestedPort = options.port ?? 5352;
+  const bindHost =
+    typeof options.host === "string"
+      ? options.host
+      : options.host === true
+        ? "0.0.0.0"
+        : "127.0.0.1";
+  try {
+    return await listenDevProgressHost(requestedPort, bindHost);
+  } catch (error) {
+    if (options.port || !isAddressInUseError(error)) {
+      throw error;
+    }
+    return listenDevProgressHost(0, bindHost);
+  }
+}
+
+function listenDevProgressHost(
+  port: number,
+  bindHost: string,
+): Promise<DevProgressHost> {
+  const server = createServer((request, response) => {
+    const pathname = request.url ? new URL(request.url, "http://localhost").pathname : "/";
+    if (pathname === "/healthz") {
+      response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      response.end("ok\n");
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    response.end(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dreamboard dev</title>
+    <style>
+      body {
+        align-items: center;
+        background: #f8f5ef;
+        color: #28231d;
+        display: flex;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        justify-content: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+      main {
+        max-width: 34rem;
+        padding: 2rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 650;
+        letter-spacing: 0;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        line-height: 1.6;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Preparing Dreamboard dev</h1>
+      <p>The local host is open while Dreamboard checks the workspace, reuses any matching compile, and creates a playable session.</p>
+    </main>
+  </body>
+</html>`);
+  });
+
+  return new Promise((resolve, reject) => {
+    const fail = (error: Error) => {
+      server.close();
+      reject(error);
+    };
+    server.once("error", fail);
+    server.listen(port, bindHost, () => {
+      server.off("error", fail);
+      const address = server.address();
+      const actualPort =
+        typeof address === "object" && address ? address.port : port;
+      resolve({
+        url: `http://localhost:${actualPort}/`,
+        close: () => closeServer(server),
+      });
+    });
+  });
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+function isAddressInUseError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "EADDRINUSE"
+  );
+}
+
+function isDevUsageRequest(): boolean {
+  return process.argv.some((arg) => arg === "--help" || arg === "-h");
+}
+
 type DevResumeResult = {
   session: DevRunSession | null;
   reason: string | null;
@@ -277,7 +427,7 @@ export default defineCommand({
     description:
       "Start a local iframe host for the current project while gameplay stays on the backend",
   },
-  args: {
+  args: () => ({
     seed: {
       type: "string",
       description: "Deterministic RNG seed for new sessions (defaults to 1337)",
@@ -337,220 +487,279 @@ export default defineCommand({
         "Additional Host header to allow, for example a Cloudflare Tunnel hostname.",
       valueHint: "hostname",
     },
+    ...(isDevUsageRequest() ? {} : devDiagnosticArgs()),
     ...CONFIG_FLAG_ARGS,
-  },
-  async run({ args }) {
+  }),
+  async run({ args, rawArgs }) {
+    if (!DEV_STARTUP_DIAGNOSTICS_ENABLED && hasDevStartupTimingArg(rawArgs)) {
+      throw new Error("Unknown option: --timings-json");
+    }
     const parsedArgs = parseDevCommandArgs(args);
-    const { projectRoot, projectConfig, config } =
-      await resolveProjectContext(parsedArgs);
-    const remoteProject = await resolveRemoteProject({
-      projectRoot,
-      projectConfig,
-      config,
-    });
-    const effectiveProjectConfig = remoteProject.projectConfig;
-    const effectiveAuthToken =
-      resolveLocalHarnessAccessToken(config) ??
-      (await createUserSessionManager(config).resolveApiToken())?.token ??
-      config.authToken;
-    const authenticatedConfig = {
-      ...config,
-      authToken: effectiveAuthToken,
+    const startupTimings = createDevStartupTimingCollector();
+    let timingsWritten = false;
+    let progressHost: DevProgressHost | null = null;
+    const writeTimings = async (status: "ready" | "failed") => {
+      if (timingsWritten) return;
+      timingsWritten = true;
+      await writeDevStartupTimingReport(
+        parsedArgs["timings-json"],
+        startupTimings.report(status),
+      );
     };
 
-    const devCompile = await ensureDevCompiledResult({
-      projectRoot,
-      projectConfig: effectiveProjectConfig,
-      config: authenticatedConfig,
-      env: parsedArgs.env ?? "local",
-      debug: parsedArgs.debug,
-    });
-
-    const devDir = path.join(projectRoot, PROJECT_DIR_NAME, "dev");
-    await ensureDir(devDir);
-    const sessionFilePath = path.join(devDir, "session.json");
-
-    const requestedResumeSessionId = parsedArgs.resume?.trim() || null;
-    const requestedScenarioId = parsedArgs["from-scenario"]?.trim() || null;
-    if (requestedResumeSessionId && parsedArgs["new-session"]) {
-      throw new Error("Cannot combine --resume with --new-session.");
-    }
-    if (requestedResumeSessionId && requestedScenarioId) {
-      throw new Error("Cannot combine --resume with --from-scenario.");
-    }
-    if (
-      requestedScenarioId &&
-      (parsedArgs.seed ||
-        parsedArgs["setup-profile"] ||
-        parsedArgs.players ||
-        parsedArgs["player-count"])
-    ) {
-      throw new Error(
-        "--from-scenario materializes the scenario's authored seed, setup profile, and player count. Remove --seed, --setup-profile, and player-count overrides.",
+    try {
+      const { projectRoot, projectConfig, config } = await runLoggedStep(
+        "Resolving project context...",
+        () => resolveProjectContext(parsedArgs),
+        {
+          collector: startupTimings,
+          phase: "resolveProjectContext",
+        },
       );
-    }
-
-    const requestedSeed = requestedScenarioId
-      ? null
-      : parseDevSeed(parsedArgs.seed);
-    const selectedSetupProfile = requestedScenarioId
-      ? null
-      : await resolveSetupProfileSelectionForSession({
-          projectRoot,
-          requestedSetupProfileId: parsedArgs["setup-profile"],
-        });
-    let selectedSetupProfileId = selectedSetupProfile?.id ?? null;
-    let resolvedPlayerCount = requestedScenarioId
-      ? 0
-      : await resolvePlayerCount(
-          projectRoot,
-          parsePlayerCountFlags(parsedArgs),
-        );
-    const resumeResult = requestedResumeSessionId
-      ? await tryResumeSession(
-          { sessionId: requestedResumeSessionId },
-          effectiveProjectConfig.projectId,
-          selectedSetupProfileId,
-        )
-      : { session: null, reason: null };
-
-    if (requestedResumeSessionId && resumeResult.resetNotice) {
-      consola.info(resumeResult.resetNotice);
-    } else if (requestedResumeSessionId && resumeResult.reason) {
-      consola.warn(
-        `Ignoring requested dev session ${requestedResumeSessionId}: ${resumeResult.reason}`,
+      const remoteProject = await runLoggedStep(
+        "Resolving remote project...",
+        () =>
+          resolveRemoteProject({
+            projectRoot,
+            projectConfig,
+            config,
+          }),
+        {
+          collector: startupTimings,
+          phase: "resolveRemoteProject",
+        },
       );
-    }
-
-    let runSession = resumeResult.session;
-    let scenarioSeededSession = false;
-    const resumedExistingSession = Boolean(
-      requestedResumeSessionId &&
-      runSession &&
-      runSession.sessionId === requestedResumeSessionId,
-    );
-
-    if (requestedScenarioId) {
-      await generateReducerNativeArtifacts({
-        projectRoot,
-        compiledResultId: devCompile.id,
-        projectId: effectiveProjectConfig.projectId,
-        debug: parsedArgs.debug,
-      });
-      const seededScenario = await createSessionFromScenario({
-        projectRoot,
-        scenarioId: requestedScenarioId,
-        compiledResultId: devCompile.id,
-        projectId: effectiveProjectConfig.projectId,
-        debug: parsedArgs.debug,
-        trustGeneratedFingerprint: true,
-      });
-      scenarioSeededSession = true;
-      selectedSetupProfileId = seededScenario.setupProfileId;
-      resolvedPlayerCount = seededScenario.playerCount;
-      runSession = {
-        sessionId: seededScenario.sessionId,
-        shortCode: seededScenario.shortCode,
-        projectId: seededScenario.projectId,
-        seed: seededScenario.seed,
-        setupProfileId: seededScenario.setupProfileId ?? undefined,
-        materialization: seededScenario.materialization,
+      const effectiveProjectConfig = remoteProject.projectConfig;
+      const effectiveAuthToken =
+        resolveLocalHarnessAccessToken(config) ??
+        (await createUserSessionManager(config).resolveApiToken())?.token ??
+        config.authToken;
+      const authenticatedConfig = {
+        ...config,
+        authToken: effectiveAuthToken,
       };
-    } else if (!runSession) {
-      runSession = await createDevSession({
+      const preferredPort = parsePreferredDevPort(parsedArgs.port);
+      const devHostBinding = parseDevHost(parsedArgs.host);
+      const allowedHosts = parseAllowedHosts(parsedArgs["allowed-host"]);
+      progressHost = await startupTimings.timed("startProgressHost", () =>
+        startDevProgressHost({
+          port: preferredPort,
+          host: devHostBinding,
+        }),
+      );
+      consola.info(`Preparing dev host: ${progressHost.url}`);
+
+      const devCompile = await ensureDevCompiledResult({
         projectRoot,
         projectConfig: effectiveProjectConfig,
-        playerCount: resolvedPlayerCount,
-        seed: requestedSeed ?? 1337,
-        compiledResult: devCompile,
-        setupProfileId: selectedSetupProfileId,
-      });
-    }
-
-    await writeJsonFile(
-      sessionFilePath,
-      createPersistedDevSession({ sessionId: runSession.sessionId }),
-    );
-
-    const preferredPort =
-      typeof parsedArgs.port === "string" && parsedArgs.port.trim().length > 0
-        ? Number.parseInt(parsedArgs.port, 10)
-        : undefined;
-    if (
-      preferredPort !== undefined &&
-      (!Number.isFinite(preferredPort) || preferredPort <= 0)
-    ) {
-      throw new Error("Invalid --port value. Expected a positive integer.");
-    }
-    if (preferredPort !== undefined) {
-      warnForExplicitDevPort(preferredPort);
-    }
-    const allowedHosts = parseAllowedHosts(parsedArgs["allowed-host"]);
-
-    const loadedDevHost = await loadProjectDevHost(projectRoot);
-    const devServer = await loadedDevHost.module.start(
-      {
-        projectRoot,
-        sessionFilePath,
-        apiBaseUrl: config.apiBaseUrl,
-        port: preferredPort,
-        host: parseDevHost(parsedArgs.host),
-        allowedHosts,
-        runtimeConfig: {
-          apiBaseUrl: config.apiBaseUrl,
-          userId: extractUserIdFromJwt(effectiveAuthToken ?? null),
-          projectId: effectiveProjectConfig.projectId,
-          compiledResultId: devCompile.id,
-          setupProfileId: runSession.setupProfileId ?? null,
-          playerCount: resolvedPlayerCount,
-          debug: parsedArgs.debug,
-          slug: effectiveProjectConfig.slug,
-          autoStartGame: !resumedExistingSession && !scenarioSeededSession,
-          initialSession: {
-            sessionId: runSession.sessionId,
-            shortCode: runSession.shortCode,
-            projectId: effectiveProjectConfig.projectId,
-            seed: runSession.seed ?? null,
-          },
-        },
-      },
-      createCliDevHostPlatform(authenticatedConfig),
-    );
-
-    clearPreflightOutput();
-    console.log(
-      formatDevReadyOutput({
-        url: devServer.url,
-        networkUrls: devServer.networkUrls,
-        allowedHosts,
-        apiBaseUrl: config.apiBaseUrl,
-        sessionStatus: scenarioSeededSession
-          ? "seeded"
-          : resumedExistingSession
-            ? "reused"
-            : "created",
-        shortCode: runSession.shortCode,
-        sessionId: runSession.sessionId,
-        seed: runSession.seed ?? "unknown",
+        config: authenticatedConfig,
+        env: parsedArgs.env ?? "local",
         debug: parsedArgs.debug,
-        scenarioId: scenarioSeededSession ? requestedScenarioId : null,
-        materialization: runSession.materialization,
-        setupProfile: selectedSetupProfileId
-          ? {
-              id: selectedSetupProfileId,
-              name: selectedSetupProfile?.name,
-            }
-          : null,
-      }),
-    );
+        startupTimings,
+      });
 
-    if (parsedArgs.open) {
-      openBrowser(devServer.url);
+      const devDir = path.join(projectRoot, PROJECT_DIR_NAME, "dev");
+      await ensureDir(devDir);
+      const sessionFilePath = path.join(devDir, "session.json");
+
+      const requestedResumeSessionId = parsedArgs.resume?.trim() || null;
+      const requestedScenarioId = parsedArgs["from-scenario"]?.trim() || null;
+      if (requestedResumeSessionId && parsedArgs["new-session"]) {
+        throw new Error("Cannot combine --resume with --new-session.");
+      }
+      if (requestedResumeSessionId && requestedScenarioId) {
+        throw new Error("Cannot combine --resume with --from-scenario.");
+      }
+      if (
+        requestedScenarioId &&
+        (parsedArgs.seed ||
+          parsedArgs["setup-profile"] ||
+          parsedArgs.players ||
+          parsedArgs["player-count"])
+      ) {
+        throw new Error(
+          "--from-scenario materializes the scenario's authored seed, setup profile, and player count. Remove --seed, --setup-profile, and player-count overrides.",
+        );
+      }
+
+      const requestedSeed = requestedScenarioId
+        ? null
+        : parseDevSeed(parsedArgs.seed);
+      const selectedSetupProfile = requestedScenarioId
+        ? null
+        : await resolveSetupProfileSelectionForSession({
+            projectRoot,
+            requestedSetupProfileId: parsedArgs["setup-profile"],
+          });
+      let selectedSetupProfileId = selectedSetupProfile?.id ?? null;
+      let resolvedPlayerCount = requestedScenarioId
+        ? 0
+        : await resolvePlayerCount(
+            projectRoot,
+            parsePlayerCountFlags(parsedArgs),
+          );
+      const resumeResult = requestedResumeSessionId
+        ? await tryResumeSession(
+            { sessionId: requestedResumeSessionId },
+            effectiveProjectConfig.projectId,
+            selectedSetupProfileId,
+          )
+        : { session: null, reason: null };
+
+      if (requestedResumeSessionId && resumeResult.resetNotice) {
+        consola.info(resumeResult.resetNotice);
+      } else if (requestedResumeSessionId && resumeResult.reason) {
+        consola.warn(
+          `Ignoring requested dev session ${requestedResumeSessionId}: ${resumeResult.reason}`,
+        );
+      }
+
+      let runSession = resumeResult.session;
+      let scenarioSeededSession = false;
+      const resumedExistingSession = Boolean(
+        requestedResumeSessionId &&
+        runSession &&
+        runSession.sessionId === requestedResumeSessionId,
+      );
+      if (resumedExistingSession) {
+        startupTimings.record("createSession", 0, "reused");
+      }
+
+      if (requestedScenarioId) {
+        const seededScenario = await startupTimings.timed(
+          "createSession",
+          async () => {
+            await generateReducerNativeArtifacts({
+              projectRoot,
+              compiledResultId: devCompile.id,
+              projectId: effectiveProjectConfig.projectId,
+              debug: parsedArgs.debug,
+            });
+            return createSessionFromScenario({
+              projectRoot,
+              scenarioId: requestedScenarioId,
+              compiledResultId: devCompile.id,
+              projectId: effectiveProjectConfig.projectId,
+              debug: parsedArgs.debug,
+              trustGeneratedFingerprint: true,
+            });
+          },
+        );
+        scenarioSeededSession = true;
+        selectedSetupProfileId = seededScenario.setupProfileId;
+        resolvedPlayerCount = seededScenario.playerCount;
+        runSession = {
+          sessionId: seededScenario.sessionId,
+          shortCode: seededScenario.shortCode,
+          projectId: seededScenario.projectId,
+          seed: seededScenario.seed,
+          setupProfileId: seededScenario.setupProfileId ?? undefined,
+          materialization: seededScenario.materialization,
+        };
+      } else if (!runSession) {
+        runSession = await startupTimings.timed("createSession", () =>
+          createDevSession({
+            projectRoot,
+            projectConfig: effectiveProjectConfig,
+            playerCount: resolvedPlayerCount,
+            seed: requestedSeed ?? 1337,
+            compiledResult: devCompile,
+            setupProfileId: selectedSetupProfileId,
+          }),
+        );
+      }
+      if (!runSession) {
+        throw new Error("Unable to create or resume a dev session.");
+      }
+      const activeRunSession = runSession;
+
+      await writeJsonFile(
+        sessionFilePath,
+        createPersistedDevSession({ sessionId: activeRunSession.sessionId }),
+      );
+
+      await progressHost.close();
+      progressHost = null;
+
+      const devServer = await startupTimings.timed(
+        "activateDevHost",
+        async () => {
+          const loadedDevHost = await loadProjectDevHost(projectRoot);
+          return loadedDevHost.module.start(
+            {
+              projectRoot,
+              sessionFilePath,
+              apiBaseUrl: config.apiBaseUrl,
+              port: preferredPort,
+              host: devHostBinding,
+              allowedHosts,
+              runtimeConfig: {
+                apiBaseUrl: config.apiBaseUrl,
+                userId: extractUserIdFromJwt(effectiveAuthToken ?? null),
+                projectId: effectiveProjectConfig.projectId,
+                compiledResultId: devCompile.id,
+                setupProfileId: activeRunSession.setupProfileId ?? null,
+                playerCount: resolvedPlayerCount,
+                debug: parsedArgs.debug,
+                slug: effectiveProjectConfig.slug,
+                autoStartGame:
+                  !resumedExistingSession && !scenarioSeededSession,
+                initialSession: {
+                  sessionId: activeRunSession.sessionId,
+                  shortCode: activeRunSession.shortCode,
+                  projectId: effectiveProjectConfig.projectId,
+                  seed: activeRunSession.seed ?? null,
+                },
+              },
+            },
+            createCliDevHostPlatform(authenticatedConfig),
+          );
+        },
+      );
+
+      clearPreflightOutput();
+      console.log(
+        formatDevReadyOutput({
+          url: devServer.url,
+          networkUrls: devServer.networkUrls,
+          allowedHosts,
+          apiBaseUrl: config.apiBaseUrl,
+          sessionStatus: scenarioSeededSession
+            ? "seeded"
+            : resumedExistingSession
+              ? "reused"
+              : "created",
+          shortCode: activeRunSession.shortCode,
+          sessionId: activeRunSession.sessionId,
+          seed: activeRunSession.seed ?? "unknown",
+          debug: parsedArgs.debug,
+          scenarioId: scenarioSeededSession ? requestedScenarioId : null,
+          materialization: activeRunSession.materialization,
+          setupProfile: selectedSetupProfileId
+            ? {
+                id: selectedSetupProfileId,
+                name: selectedSetupProfile?.name,
+              }
+            : null,
+        }),
+      );
+
+      if (parsedArgs.open) {
+        openBrowser(devServer.url);
+      }
+
+      await writeTimings("ready");
+      await waitForTermination(async () => {
+        await devServer.close();
+      });
+    } catch (error) {
+      if (progressHost) {
+        await progressHost.close().catch(() => undefined);
+        progressHost = null;
+      }
+      await writeTimings("failed");
+      throw error;
     }
-
-    await waitForTermination(async () => {
-      await devServer.close();
-    });
   },
 });
 
@@ -622,6 +831,7 @@ async function ensureDevCompiledResult(options: {
   config: { apiBaseUrl: string; authToken?: string };
   env: string;
   debug: boolean;
+  startupTimings: DevStartupTimingCollector;
 }): Promise<CompiledResult> {
   await assertReleaseEnvironmentPortableDependencies({
     projectRoot: options.projectRoot,
@@ -670,21 +880,37 @@ async function ensureDevCompiledResult(options: {
     consola.info("Using workspace-pinned local SDK snapshot.");
   }
 
-  await runLoggedStep("Refreshing static scaffold...", () =>
-    scaffoldStaticWorkspace(options.projectRoot, "update", {
-      localMaintainerRegistry,
-    }),
+  await runLoggedStep(
+    "Refreshing static scaffold...",
+    () =>
+      scaffoldStaticWorkspace(options.projectRoot, "update", {
+        localMaintainerRegistry,
+      }),
+    {
+      collector: options.startupTimings,
+      phase: "refreshScaffold",
+    },
   );
   const manifest = await loadManifest(options.projectRoot);
-  await runLoggedStep("Applying workspace codegen...", () =>
-    applyWorkspaceCodegen({
-      projectRoot: options.projectRoot,
-      manifest: manifest as ApiGameTopologyManifest,
-    }),
+  await runLoggedStep(
+    "Applying workspace codegen...",
+    () =>
+      applyWorkspaceCodegen({
+        projectRoot: options.projectRoot,
+        manifest: manifest as ApiGameTopologyManifest,
+      }),
+    {
+      collector: options.startupTimings,
+      phase: "workspaceCodegen",
+    },
   );
   const dependencyState = await runLoggedStep(
     "Reconciling workspace dependencies...",
     () => reconcileWorkspaceDependencies(options.projectRoot),
+    {
+      collector: options.startupTimings,
+      phase: "dependencyReconcile",
+    },
   );
   if (
     dependencyState.packageManagerNormalized ||
@@ -695,12 +921,21 @@ async function ensureDevCompiledResult(options: {
   } else {
     consola.info("Workspace dependencies already up to date.");
   }
-  await runLoggedStep("Validating reducer contract...", () =>
-    assertReducerContractPreflight(options.projectRoot),
+  await runLoggedStep(
+    "Validating reducer contract...",
+    () => assertReducerContractPreflight(options.projectRoot),
+    {
+      collector: options.startupTimings,
+      phase: "reducerContract",
+    },
   );
   const typecheckResult = await runLoggedStep(
     "Running local typecheck...",
     () => runLocalTypecheck(options.projectRoot),
+    {
+      collector: options.startupTimings,
+      phase: "localTypecheck",
+    },
   );
   if (!typecheckResult.skipped && !typecheckResult.success) {
     if (typecheckResult.output) consola.error(typecheckResult.output);
@@ -710,22 +945,31 @@ async function ensureDevCompiledResult(options: {
   }
   if (typecheckResult.output && typecheckResult.skipped)
     consola.warn(typecheckResult.output);
-  await runLoggedStep("Smoke-testing reducer bundle...", () =>
-    assertReducerBundleSmoke({
-      projectRoot: options.projectRoot,
-      manifest: manifest as ApiGameTopologyManifest,
-    }),
+  await runLoggedStep(
+    "Smoke-testing reducer bundle...",
+    () =>
+      assertReducerBundleSmoke({
+        projectRoot: options.projectRoot,
+        manifest: manifest as ApiGameTopologyManifest,
+      }),
+    {
+      collector: options.startupTimings,
+      phase: "reducerSmoke",
+    },
   );
   consola.success("Reducer bundle smoke test passed.");
   consola.start("Ensuring dev compile...");
 
   const [localFiles, ruleText, backendVersion, workspacePackageJson] =
-    await Promise.all([
-      collectLocalFiles(options.projectRoot),
-      loadRule(options.projectRoot),
-      resolveBackendVersionMetadata(),
-      readWorkspacePackageJson(options.projectRoot),
-    ]);
+    await options.startupTimings.timed("computeFingerprint", async () => {
+      const [files, rule, version, packageJson] = await Promise.all([
+        collectLocalFiles(options.projectRoot),
+        loadRule(options.projectRoot),
+        resolveBackendVersionMetadata(),
+        readWorkspacePackageJson(options.projectRoot),
+      ]);
+      return [files, rule, version, packageJson] as const;
+    });
   const sourceRevisionFiles = Object.fromEntries(
     Object.entries(localFiles).filter(([filePath]) =>
       isSourceRevisionPath(filePath),
@@ -753,18 +997,22 @@ async function ensureDevCompiledResult(options: {
     workspacePackageJson,
   });
 
-  const first = await postEnsureDevCompile({
-    config: options.config,
-    projectId: options.projectConfig.projectId,
-    body: {
-      devFingerprint,
-      env: options.env,
-      sourceRevision: { mode: "replace", changes: [] },
-      ruleText,
-      manifest: manifest as ApiGameTopologyManifest,
-    },
-  });
+  const first = await options.startupTimings.timed("lookupCompile", () =>
+    postEnsureDevCompile({
+      config: options.config,
+      projectId: options.projectConfig.projectId,
+      body: {
+        devFingerprint,
+        env: options.env,
+        sourceRevision: { mode: "replace", changes: [] },
+        ruleText,
+        manifest: manifest as ApiGameTopologyManifest,
+      },
+    }),
+  );
   if (first.reused && first.compiledResult) {
+    options.startupTimings.record("uploadSource", 0, "skipped");
+    options.startupTimings.record("waitForCompile", 0, "reused");
     const compiledResult = assertDevCompiledResultStartable(
       first.compiledResult,
     );
@@ -772,9 +1020,11 @@ async function ensureDevCompiledResult(options: {
     return compiledResult;
   }
 
-  await uploadProjectSourceBlobsSdk(
-    options.projectConfig.projectId,
-    Array.from(uploadBlobs.values()),
+  await options.startupTimings.timed("uploadSource", () =>
+    uploadProjectSourceBlobsSdk(
+      options.projectConfig.projectId,
+      Array.from(uploadBlobs.values()),
+    ),
   );
   const queued = await postEnsureDevCompile({
     config: options.config,
@@ -788,23 +1038,30 @@ async function ensureDevCompiledResult(options: {
     },
   });
   if (queued.reused && queued.compiledResult) {
+    options.startupTimings.record("waitForCompile", 0, "reused");
     return assertDevCompiledResultStartable(queued.compiledResult);
   }
-  if (!queued.jobId)
-    throw new Error("Backend did not return a dev compile job id.");
+  const jobId = queued.jobId;
+  if (!jobId) throw new Error("Backend did not return a dev compile job id.");
 
-  const { compiledResult } = await waitForCompiledResultJobSdk({
-    projectId: options.projectConfig.projectId,
-    jobId: queued.jobId,
-    onProgress: (job) => {
-      const message = formatDevCompileJobProgressMessage(job);
-      if (options.debug) {
-        consola.info(message);
-      } else {
-        consola.start(message);
-      }
-    },
-  });
+  const { compiledResult } = await options.startupTimings.timed(
+    "waitForCompile",
+    () =>
+      waitForCompiledResultJobSdk({
+        projectId: options.projectConfig.projectId,
+        jobId,
+        onProgress: (job) => {
+          const message = sanitizeDevStartupMessage(
+            formatDevCompileJobProgressMessage(job),
+          );
+          if (options.debug) {
+            consola.info(message);
+          } else {
+            consola.start(message);
+          }
+        },
+      }),
+  );
   return assertDevCompiledResultStartable(compiledResult);
 }
 

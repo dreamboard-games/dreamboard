@@ -27,8 +27,10 @@ export type MaterializeWorkspaceProjectInput = {
   webBaseUrl: string;
   manifest: GameTopologyManifest;
   ruleText: string;
-  ruleId?: string;
-  manifestId?: string;
+  gameRevisionId?: string;
+  revisionDigest?: string;
+  sourceRevisionId?: string;
+  sourceTreeHash?: string;
   manifestContentHash?: string;
   localMaintainerRegistry?: LocalMaintainerRegistryConfig | null;
   installDependencies?: boolean;
@@ -59,14 +61,21 @@ export async function materializeWorkspaceProject(
     });
   }
 
+  const baseConfig = baseProjectConfig(input);
   const authoringConfig =
-    input.ruleId && input.manifestId && input.manifestContentHash
-      ? updateProjectAuthoringState(baseProjectConfig(input), {
-          ruleId: input.ruleId,
-          manifestId: input.manifestId,
+    input.gameRevisionId ||
+    input.revisionDigest ||
+    input.sourceRevisionId ||
+    input.sourceTreeHash ||
+    input.manifestContentHash
+      ? updateProjectAuthoringState(baseConfig, {
+          gameRevisionId: input.gameRevisionId,
+          revisionDigest: input.revisionDigest,
+          sourceRevisionId: input.sourceRevisionId,
+          sourceTreeHash: input.sourceTreeHash,
           manifestContentHash: input.manifestContentHash,
         })
-      : baseProjectConfig(input);
+      : baseConfig;
   const projectConfig = updateProjectLocalMaintainerRegistry(
     authoringConfig,
     input.localMaintainerRegistry ?? undefined,
@@ -85,7 +94,7 @@ function baseProjectConfig(
     deploymentId: input.deploymentId ?? "legacy",
     ownerScopeId: input.ownerScopeId ?? "default",
     bindingKey: input.bindingKey,
-    remoteHeadDigest: input.remoteHeadDigest,
+    remoteHeadDigest: input.remoteHeadDigest ?? input.revisionDigest,
     slug: input.slug,
     jobId: input.jobId,
     agentManaged: input.agentManaged,

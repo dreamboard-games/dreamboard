@@ -17,7 +17,6 @@ const mockState: {
   listProjectCompiledResultsResponse: MockApiResponse<{
     results: Array<{
       id: string;
-      authoringStateId: string;
       revisionDigest?: string;
       success: boolean;
       createdAt?: string;
@@ -100,7 +99,6 @@ mock.module("@dreamboard-games/api-client", () => ({
 }));
 
 const {
-  findCompiledResultsForAuthoringState,
   findProjectCompiledResultsForRevision,
   waitForCompiledResultJobSdk,
 } = await import("./compiled-results-api.ts");
@@ -132,28 +130,17 @@ beforeEach(() => {
   mockState.jobResponses = [];
 });
 
-test("findCompiledResultsForAuthoringState no-ops after project-scoped result list removal", async () => {
-  const results = await findCompiledResultsForAuthoringState({
-    projectId: "project-1",
-    authoringStateId: "authoring-state-2",
-  });
-
-  expect(results).toEqual([]);
-  expect(mockState.listProjectCompiledResultsCalls).toEqual([]);
-});
-
 test("findProjectCompiledResultsForRevision filters project results by revision digest", async () => {
   mockState.listProjectCompiledResultsResponse = {
     data: {
       results: [
         {
           id: "compiled-result-1",
-          authoringStateId: "revision-digest-1",
+          revisionDigest: "revision-digest-1",
           success: true,
         },
         {
           id: "compiled-result-2",
-          authoringStateId: "other",
           revisionDigest: "revision-digest-2",
           success: false,
         },
@@ -171,7 +158,6 @@ test("findProjectCompiledResultsForRevision filters project results by revision 
   expect(results).toEqual([
     {
       id: "compiled-result-2",
-      authoringStateId: "other",
       revisionDigest: "revision-digest-2",
       success: false,
     },
