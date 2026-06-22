@@ -1,18 +1,53 @@
-import { existsSync, statSync } from "node:fs";
-import { cp, mkdir, readdir, readFile } from "node:fs/promises";
+import { constants, existsSync, statSync } from "node:fs";
+import {
+  access,
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+} from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 const packageRoot = path.resolve(import.meta.dir, "..");
-const generatedDirectories = ["src/@tanstack", "src/client", "src/core"];
+const args = new Set(Bun.argv.slice(2));
+const mode = args.has("--check") ? "check" : "write";
+const outputRoot =
+  mode === "check"
+    ? await mkdtemp(path.join(os.tmpdir(), "dreamboard-api-client-check-"))
+    : await mkdtemp(path.join(os.tmpdir(), "dreamboard-api-client-generate-"));
+const srcRoot = path.join(outputRoot, "src");
+const generatedDirectories = ["@tanstack", "client", "core", "generated"];
+const generatedPaths = [
+  "src/@tanstack",
+  "src/client",
+  "src/core",
+  "src/generated/problem-types.gen.ts",
+  "src/client.gen.ts",
+  "src/game-revisions.ts",
+  "src/index.ts",
+  "src/sdk.gen.ts",
+  "src/source-revisions.ts",
+  "src/storage-paths.ts",
+  "src/types.gen.ts",
+  "src/zod.gen.ts",
+];
+
 await Promise.all(
   generatedDirectories.map((relativePath) =>
-    mkdir(path.join(packageRoot, relativePath), { recursive: true }),
+    mkdir(path.join(srcRoot, relativePath), { recursive: true }),
   ),
 );
 
 const command = Bun.spawn(["pnpm", "exec", "openapi-ts"], {
   cwd: packageRoot,
+  env: {
+    ...Bun.env,
+    DREAMBOARD_GENERATED_OUTPUT_ROOT: srcRoot,
+  },
   stdout: "inherit",
   stderr: "inherit",
 });
@@ -71,7 +106,7 @@ async function rewriteRelativeImportSpecifiersToJs(
   );
 }
 
-await rewriteRelativeImportSpecifiersToJs(path.join(packageRoot, "src"));
+await rewriteRelativeImportSpecifiersToJs(srcRoot);
 
 async function patchChoiceDomainOptionNullability(): Promise<void> {
   const replacements: Array<[string, Array<[RegExp, string]>]> = [
@@ -96,7 +131,7 @@ async function patchChoiceDomainOptionNullability(): Promise<void> {
   ];
 
   for (const [relativePath, fileReplacements] of replacements) {
-    const target = path.join(packageRoot, relativePath);
+    const target = path.join(outputRoot, relativePath);
     let content = await readFile(target, "utf8");
     for (const [pattern, replacement] of fileReplacements) {
       content = content.replace(pattern, replacement);
@@ -107,16 +142,58 @@ async function patchChoiceDomainOptionNullability(): Promise<void> {
 
 await patchChoiceDomainOptionNullability();
 
-const targetDir = path.join(packageRoot, "src", "core");
-await mkdir(targetDir, { recursive: true });
-await cp(
-  path.join(packageRoot, "serverSentEvents.ts"),
-  path.join(targetDir, "serverSentEvents.gen.ts"),
-  { force: true },
-);
+async function stripGeneratedSseClientSurface(): Promise<void> {
+  const clientPath = path.join(srcRoot, "client", "client.gen.ts");
+  const typesPath = path.join(srcRoot, "client", "types.gen.ts");
+
+  let clientSource = await readFile(clientPath, "utf8");
+  clientSource = clientSource
+    .replace(
+      /import \{ createSseClient \} from '\.\.\/core\/serverSentEvents\.gen\.js';\n/,
+      "",
+    )
+    .replace("    // @ts-expect-error\n", "")
+    .replace(
+      /\n  const makeSseFn =\n    \(method: Uppercase<HttpMethod>\) => async \(options: RequestOptions\) => \{[\s\S]*?\n    \};\n(?=\n  return \{)/,
+      "\n",
+    )
+    .replace(
+      /\n    sse: \{\n      connect: makeSseFn\('CONNECT'\),\n      delete: makeSseFn\('DELETE'\),\n      get: makeSseFn\('GET'\),\n      head: makeSseFn\('HEAD'\),\n      options: makeSseFn\('OPTIONS'\),\n      patch: makeSseFn\('PATCH'\),\n      post: makeSseFn\('POST'\),\n      put: makeSseFn\('PUT'\),\n      trace: makeSseFn\('TRACE'\),\n    \},/,
+      "",
+    );
+  await Bun.write(clientPath, clientSource);
+
+  let typesSource = await readFile(typesPath, "utf8");
+  typesSource = typesSource
+    .replace(
+      /import type \{\n  ServerSentEventsOptions,\n  ServerSentEventsResult,\n\} from '\.\.\/core\/serverSentEvents\.gen\.js';\n/,
+      "",
+    )
+    .replace(
+      /\n    Pick<\n      ServerSentEventsOptions<TData>,\n      \| 'onSseError'\n      \| 'onSseEvent'\n      \| 'sseDefaultRetryDelay'\n      \| 'sseMaxRetryAttempts'\n      \| 'sseMaxRetryDelay'\n    > /,
+      " ",
+    )
+    .replace(/(\n    \}>), \{/, "$1 {")
+    .replace(
+      /\ntype SseFn = <\n  TData = unknown,\n  TError = unknown,\n  ThrowOnError extends boolean = false,\n  TResponseStyle extends ResponseStyle = 'fields',\n>\(\n  options: Omit<RequestOptions<TData, TResponseStyle, ThrowOnError>, 'method'>,\n\) => Promise<ServerSentEventsResult<TData, TError>>;\n/,
+      "",
+    )
+    .replace(
+      /export type Client = CoreClient<\n  RequestFn,\n  Config,\n  MethodFn,\n  BuildUrlFn,\n  SseFn\n>/,
+      "export type Client = CoreClient<RequestFn, Config, MethodFn, BuildUrlFn>",
+    )
+    .replace(/\n  sse: \{\n    connect: Client['connect'];[\s\S]*?\n  \};/, "");
+  await Bun.write(typesPath, typesSource);
+
+  await rm(path.join(srcRoot, "core", "serverSentEvents.gen.ts"), {
+    force: true,
+  });
+}
+
+await stripGeneratedSseClientSurface();
 
 await Bun.write(
-  path.join(packageRoot, "src", "storage-paths.ts"),
+  path.join(srcRoot, "storage-paths.ts"),
   `/**
  * Storage path constants shared between frontend and backend.
  * These mirror the values in the Kotlin StoragePathUtils.
@@ -140,7 +217,7 @@ export const DIST_DIR = "dist";
 );
 
 await Bun.write(
-  path.join(packageRoot, "src", "source-revisions.ts"),
+  path.join(srcRoot, "source-revisions.ts"),
   `import { createProjectSourceBlobUploadSession } from "./sdk.gen.js";
 import type {
   SourceBlobUploadDescriptor,
@@ -468,7 +545,7 @@ export async function uploadProjectSourceBlobs(options: {
 );
 
 await Bun.write(
-  path.join(packageRoot, "src", "game-revisions.ts"),
+  path.join(srcRoot, "game-revisions.ts"),
   `export type JsonPrimitive = string | number | boolean | null;
 
 export type JsonValue =
@@ -544,10 +621,17 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 `,
 );
 
-const zodModulePath = pathToFileURL(
-  path.join(packageRoot, "src", "zod.gen.ts"),
-).href;
-const { zProblemType } = await import(zodModulePath);
+function extractProblemTypeValues(source: string): string[] {
+  const match = source.match(
+    /export const zProblemType = z\.enum\(\[\n([\s\S]*?)\n\]\);/,
+  );
+  if (!match) {
+    throw new Error(
+      "Unable to find zProblemType enum in generated zod module.",
+    );
+  }
+  return Array.from(match[1].matchAll(/'([^']+)'/g), (entry) => entry[1]);
+}
 
 function toProblemTypeKey(value: string): string {
   return value
@@ -556,12 +640,14 @@ function toProblemTypeKey(value: string): string {
     .toUpperCase();
 }
 
-const serverProblemTypes = (zProblemType.options as readonly string[])
+const serverProblemTypes = extractProblemTypeValues(
+  await readFile(path.join(srcRoot, "zod.gen.ts"), "utf8"),
+)
   .map((value) => `  ${toProblemTypeKey(value)}: ${JSON.stringify(value)},`)
   .join("\n");
 
 await Bun.write(
-  path.join(packageRoot, "src", "generated", "problem-types.gen.ts"),
+  path.join(srcRoot, "generated", "problem-types.gen.ts"),
   `// This file is auto-generated by packages/api-client/scripts/generate.ts.
 // Do not edit by hand.
 
@@ -586,11 +672,155 @@ export type AnyProblemType = ProblemType | ClientProblemType;
 `,
 );
 
-const indexPath = path.join(packageRoot, "src", "index.ts");
+const indexPath = path.join(srcRoot, "index.ts");
 const indexContents = await readFile(indexPath, "utf8");
 const extraExports = `\nexport { CLIENT_PROBLEM_TYPES, SERVER_PROBLEM_TYPES, type AnyProblemType, type ClientProblemType, type ServerProblemType } from './generated/problem-types.gen.js';\n`;
 if (!indexContents.includes("./generated/problem-types.gen.js")) {
   await Bun.write(indexPath, `${indexContents}${extraExports}`);
 }
 
-await rewriteRelativeImportSpecifiersToJs(path.join(packageRoot, "src"));
+await rewriteRelativeImportSpecifiersToJs(srcRoot);
+
+const mismatches = [];
+for (const generatedPath of generatedPaths) {
+  const pathMismatches = await compareGeneratedTrees({
+    expectedRoot: path.join(packageRoot, generatedPath),
+    actualRoot: path.join(outputRoot, generatedPath),
+  });
+  mismatches.push(
+    ...pathMismatches.map((mismatch) => ({
+      ...mismatch,
+      relativePath: mismatch.relativePath
+        ? `${generatedPath}/${mismatch.relativePath}`
+        : generatedPath,
+    })),
+  );
+}
+
+if (mode === "check") {
+  await rm(outputRoot, { recursive: true, force: true });
+  if (mismatches.length > 0) {
+    throw new Error(renderGeneratedTreeMismatches(mismatches));
+  }
+} else {
+  await replaceGeneratedPaths({
+    sourceRoot: outputRoot,
+    destinationRoot: packageRoot,
+    paths: generatedPaths,
+  });
+  await rm(outputRoot, { recursive: true, force: true });
+}
+
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await access(targetPath, constants.F_OK);
+    return true;
+  } catch (error) {
+    if ((error as { code?: string })?.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function readGeneratedTree(root: string): Promise<Map<string, Buffer>> {
+  const files = new Map<string, Buffer>();
+
+  if (!(await pathExists(root))) {
+    return files;
+  }
+
+  const rootStat = await lstat(root);
+  if (rootStat.isSymbolicLink()) {
+    throw new Error("Generated tree contains symlink: .");
+  }
+  if (rootStat.isFile()) {
+    files.set("", await readFile(root));
+    return files;
+  }
+
+  async function visit(directory: string, relativeDirectory: string) {
+    const entries = (await readdir(directory, { withFileTypes: true })).sort(
+      (left, right) => left.name.localeCompare(right.name),
+    );
+
+    for (const entry of entries) {
+      const absolutePath = path.join(directory, entry.name);
+      const relativePath = (
+        relativeDirectory ? path.join(relativeDirectory, entry.name) : entry.name
+      )
+        .split(path.sep)
+        .join("/");
+      const stat = await lstat(absolutePath);
+      if (stat.isSymbolicLink()) {
+        throw new Error(`Generated tree contains symlink: ${relativePath}`);
+      }
+      if (stat.isDirectory()) {
+        await visit(absolutePath, relativePath);
+        continue;
+      }
+      if (stat.isFile()) {
+        files.set(relativePath, await readFile(absolutePath));
+      }
+    }
+  }
+
+  await visit(root, "");
+  return files;
+}
+
+async function compareGeneratedTrees(options: {
+  expectedRoot: string;
+  actualRoot: string;
+}): Promise<Array<{ relativePath: string; kind: string }>> {
+  const [expected, actual] = await Promise.all([
+    readGeneratedTree(options.expectedRoot),
+    readGeneratedTree(options.actualRoot),
+  ]);
+  const paths = [...new Set([...expected.keys(), ...actual.keys()])].sort();
+  const mismatches = [];
+
+  for (const relativePath of paths) {
+    const expectedBytes = expected.get(relativePath);
+    const actualBytes = actual.get(relativePath);
+    if (!expectedBytes) {
+      mismatches.push({ relativePath, kind: "unexpected-generated-file" });
+    } else if (!actualBytes) {
+      mismatches.push({ relativePath, kind: "missing-generated-file" });
+    } else if (!expectedBytes.equals(actualBytes)) {
+      mismatches.push({ relativePath, kind: "content-drift" });
+    }
+  }
+
+  return mismatches;
+}
+
+async function replaceGeneratedPaths(options: {
+  sourceRoot: string;
+  destinationRoot: string;
+  paths: string[];
+}): Promise<void> {
+  for (const generatedPath of options.paths) {
+    const source = path.join(options.sourceRoot, generatedPath);
+    const destination = path.join(options.destinationRoot, generatedPath);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await rm(destination, { recursive: true, force: true });
+    await cp(source, destination, {
+      recursive: true,
+      force: true,
+      verbatimSymlinks: false,
+    });
+  }
+}
+
+function renderGeneratedTreeMismatches(
+  mismatches: Array<{ relativePath: string; kind: string }>,
+): string {
+  return [
+    `public-api-client-typescript: generated output drifted with ${mismatches.length} mismatch(es).`,
+    ...mismatches.map(
+      (mismatch) => `- ${mismatch.kind}: ${mismatch.relativePath}`,
+    ),
+    "Regenerate with: pnpm --dir packages/api-client generate",
+  ].join("\n");
+}

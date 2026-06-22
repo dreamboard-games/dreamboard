@@ -1980,25 +1980,6 @@ export const zHostSessionErrorEvent = z.object({
     recoverable: z.boolean()
 });
 
-/**
- * Log entry from the game engine console output
- */
-export const zLogMessageDto = z.object({
-    id: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    type: z.string(),
-    message: z.string(),
-    timestamp: z.iso.datetime()
-});
-
-/**
- * Bounded long-poll response for replaying game engine console logs.
- */
-export const zSessionLogBatchResponse = z.object({
-    cursor: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    logs: z.array(zLogMessageDto),
-    timedOut: z.boolean()
-});
-
 export const zGameplayCapabilityResponse = z.object({
     websocketUrl: z.url(),
     token: z.string().min(1),
@@ -2010,226 +1991,6 @@ export const zGameplayCapabilityResponse = z.object({
         'submit',
         'restore-history'
     ]))
-});
-
-/**
- * Runtime target class for a performance run.
- */
-export const zPerfRunTargetClass = z.enum([
-    'local-aws',
-    'staging',
-    'production'
-]);
-
-/**
- * Request to create an operator-owned performance run.
- */
-export const zCreatePerfRunRequest = z.object({
-    laneId: z.string().min(1).max(120),
-    scenario: z.string().min(1).max(200),
-    candidateSha: z.string().min(7).max(64),
-    targetClass: zPerfRunTargetClass,
-    gameSource: zSessionGameSource,
-    players: zPlayersDefinition,
-    playerCount: z.int().gte(1).lte(64),
-    autoAssignSeats: z.optional(z.boolean()).default(true),
-    rngSeed: z.optional(z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
-    setupProfileId: z.optional(z.string().min(1).max(120)),
-    sessionCount: z.int().gte(1).lte(10000),
-    commandsPerSession: z.int().gte(1).lte(100000),
-    prerequisiteReceipts: z.optional(z.array(z.string().min(1).max(500)).max(50))
-});
-
-/**
- * Lifecycle status for an operator-owned performance run.
- */
-export const zPerfRunStatus = z.enum([
-    'open',
-    'closed',
-    'expired'
-]);
-
-/**
- * Session registered to an operator-owned performance run.
- */
-export const zPerfRunSession = z.object({
-    sessionId: z.uuid(),
-    shortCode: z.string().min(1),
-    playerIds: z.array(z.string().min(1)).min(1)
-});
-
-/**
- * Operator-owned performance run metadata.
- */
-export const zPerfRun = z.object({
-    runId: z.uuid(),
-    status: zPerfRunStatus,
-    callerProvider: z.string().min(1),
-    callerSubject: z.string().min(1),
-    scopes: z.array(z.string()),
-    candidateSha: z.string().min(7).max(64),
-    laneId: z.string().min(1),
-    scenario: z.string().min(1),
-    targetClass: zPerfRunTargetClass,
-    createdAt: z.iso.datetime(),
-    expiresAt: z.iso.datetime(),
-    closedAt: z.optional(z.iso.datetime()),
-    closeOutcome: z.optional(z.string().min(1).max(120)),
-    cleanupRequested: z.optional(z.boolean()),
-    observationBundlePath: z.optional(z.string().max(1000)),
-    createdSessions: z.array(zPerfRunSession)
-});
-
-/**
- * Gameplay operation granted by a run-scoped capability.
- */
-export const zPerfGameplayPermission = z.enum(['observe', 'submit']);
-
-/**
- * Participant needing a run-scoped gameplay capability.
- */
-export const zIssuePerfCapabilityParticipant = z.object({
-    sessionId: z.uuid(),
-    playerId: z.string().min(1),
-    permissions: z.array(zPerfGameplayPermission).min(1)
-});
-
-/**
- * Request to issue capabilities for run participants.
- */
-export const zIssuePerfCapabilitiesRequest = z.object({
-    participants: z.array(zIssuePerfCapabilityParticipant).min(1)
-});
-
-/**
- * Opaque run-scoped gameplay capability and its non-secret binding summary.
- */
-export const zPerfGameplayCapability = z.object({
-    token: z.string().min(1),
-    authorityWebSocketUrl: z.url(),
-    expiresAt: z.iso.datetime(),
-    runId: z.uuid(),
-    sessionId: z.uuid(),
-    playerId: z.string().min(1),
-    permissions: z.array(zPerfGameplayPermission).min(1)
-});
-
-/**
- * Capabilities issued for performance run participants.
- */
-export const zIssuePerfCapabilitiesResponse = z.object({
-    capabilities: z.array(zPerfGameplayCapability)
-});
-
-/**
- * Durable gameplay commit evidence owned by Gameplay Authority.
- */
-export const zPerfCommitEvidence = z.object({
-    runId: z.uuid(),
-    sessionId: z.uuid(),
-    clientActionId: z.string().min(1),
-    generation: z.int().gte(0),
-    committedVersion: z.int().gte(0),
-    leaseTerm: z.optional(z.int().gte(0)),
-    ownerTaskId: z.optional(z.string()),
-    stateHash: z.optional(z.string()),
-    committedAt: z.optional(z.iso.datetime())
-});
-
-/**
- * One page of Authority-owned durable commit evidence for a performance run.
- */
-export const zPerfCommitEvidencePage = z.object({
-    runId: z.uuid(),
-    rows: z.array(zPerfCommitEvidence),
-    nextCursor: z.optional(z.string()),
-    complete: z.boolean()
-});
-
-/**
- * Typed telemetry event evidence owned by Gameplay Authority.
- */
-export const zPerfTelemetryEvidence = z.object({
-    sequence: z.int().gte(0),
-    runId: z.uuid(),
-    observedAt: z.iso.datetime(),
-    kind: z.enum(['timing', 'count']),
-    name: z.string().min(1),
-    durationMs: z.optional(z.number()),
-    value: z.optional(z.number()),
-    attributes: z.record(z.string(), z.string())
-});
-
-/**
- * One page of Authority-owned telemetry evidence for a performance run.
- */
-export const zPerfTelemetryEvidencePage = z.object({
-    runId: z.uuid(),
-    events: z.array(zPerfTelemetryEvidence),
-    nextCursor: z.optional(z.string()),
-    complete: z.boolean()
-});
-
-/**
- * Request to close a performance run after the measured window.
- */
-export const zClosePerfRunRequest = z.object({
-    outcome: z.string().min(1).max(120),
-    cleanupRequested: z.optional(z.boolean()).default(true),
-    observationBundlePath: z.optional(z.string().max(1000))
-});
-
-export const zGameOutcomeReason = z.object({
-    code: z.string().min(1),
-    message: z.optional(z.string().min(1))
-});
-
-export const zGameOutcomeResult = z.enum([
-    'win',
-    'draw',
-    'loss',
-    'eliminated'
-]);
-
-export const zGameOutcomeScoreComponent = z.object({
-    id: z.string().min(1),
-    label: z.string().min(1),
-    value: z.number()
-});
-
-export const zGameOutcomeTieBreak = z.object({
-    id: z.string().min(1),
-    label: z.string().min(1),
-    value: z.union([
-        z.number(),
-        z.string().min(1)
-    ])
-});
-
-export const zGameOutcomeStanding = z.object({
-    playerId: z.string().min(1),
-    rank: z.int().gte(1),
-    result: zGameOutcomeResult,
-    score: z.optional(z.number()),
-    scoreBreakdown: z.optional(z.array(zGameOutcomeScoreComponent)),
-    tieBreaks: z.optional(z.array(zGameOutcomeTieBreak))
-});
-
-export const zGameOutcome = z.object({
-    reason: zGameOutcomeReason,
-    standings: z.array(zGameOutcomeStanding).min(1)
-});
-
-export const zSessionEndedCallbackRequest = z.object({
-    generation: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    version: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    stateHash: z.string().min(1),
-    endedAt: z.iso.datetime(),
-    outcome: zGameOutcome
-});
-
-export const zSessionEndedCallbackResponse = z.object({
-    applied: z.boolean()
 });
 
 /**
@@ -2316,126 +2077,6 @@ export const zDemoSessionResponse = z.object({
     reducerArtifactIdentity: zDemoReducerArtifactIdentity,
     reducerArtifactHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
     gameSource: zSessionGameSource
-});
-
-export const zHistoryUpdatedEvent = z.object({
-    type: z.enum(['history.updated']),
-    history: zSessionSnapshotHistory
-});
-
-export const zGameplayDurableCommitEvidence = z.object({
-    sessionId: z.uuid(),
-    clientActionId: z.string().min(1),
-    generation: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    committedVersion: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
-    leaseTerm: z.optional(z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
-    ownerTaskId: z.optional(z.string()),
-    stateHash: z.optional(z.string()),
-    committedAt: z.optional(z.iso.datetime())
-});
-
-/**
- * Type of parameter accepted by a runtime action
- */
-export const zParameterType = z.enum([
-    'cardId',
-    'cardType',
-    'playerId',
-    'string',
-    'number',
-    'boolean',
-    'zoneId',
-    'pieceId',
-    'dieId',
-    'boardId',
-    'edgeId',
-    'vertexId',
-    'spaceId',
-    'resourceId'
-]);
-
-/**
- * Defines a parameter for an action
- */
-export const zActionParameterDefinition = z.object({
-    name: z.string(),
-    type: zParameterType,
-    required: z.optional(z.boolean()).default(true),
-    array: z.optional(z.boolean()).default(false),
-    minLength: z.optional(z.int().gte(0)),
-    maxLength: z.optional(z.int().gte(0)),
-    cardSetId: z.optional(z.string()),
-    description: z.optional(z.string())
-});
-
-/**
- * Defines an available player action with metadata and parameter definitions
- */
-export const zActionDefinition = z.object({
-    actionType: z.string(),
-    displayName: z.string(),
-    description: z.optional(z.string()),
-    parameters: z.array(zActionParameterDefinition),
-    errorCodes: z.optional(z.array(z.string()))
-});
-
-/**
- * Type of source for the card set
- */
-export const zCardSetSourceType = z.enum([
-    'preset',
-    'csv',
-    'manual'
-]);
-
-/**
- * Engine-level structural board layout discriminator
- */
-export const zBoardLayout = z.enum([
-    'generic',
-    'hex',
-    'square'
-]);
-
-/**
- * Request to create a new game
- */
-export const zCreateGameRequest = z.object({
-    slug: z.optional(z.string()),
-    name: z.optional(z.string().max(200)),
-    description: z.optional(z.string().max(1000)),
-    ruleText: z.optional(z.string().max(50000)),
-    enhanceRule: z.optional(z.boolean()).default(false)
-});
-
-export const zUpdateGameRequest = z.object({
-    name: z.optional(z.string().min(1).max(255)),
-    description: z.optional(z.string()),
-    rule: z.optional(z.string()),
-    public: z.optional(z.boolean()),
-    manifest: z.optional(zGameTopologyManifest),
-    metadata: z.optional(zGameMetadata)
-});
-
-export const zDeleteGameResponse = z.object({
-    deleted: z.boolean()
-});
-
-/**
- * Immutable authored source revision.
- */
-export const zSourceRevision = z.object({
-    id: z.uuid(),
-    userId: z.uuid(),
-    parentSourceRevisionId: z.optional(z.uuid()),
-    treeHash: z.string(),
-    fileCount: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
-    createdAt: z.iso.datetime()
-});
-
-export const zQueueCompiledResultJobRequest = z.object({
-    gameRevisionId: z.uuid(),
-    devFingerprint: z.optional(z.string())
 });
 
 export const zInputDomain = z.union([
@@ -2754,17 +2395,6 @@ export const zGetCurrentBillingEntitlementsData = z.object({
  * Current billing and entitlement state
  */
 export const zGetCurrentBillingEntitlementsResponse = zCurrentBillingEntitlementsResponse;
-
-export const zReceiveStripeBillingWebhookData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Stripe event accepted or already processed
- */
-export const zReceiveStripeBillingWebhookResponse = z.void();
 
 export const zListProjectsData = z.object({
     body: z.optional(z.never()),
@@ -3248,23 +2878,6 @@ export const zAcceptGameRunData = z.object({
  */
 export const zAcceptGameRunResponse2 = zAcceptGameRunResponse;
 
-export const zGetSessionLogBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid()
-    }),
-    query: z.optional(z.object({
-        afterLogId: z.optional(z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })).default(BigInt(0)),
-        waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000),
-        limit: z.optional(z.int().gte(1).lte(500)).default(100)
-    }))
-});
-
-/**
- * Session log batch
- */
-export const zGetSessionLogBatchResponse = zSessionLogBatchResponse;
-
 export const zCreateGameplayCapabilityData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -3427,23 +3040,6 @@ export const zCreateDemoGameSessionData = z.object({
  */
 export const zCreateDemoGameSessionResponse = zDemoSessionResponse;
 
-export const zGetDemoSessionLogBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid()
-    }),
-    query: z.optional(z.object({
-        afterLogId: z.optional(z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })).default(BigInt(0)),
-        waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000),
-        limit: z.optional(z.int().gte(1).lte(500)).default(100)
-    }))
-});
-
-/**
- * Demo session log batch
- */
-export const zGetDemoSessionLogBatchResponse = zSessionLogBatchResponse;
-
 export const zCreateDemoGameplayCapabilityData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -3517,13 +3113,12 @@ export const zGetSessionSnapshotData = z.object({
  */
 export const zGetSessionSnapshotResponse = zHostSessionSnapshot;
 
-export const zGetSessionEventBatchData = z.object({
+export const zGetSessionLobbyEventBatchData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         sessionId: z.uuid()
     }),
     query: z.object({
-        playerId: z.optional(z.string()),
         afterCursor: z.optional(z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
         waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000),
         clientId: z.string(),
@@ -3532,9 +3127,9 @@ export const zGetSessionEventBatchData = z.object({
 });
 
 /**
- * Session event batch
+ * Lobby session event batch
  */
-export const zGetSessionEventBatchResponse = zHostSessionEventBatchResponse;
+export const zGetSessionLobbyEventBatchResponse = zHostSessionEventBatchResponse;
 
 export const zStartGameData = z.object({
     body: z.optional(z.never()),
@@ -3579,13 +3174,12 @@ export const zGetDemoSessionSnapshotData = z.object({
  */
 export const zGetDemoSessionSnapshotResponse = zHostSessionSnapshot;
 
-export const zGetDemoSessionEventBatchData = z.object({
+export const zGetDemoSessionLobbyEventBatchData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         sessionId: z.uuid()
     }),
     query: z.object({
-        playerId: z.optional(z.string()),
         afterCursor: z.optional(z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
         waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000),
         clientId: z.string(),
@@ -3594,9 +3188,9 @@ export const zGetDemoSessionEventBatchData = z.object({
 });
 
 /**
- * Demo session event batch
+ * Demo lobby session event batch
  */
-export const zGetDemoSessionEventBatchResponse = zHostSessionEventBatchResponse;
+export const zGetDemoSessionLobbyEventBatchResponse = zHostSessionEventBatchResponse;
 
 export const zStartDemoGameData = z.object({
     body: z.optional(z.never()),

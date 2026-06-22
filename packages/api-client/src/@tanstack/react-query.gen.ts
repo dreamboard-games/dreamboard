@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen.js';
-import { acceptGameRun, addSeat, assignSeat, cancelGameRun, createBillingCheckoutSession, createBillingPortalSession, createDemoGameplayCapability, createDemoGameSession, createGameplayCapability, createGameRevision, createGameRun, createProjectPreview, createProjectSession, createProjectSessionFromReducerSnapshot, createProjectSourceBlobUploadSession, deleteProject, downloadProjectSources, ensureProject, ensureProjectBuild, ensureProjectDevCompile, ensureProjectRepository, exchangeAuthToken, extractGameSpec, fetchDemoUiBundle, fetchProjectPreviewImage, getApiVersion, getAuthJwks, getCurrentAuthUser, getCurrentBillingEntitlements, getCurrentProjectRelease, getDemoGame, getDemoGameThumbnail, getDemoSessionByShortCode, getDemoSessionEventBatch, getDemoSessionLogBatch, getDemoSessionSnapshot, getJob, getJobEventBatch, getLatestProjectCompiledResult, getProject, getProjectActiveJob, getProjectBuild, getProjectBySlug, getProjectCommitStatus, getProjectCompiledResult, getProjectRepository, getProjectRevisionSources, getProjectSources, getProjectUiBundle, getSessionByShortCode, getSessionEventBatch, getSessionLogBatch, getSessionSnapshot, getSessionUiBundle, healthCheck, listDemoGames, listProjectCompiledResults, listProjects, type Options, publishProjectRelease, queryWorkshopRulebook, queueProjectPreviewScreenshot, queueProjectRevisionCompile, receiveStripeBillingWebhook, removeSeat, retryProjectRepositoryReconciliation, startDemoGame, startGame, unassignSeat, updateProject, updateSeat, uploadProjectInitialProjection } from '../sdk.gen.js';
-import type { AcceptGameRunData, AcceptGameRunError, AcceptGameRunResponse2, AddSeatData, AddSeatError, AddSeatResponse, AssignSeatData, AssignSeatError, AssignSeatResponse, CancelGameRunData, CancelGameRunError, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionError, CreateBillingCheckoutSessionResponse, CreateBillingPortalSessionData, CreateBillingPortalSessionError, CreateBillingPortalSessionResponse, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityError, CreateDemoGameplayCapabilityResponse, CreateDemoGameSessionData, CreateDemoGameSessionError, CreateDemoGameSessionResponse, CreateGameplayCapabilityData, CreateGameplayCapabilityError, CreateGameplayCapabilityResponse, CreateGameRevisionData, CreateGameRevisionError, CreateGameRevisionResponse, CreateGameRunData, CreateGameRunError, CreateGameRunResponse2, CreateProjectPreviewData, CreateProjectPreviewError, CreateProjectPreviewResponse, CreateProjectSessionData, CreateProjectSessionError, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotError, CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionResponse, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionError, CreateProjectSourceBlobUploadSessionResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse2, DownloadProjectSourcesData, DownloadProjectSourcesError, DownloadProjectSourcesResponse, EnsureProjectBuildData, EnsureProjectBuildError, EnsureProjectBuildResponse, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileError, EnsureProjectDevCompileResponse, EnsureProjectError, EnsureProjectRepositoryData, EnsureProjectRepositoryError, EnsureProjectRepositoryResponse, EnsureProjectResponse, ExchangeAuthTokenData, ExchangeAuthTokenError, ExchangeAuthTokenResponse, ExtractGameSpecData, ExtractGameSpecError, ExtractGameSpecResponse2, FetchDemoUiBundleData, FetchDemoUiBundleError, FetchDemoUiBundleResponse, FetchProjectPreviewImageData, FetchProjectPreviewImageError, FetchProjectPreviewImageResponse, GetApiVersionData, GetApiVersionResponse, GetAuthJwksData, GetCurrentAuthUserData, GetCurrentAuthUserError, GetCurrentAuthUserResponse, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsError, GetCurrentBillingEntitlementsResponse, GetCurrentProjectReleaseData, GetCurrentProjectReleaseError, GetCurrentProjectReleaseResponse, GetDemoGameData, GetDemoGameError, GetDemoGameResponse, GetDemoGameThumbnailData, GetDemoGameThumbnailError, GetDemoGameThumbnailResponse, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeError, GetDemoSessionByShortCodeResponse, GetDemoSessionEventBatchData, GetDemoSessionEventBatchError, GetDemoSessionEventBatchResponse, GetDemoSessionLogBatchData, GetDemoSessionLogBatchError, GetDemoSessionLogBatchResponse, GetDemoSessionSnapshotData, GetDemoSessionSnapshotError, GetDemoSessionSnapshotResponse, GetJobData, GetJobError, GetJobEventBatchData, GetJobEventBatchError, GetJobEventBatchResponse, GetJobResponse, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultError, GetLatestProjectCompiledResultResponse, GetProjectActiveJobData, GetProjectActiveJobError, GetProjectActiveJobResponse, GetProjectBuildData, GetProjectBuildError, GetProjectBuildResponse, GetProjectBySlugData, GetProjectBySlugError, GetProjectBySlugResponse, GetProjectCommitStatusData, GetProjectCommitStatusError, GetProjectCommitStatusResponse, GetProjectCompiledResultData, GetProjectCompiledResultError, GetProjectCompiledResultResponse, GetProjectData, GetProjectError, GetProjectRepositoryData, GetProjectRepositoryError, GetProjectRepositoryResponse, GetProjectResponse, GetProjectRevisionSourcesData, GetProjectRevisionSourcesError, GetProjectRevisionSourcesResponse, GetProjectSourcesData, GetProjectSourcesError, GetProjectSourcesResponse, GetProjectUiBundleData, GetProjectUiBundleError, GetProjectUiBundleResponse, GetSessionByShortCodeData, GetSessionByShortCodeError, GetSessionByShortCodeResponse, GetSessionEventBatchData, GetSessionEventBatchError, GetSessionEventBatchResponse, GetSessionLogBatchData, GetSessionLogBatchError, GetSessionLogBatchResponse, GetSessionSnapshotData, GetSessionSnapshotError, GetSessionSnapshotResponse, GetSessionUiBundleData, GetSessionUiBundleError, GetSessionUiBundleResponse, HealthCheckData, HealthCheckResponse, ListDemoGamesData, ListDemoGamesError, ListDemoGamesResponse, ListProjectCompiledResultsData, ListProjectCompiledResultsError, ListProjectCompiledResultsResponse, ListProjectsData, ListProjectsError, ListProjectsResponse, PublishProjectReleaseData, PublishProjectReleaseError, PublishProjectReleaseResponse, QueryWorkshopRulebookData, QueryWorkshopRulebookError, QueryWorkshopRulebookResponse, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotError, QueueProjectPreviewScreenshotResponse, QueueProjectRevisionCompileData, QueueProjectRevisionCompileError, QueueProjectRevisionCompileResponse, ReceiveStripeBillingWebhookData, ReceiveStripeBillingWebhookError, ReceiveStripeBillingWebhookResponse, RemoveSeatData, RemoveSeatError, RemoveSeatResponse, RetryProjectRepositoryReconciliationData, RetryProjectRepositoryReconciliationError, RetryProjectRepositoryReconciliationResponse, StartDemoGameData, StartDemoGameError, StartDemoGameResponse, StartGameData, StartGameError, StartGameResponse, UnassignSeatData, UnassignSeatError, UnassignSeatResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateSeatData, UpdateSeatError, UpdateSeatResponse, UploadProjectInitialProjectionData, UploadProjectInitialProjectionError, UploadProjectInitialProjectionResponse } from '../types.gen.js';
+import { acceptGameRun, addSeat, assignSeat, cancelGameRun, createBillingCheckoutSession, createBillingPortalSession, createDemoGameplayCapability, createDemoGameSession, createGameplayCapability, createGameRevision, createGameRun, createProjectPreview, createProjectSession, createProjectSessionFromReducerSnapshot, createProjectSourceBlobUploadSession, deleteProject, downloadProjectSources, ensureProject, ensureProjectBuild, ensureProjectDevCompile, ensureProjectRepository, exchangeAuthToken, extractGameSpec, fetchDemoUiBundle, fetchProjectPreviewImage, getApiVersion, getAuthJwks, getCurrentAuthUser, getCurrentBillingEntitlements, getCurrentProjectRelease, getDemoGame, getDemoGameThumbnail, getDemoSessionByShortCode, getDemoSessionLobbyEventBatch, getDemoSessionSnapshot, getJob, getJobEventBatch, getLatestProjectCompiledResult, getProject, getProjectActiveJob, getProjectBuild, getProjectBySlug, getProjectCommitStatus, getProjectCompiledResult, getProjectRepository, getProjectRevisionSources, getProjectSources, getProjectUiBundle, getSessionByShortCode, getSessionLobbyEventBatch, getSessionSnapshot, getSessionUiBundle, healthCheck, listDemoGames, listProjectCompiledResults, listProjects, type Options, publishProjectRelease, queryWorkshopRulebook, queueProjectPreviewScreenshot, queueProjectRevisionCompile, removeSeat, retryProjectRepositoryReconciliation, startDemoGame, startGame, unassignSeat, updateProject, updateSeat, uploadProjectInitialProjection } from '../sdk.gen.js';
+import type { AcceptGameRunData, AcceptGameRunError, AcceptGameRunResponse2, AddSeatData, AddSeatError, AddSeatResponse, AssignSeatData, AssignSeatError, AssignSeatResponse, CancelGameRunData, CancelGameRunError, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionError, CreateBillingCheckoutSessionResponse, CreateBillingPortalSessionData, CreateBillingPortalSessionError, CreateBillingPortalSessionResponse, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityError, CreateDemoGameplayCapabilityResponse, CreateDemoGameSessionData, CreateDemoGameSessionError, CreateDemoGameSessionResponse, CreateGameplayCapabilityData, CreateGameplayCapabilityError, CreateGameplayCapabilityResponse, CreateGameRevisionData, CreateGameRevisionError, CreateGameRevisionResponse, CreateGameRunData, CreateGameRunError, CreateGameRunResponse2, CreateProjectPreviewData, CreateProjectPreviewError, CreateProjectPreviewResponse, CreateProjectSessionData, CreateProjectSessionError, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotError, CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionResponse, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionError, CreateProjectSourceBlobUploadSessionResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse2, DownloadProjectSourcesData, DownloadProjectSourcesError, DownloadProjectSourcesResponse, EnsureProjectBuildData, EnsureProjectBuildError, EnsureProjectBuildResponse, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileError, EnsureProjectDevCompileResponse, EnsureProjectError, EnsureProjectRepositoryData, EnsureProjectRepositoryError, EnsureProjectRepositoryResponse, EnsureProjectResponse, ExchangeAuthTokenData, ExchangeAuthTokenError, ExchangeAuthTokenResponse, ExtractGameSpecData, ExtractGameSpecError, ExtractGameSpecResponse2, FetchDemoUiBundleData, FetchDemoUiBundleError, FetchDemoUiBundleResponse, FetchProjectPreviewImageData, FetchProjectPreviewImageError, FetchProjectPreviewImageResponse, GetApiVersionData, GetApiVersionResponse, GetAuthJwksData, GetCurrentAuthUserData, GetCurrentAuthUserError, GetCurrentAuthUserResponse, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsError, GetCurrentBillingEntitlementsResponse, GetCurrentProjectReleaseData, GetCurrentProjectReleaseError, GetCurrentProjectReleaseResponse, GetDemoGameData, GetDemoGameError, GetDemoGameResponse, GetDemoGameThumbnailData, GetDemoGameThumbnailError, GetDemoGameThumbnailResponse, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeError, GetDemoSessionByShortCodeResponse, GetDemoSessionLobbyEventBatchData, GetDemoSessionLobbyEventBatchError, GetDemoSessionLobbyEventBatchResponse, GetDemoSessionSnapshotData, GetDemoSessionSnapshotError, GetDemoSessionSnapshotResponse, GetJobData, GetJobError, GetJobEventBatchData, GetJobEventBatchError, GetJobEventBatchResponse, GetJobResponse, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultError, GetLatestProjectCompiledResultResponse, GetProjectActiveJobData, GetProjectActiveJobError, GetProjectActiveJobResponse, GetProjectBuildData, GetProjectBuildError, GetProjectBuildResponse, GetProjectBySlugData, GetProjectBySlugError, GetProjectBySlugResponse, GetProjectCommitStatusData, GetProjectCommitStatusError, GetProjectCommitStatusResponse, GetProjectCompiledResultData, GetProjectCompiledResultError, GetProjectCompiledResultResponse, GetProjectData, GetProjectError, GetProjectRepositoryData, GetProjectRepositoryError, GetProjectRepositoryResponse, GetProjectResponse, GetProjectRevisionSourcesData, GetProjectRevisionSourcesError, GetProjectRevisionSourcesResponse, GetProjectSourcesData, GetProjectSourcesError, GetProjectSourcesResponse, GetProjectUiBundleData, GetProjectUiBundleError, GetProjectUiBundleResponse, GetSessionByShortCodeData, GetSessionByShortCodeError, GetSessionByShortCodeResponse, GetSessionLobbyEventBatchData, GetSessionLobbyEventBatchError, GetSessionLobbyEventBatchResponse, GetSessionSnapshotData, GetSessionSnapshotError, GetSessionSnapshotResponse, GetSessionUiBundleData, GetSessionUiBundleError, GetSessionUiBundleResponse, HealthCheckData, HealthCheckResponse, ListDemoGamesData, ListDemoGamesError, ListDemoGamesResponse, ListProjectCompiledResultsData, ListProjectCompiledResultsError, ListProjectCompiledResultsResponse, ListProjectsData, ListProjectsError, ListProjectsResponse, PublishProjectReleaseData, PublishProjectReleaseError, PublishProjectReleaseResponse, QueryWorkshopRulebookData, QueryWorkshopRulebookError, QueryWorkshopRulebookResponse, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotError, QueueProjectPreviewScreenshotResponse, QueueProjectRevisionCompileData, QueueProjectRevisionCompileError, QueueProjectRevisionCompileResponse, RemoveSeatData, RemoveSeatError, RemoveSeatResponse, RetryProjectRepositoryReconciliationData, RetryProjectRepositoryReconciliationError, RetryProjectRepositoryReconciliationResponse, StartDemoGameData, StartDemoGameError, StartDemoGameResponse, StartGameData, StartGameError, StartGameResponse, UnassignSeatData, UnassignSeatError, UnassignSeatResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateSeatData, UpdateSeatError, UpdateSeatResponse, UploadProjectInitialProjectionData, UploadProjectInitialProjectionError, UploadProjectInitialProjectionResponse } from '../types.gen.js';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -207,28 +207,6 @@ export const getCurrentBillingEntitlementsOptions = (options?: Options<GetCurren
     },
     queryKey: getCurrentBillingEntitlementsQueryKey(options)
 });
-
-/**
- * Receive Stripe billing webhook events
- *
- * Receives Stripe webhook events. The handler verifies the Stripe signature
- * against the raw request body before updating backend-owned billing and
- * entitlement state.
- *
- */
-export const receiveStripeBillingWebhookMutation = (options?: Partial<Options<ReceiveStripeBillingWebhookData>>): UseMutationOptions<ReceiveStripeBillingWebhookResponse, ReceiveStripeBillingWebhookError, Options<ReceiveStripeBillingWebhookData>> => {
-    const mutationOptions: UseMutationOptions<ReceiveStripeBillingWebhookResponse, ReceiveStripeBillingWebhookError, Options<ReceiveStripeBillingWebhookData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await receiveStripeBillingWebhook({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
 
 export const listProjectsQueryKey = (options?: Options<ListProjectsData>) => createQueryKey('listProjects', options);
 
@@ -1010,16 +988,16 @@ export const getSessionSnapshotOptions = (options: Options<GetSessionSnapshotDat
     queryKey: getSessionSnapshotQueryKey(options)
 });
 
-export const getSessionEventBatchQueryKey = (options: Options<GetSessionEventBatchData>) => createQueryKey('getSessionEventBatch', options);
+export const getSessionLobbyEventBatchQueryKey = (options: Options<GetSessionLobbyEventBatchData>) => createQueryKey('getSessionLobbyEventBatch', options);
 
 /**
- * Long-poll selected-perspective session events
+ * Long-poll lobby session events
  *
- * Return a session snapshot when no cursor is supplied, otherwise return visible persisted events after the cursor or wait briefly for the next update.
+ * Return a lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket.
  */
-export const getSessionEventBatchOptions = (options: Options<GetSessionEventBatchData>) => queryOptions<GetSessionEventBatchResponse, GetSessionEventBatchError, GetSessionEventBatchResponse, ReturnType<typeof getSessionEventBatchQueryKey>>({
+export const getSessionLobbyEventBatchOptions = (options: Options<GetSessionLobbyEventBatchData>) => queryOptions<GetSessionLobbyEventBatchResponse, GetSessionLobbyEventBatchError, GetSessionLobbyEventBatchResponse, ReturnType<typeof getSessionLobbyEventBatchQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getSessionEventBatch({
+        const { data } = await getSessionLobbyEventBatch({
             ...options,
             ...queryKey[0],
             signal,
@@ -1027,27 +1005,7 @@ export const getSessionEventBatchOptions = (options: Options<GetSessionEventBatc
         });
         return data;
     },
-    queryKey: getSessionEventBatchQueryKey(options)
-});
-
-export const getSessionLogBatchQueryKey = (options: Options<GetSessionLogBatchData>) => createQueryKey('getSessionLogBatch', options);
-
-/**
- * Long-poll game logs
- *
- * Return replayed game engine console logs after a cursor or wait briefly for the next log entry.
- */
-export const getSessionLogBatchOptions = (options: Options<GetSessionLogBatchData>) => queryOptions<GetSessionLogBatchResponse, GetSessionLogBatchError, GetSessionLogBatchResponse, ReturnType<typeof getSessionLogBatchQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getSessionLogBatch({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getSessionLogBatchQueryKey(options)
+    queryKey: getSessionLobbyEventBatchQueryKey(options)
 });
 
 /**
@@ -1342,16 +1300,16 @@ export const getDemoSessionSnapshotOptions = (options: Options<GetDemoSessionSna
     queryKey: getDemoSessionSnapshotQueryKey(options)
 });
 
-export const getDemoSessionEventBatchQueryKey = (options: Options<GetDemoSessionEventBatchData>) => createQueryKey('getDemoSessionEventBatch', options);
+export const getDemoSessionLobbyEventBatchQueryKey = (options: Options<GetDemoSessionLobbyEventBatchData>) => createQueryKey('getDemoSessionLobbyEventBatch', options);
 
 /**
- * Long-poll selected-perspective demo session events
+ * Long-poll demo lobby session events
  *
- * Return a demo session snapshot when no cursor is supplied, otherwise return visible persisted events after the cursor or wait briefly for the next update.
+ * Return a demo lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket.
  */
-export const getDemoSessionEventBatchOptions = (options: Options<GetDemoSessionEventBatchData>) => queryOptions<GetDemoSessionEventBatchResponse, GetDemoSessionEventBatchError, GetDemoSessionEventBatchResponse, ReturnType<typeof getDemoSessionEventBatchQueryKey>>({
+export const getDemoSessionLobbyEventBatchOptions = (options: Options<GetDemoSessionLobbyEventBatchData>) => queryOptions<GetDemoSessionLobbyEventBatchResponse, GetDemoSessionLobbyEventBatchError, GetDemoSessionLobbyEventBatchResponse, ReturnType<typeof getDemoSessionLobbyEventBatchQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getDemoSessionEventBatch({
+        const { data } = await getDemoSessionLobbyEventBatch({
             ...options,
             ...queryKey[0],
             signal,
@@ -1359,27 +1317,7 @@ export const getDemoSessionEventBatchOptions = (options: Options<GetDemoSessionE
         });
         return data;
     },
-    queryKey: getDemoSessionEventBatchQueryKey(options)
-});
-
-export const getDemoSessionLogBatchQueryKey = (options: Options<GetDemoSessionLogBatchData>) => createQueryKey('getDemoSessionLogBatch', options);
-
-/**
- * Long-poll demo session logs
- *
- * Return replayed demo session engine console logs after a cursor or wait briefly for the next log entry.
- */
-export const getDemoSessionLogBatchOptions = (options: Options<GetDemoSessionLogBatchData>) => queryOptions<GetDemoSessionLogBatchResponse, GetDemoSessionLogBatchError, GetDemoSessionLogBatchResponse, ReturnType<typeof getDemoSessionLogBatchQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getDemoSessionLogBatch({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getDemoSessionLogBatchQueryKey(options)
+    queryKey: getDemoSessionLobbyEventBatchQueryKey(options)
 });
 
 /**

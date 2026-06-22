@@ -11,8 +11,7 @@ servers:
   - url: http://localhost:8080
     description: Development server
 security:
-  - BearerAuth:
-      []
+  - BearerAuth: []
 tags:
   - name: Health
     description: Health check endpoints
@@ -48,8 +47,7 @@ paths:
       summary: Health check endpoint
       description: Returns a simple health check message
       operationId: healthCheck
-      security:
-        []
+      security: []
       tags:
         - Health
       responses:
@@ -65,8 +63,7 @@ paths:
       summary: Get backend version metadata
       description: Returns backend revision metadata and the UI SDK version expected by the backend runtime.
       operationId: getApiVersion
-      security:
-        []
+      security: []
       tags:
         - Health
       responses:
@@ -102,8 +99,7 @@ paths:
       tags:
         - Auth
       security:
-        - ClerkOAuthBootstrap:
-            []
+        - ClerkOAuthBootstrap: []
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
@@ -134,8 +130,7 @@ paths:
       operationId: getAuthJwks
       tags:
         - Auth
-      security:
-        []
+      security: []
       responses:
         "200":
           description: JSON Web Key Set
@@ -211,31 +206,13 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  /api/webhooks/stripe:
-    post:
-      summary: Receive Stripe billing webhook events
-      description: "Receives Stripe webhook events. The handler verifies the Stripe signature\nagainst the raw request body before updating backend-owned billing and\nentitlement state.\n"
-      operationId: receiveStripeBillingWebhook
-      security:
-        []
-      tags:
-        - Webhooks
-        - Billing
-      responses:
-        "204":
-          description: Stripe event accepted or already processed
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   /api/projects:
     get:
       summary: "List user's projects"
       description: "Retrieve all projects installed in the authenticated user's active owner scope."
       operationId: listProjects
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
@@ -267,8 +244,7 @@ paths:
       operationId: extractGameSpec
       security:
         - {}
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Agent
       requestBody:
@@ -298,8 +274,7 @@ paths:
       description: "Retrieve a project installed in the authenticated user's active owner scope."
       operationId: getProject
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
@@ -335,8 +310,7 @@ paths:
       description: "Ensure a portable project is installed in the authenticated user's active owner scope."
       operationId: ensureProject
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
@@ -384,8 +358,7 @@ paths:
       description: "Update project slug, name, description, visibility, or metadata in the active owner scope."
       operationId: updateProject
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
@@ -429,8 +402,7 @@ paths:
       description: Soft delete a project installation in the active owner scope.
       operationId: deleteProject
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
@@ -467,8 +439,7 @@ paths:
       description: "Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope."
       operationId: getProjectRepository
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -495,8 +466,7 @@ paths:
       description: "Ensure the project installation in the authenticated user's active owner scope has one opaque Git repository binding."
       operationId: ensureProjectRepository
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -524,8 +494,7 @@ paths:
       description: "Request a new reconciliation generation for the project's opaque Git repository binding."
       operationId: retryProjectRepositoryReconciliation
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -589,8 +558,7 @@ paths:
       description: "Return server-owned source, build, preview, and release state for one exact Git commit."
       operationId: getProjectCommitStatus
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -750,8 +718,7 @@ paths:
       description: "Resolve a portable project installed in the authenticated user's active owner scope by slug."
       operationId: getProjectBySlug
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -817,8 +784,7 @@ paths:
       description: Retrieve source files and authored metadata for an immutable project revision digest.
       operationId: getProjectRevisionSources
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -847,8 +813,7 @@ paths:
       description: Create a direct-upload session for source blobs referenced by a forthcoming project revision.
       operationId: createProjectSourceBlobUploadSession
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -909,8 +874,7 @@ paths:
       description: Return the most recent compiled result for the project installation in the active owner scope.
       operationId: getLatestProjectCompiledResult
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -943,8 +907,7 @@ paths:
       description: "Retrieve compiled results for the project installation in the active owner scope, ordered by creation date descending."
       operationId: listProjectCompiledResults
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -988,8 +951,7 @@ paths:
       description: Fetch a specific compiled result for the project installation in the active owner scope.
       operationId: getProjectCompiledResult
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       responses:
@@ -1015,8 +977,7 @@ paths:
       description: Store the reducer-native projection JSON used by the compiler service to render a dashboard preview screenshot for a project.
       operationId: uploadProjectInitialProjection
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1046,8 +1007,7 @@ paths:
       description: Queue an async job that renders the latest successful UI bundle for a project and stores a PNG preview.
       operationId: queueProjectPreviewScreenshot
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1077,8 +1037,7 @@ paths:
       description: Return the latest generated project preview PNG from artifact storage.
       operationId: fetchProjectPreviewImage
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1105,8 +1064,7 @@ paths:
       description: Reuse or create a session-scoped dev compilation for the provided workspace fingerprint without advancing the canonical authored head.
       operationId: ensureProjectDevCompile
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1148,8 +1106,7 @@ paths:
       description: Create a gameplay session pinned to a compiled result from the project installation in the active owner scope.
       operationId: createProjectSession
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1183,8 +1140,7 @@ paths:
       description: Download the authored source files for the current project head as a ZIP archive.
       operationId: downloadProjectSources
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1211,8 +1167,7 @@ paths:
       description: Retrieve authored source files as JSON for the current project head.
       operationId: getProjectSources
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
       parameters:
@@ -1240,8 +1195,7 @@ paths:
       description: "Returns the currently active project job, if any. Jobs older than 15 minutes are considered stale and ignored."
       operationId: getProjectActiveJob
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
         - Jobs
@@ -1268,8 +1222,7 @@ paths:
       description: "Search ranked rulebook candidates for the provided title, try up to the top 3 matches, and return extracted text from the first valid PDF found."
       operationId: queryWorkshopRulebook
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Rulebooks
       parameters:
@@ -1309,8 +1262,7 @@ paths:
       description: "Fetch details for a specific async job, including ordered user-facing tasks."
       operationId: getJob
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Jobs
       responses:
@@ -1344,8 +1296,7 @@ paths:
       description: "Return the current job snapshot immediately when it differs from afterCursor, otherwise wait briefly for a job update."
       operationId: getJobEventBatch
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Jobs
       parameters:
@@ -1388,8 +1339,7 @@ paths:
       description: Create a new game draft build job from a structured game spec.
       operationId: createGameRun
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Agent
       requestBody:
@@ -1419,8 +1369,7 @@ paths:
       description: Request cancellation of an active game draft build job.
       operationId: cancelGameRun
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Agent
       parameters:
@@ -1447,8 +1396,7 @@ paths:
       description: Accept a ready-for-review agent branch after its reported head has a succeeded preview.
       operationId: acceptGameRun
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Agent
       parameters:
@@ -1481,8 +1429,7 @@ paths:
       description: "Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness, resolved through a portable project."
       operationId: createProjectSessionFromReducerSnapshot
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Projects
         - Sessions
@@ -1524,8 +1471,7 @@ paths:
       description: Look up and hydrate a session using its memorable short code.
       operationId: getSessionByShortCode
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       parameters:
@@ -1556,8 +1502,7 @@ paths:
       description: Return the canonical selected-perspective session snapshot for first render or explicit resync.
       operationId: getSessionSnapshot
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       parameters:
@@ -1588,21 +1533,14 @@ paths:
     parameters:
       - $ref: "#/components/parameters/SessionId"
     get:
-      summary: Long-poll selected-perspective session events
-      description: "Return a session snapshot when no cursor is supplied, otherwise return visible persisted events after the cursor or wait briefly for the next update."
-      operationId: getSessionEventBatch
+      summary: Long-poll lobby session events
+      description: "Return a lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket."
+      operationId: getSessionLobbyEventBatch
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       parameters:
-        - name: playerId
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Optional controlled player for the selected gameplay perspective.
         - name: afterCursor
           in: query
           required: false
@@ -1610,7 +1548,7 @@ paths:
             type: integer
             format: int64
             minimum: 0
-          description: Latest message cursor received by the client.
+          description: Latest lobby message cursor received by the client.
         - name: waitMs
           in: query
           required: false
@@ -1626,7 +1564,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Stable browser-tab identifier used to replace stale long-poll requests from the same tab.
+          description: Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
         - name: clientSource
           in: query
           required: false
@@ -1635,7 +1573,7 @@ paths:
           description: "Optional caller label for diagnostics, such as `play-page` or `session-play-panel`."
       responses:
         "200":
-          description: Session event batch
+          description: Lobby session event batch
           content:
             application/json:
               schema:
@@ -1652,65 +1590,6 @@ paths:
           $ref: "#/components/responses/TooManyRequestsError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  "/api/sessions/{sessionId}/log-batches":
-    parameters:
-      - $ref: "#/components/parameters/SessionId"
-    get:
-      summary: Long-poll game logs
-      description: Return replayed game engine console logs after a cursor or wait briefly for the next log entry.
-      operationId: getSessionLogBatch
-      security:
-        - BearerAuth:
-            []
-      tags:
-        - Sessions
-      parameters:
-        - name: afterLogId
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int64
-            minimum: 0
-            default: 0
-          description: Last log id received by the client.
-        - name: waitMs
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 0
-            maximum: 25000
-            default: 25000
-          description: Maximum time to hold the request before returning an empty batch.
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 1
-            maximum: 500
-            default: 100
-          description: Maximum log entries to return.
-      responses:
-        "200":
-          description: Session log batch
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SessionLogBatchResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   "/api/sessions/{sessionId}/start":
     parameters:
       - $ref: "#/components/parameters/SessionId"
@@ -1719,8 +1598,7 @@ paths:
       description: Transition session from lobby to gameplay phase (host only)
       operationId: startGame
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       responses:
@@ -1756,8 +1634,7 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       responses:
@@ -1785,8 +1662,7 @@ paths:
       description: "Add a new seat to the lobby (host only, up to maxPlayers)"
       operationId: addSeat
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       responses:
@@ -1815,8 +1691,7 @@ paths:
       description: Update seat display name and/or player color. User must be assigned to the seat.
       operationId: updateSeat
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       requestBody:
@@ -1847,8 +1722,7 @@ paths:
       description: "Remove a seat from the lobby (host only, down to minPlayers)"
       operationId: removeSeat
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       responses:
@@ -1873,8 +1747,7 @@ paths:
       description: Assign the current authenticated user to a specific seat
       operationId: assignSeat
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       responses:
@@ -1897,8 +1770,7 @@ paths:
       description: Unassign the current user from a specific seat
       operationId: unassignSeat
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - Sessions
       responses:
@@ -1920,8 +1792,7 @@ paths:
       description: Fetch and return the HTML content for the current compiled UI bundle of a project in the active owner scope.
       operationId: getProjectUiBundle
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - UI Bundles
       parameters:
@@ -1950,8 +1821,7 @@ paths:
       description: Fetch and return the HTML content for the compiled UI bundle pinned to a gameplay session.
       operationId: getSessionUiBundle
       security:
-        - BearerAuth:
-            []
+        - BearerAuth: []
       tags:
         - UI Bundles
       parameters:
@@ -1979,8 +1849,7 @@ paths:
       summary: List demo games
       description: List bundled demo games that can be opened without a normal user account.
       operationId: listDemoGames
-      security:
-        []
+      security: []
       tags:
         - Demo Games
       responses:
@@ -2007,8 +1876,7 @@ paths:
       summary: Get demo game
       description: Return registration and playability metadata for a bundled demo game.
       operationId: getDemoGame
-      security:
-        []
+      security: []
       tags:
         - Demo Games
       responses:
@@ -2037,8 +1905,7 @@ paths:
       summary: Get demo game thumbnail
       description: Return the static thumbnail image for an active bundled demo game.
       operationId: getDemoGameThumbnail
-      security:
-        []
+      security: []
       tags:
         - Demo Games
       responses:
@@ -2078,8 +1945,7 @@ paths:
       summary: Create demo session
       description: Create a fresh guest-play session for a bundled demo game.
       operationId: createDemoGameSession
-      security:
-        []
+      security: []
       tags:
         - Demo Games
       requestBody:
@@ -2114,8 +1980,7 @@ paths:
       summary: Get demo session by short code
       description: Look up and hydrate a demo session using its memorable short code.
       operationId: getDemoSessionByShortCode
-      security:
-        []
+      security: []
       tags:
         - Demo
       parameters:
@@ -2145,8 +2010,7 @@ paths:
       summary: Get a demo session snapshot
       description: Return the canonical selected-perspective demo session snapshot.
       operationId: getDemoSessionSnapshot
-      security:
-        []
+      security: []
       tags:
         - Demo
       parameters:
@@ -2177,20 +2041,13 @@ paths:
     parameters:
       - $ref: "#/components/parameters/SessionId"
     get:
-      summary: Long-poll selected-perspective demo session events
-      description: "Return a demo session snapshot when no cursor is supplied, otherwise return visible persisted events after the cursor or wait briefly for the next update."
-      operationId: getDemoSessionEventBatch
-      security:
-        []
+      summary: Long-poll demo lobby session events
+      description: "Return a demo lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket."
+      operationId: getDemoSessionLobbyEventBatch
+      security: []
       tags:
         - Demo
       parameters:
-        - name: playerId
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Optional controlled player for the selected gameplay perspective.
         - name: afterCursor
           in: query
           required: false
@@ -2198,7 +2055,7 @@ paths:
             type: integer
             format: int64
             minimum: 0
-          description: Latest message cursor received by the client.
+          description: Latest lobby message cursor received by the client.
         - name: waitMs
           in: query
           required: false
@@ -2214,7 +2071,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Stable browser-tab identifier used to replace stale long-poll requests from the same tab.
+          description: Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
         - name: clientSource
           in: query
           required: false
@@ -2223,7 +2080,7 @@ paths:
           description: "Optional caller label for diagnostics, such as `play-page` or `session-play-panel`."
       responses:
         "200":
-          description: Demo session event batch
+          description: Demo lobby session event batch
           content:
             application/json:
               schema:
@@ -2240,64 +2097,6 @@ paths:
           $ref: "#/components/responses/TooManyRequestsError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  "/api/demo/sessions/{sessionId}/log-batches":
-    parameters:
-      - $ref: "#/components/parameters/SessionId"
-    get:
-      summary: Long-poll demo session logs
-      description: Return replayed demo session engine console logs after a cursor or wait briefly for the next log entry.
-      operationId: getDemoSessionLogBatch
-      security:
-        []
-      tags:
-        - Demo
-      parameters:
-        - name: afterLogId
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int64
-            minimum: 0
-            default: 0
-          description: Last log id received by the client.
-        - name: waitMs
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 0
-            maximum: 25000
-            default: 25000
-          description: Maximum time to hold the request before returning an empty batch.
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 1
-            maximum: 500
-            default: 100
-          description: Maximum log entries to return.
-      responses:
-        "200":
-          description: Demo session log batch
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SessionLogBatchResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   "/api/demo/sessions/{sessionId}/start":
     parameters:
       - $ref: "#/components/parameters/SessionId"
@@ -2305,8 +2104,7 @@ paths:
       summary: Start the demo game
       description: Transition a demo session from lobby to gameplay phase.
       operationId: startDemoGame
-      security:
-        []
+      security: []
       tags:
         - Demo
       responses:
@@ -2341,8 +2139,7 @@ paths:
           description: Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
           schema:
             type: string
-      security:
-        []
+      security: []
       tags:
         - Demo
       responses:
@@ -2367,8 +2164,7 @@ paths:
       summary: Fetch demo UI bundle
       description: Fetch and return the HTML content of a demo session UI bundle from object storage.
       operationId: fetchDemoUiBundle
-      security:
-        []
+      security: []
       tags:
         - Demo
       parameters:
@@ -4076,20 +3872,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BoardSpaceSpec"
-          default:
-            []
+          default: []
         relations:
           type: array
           items:
             $ref: "#/components/schemas/BoardRelationSpec"
-          default:
-            []
+          default: []
         containers:
           type: array
           items:
             $ref: "#/components/schemas/BoardContainerSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4253,20 +4046,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/HexSpaceSpec"
-          default:
-            []
+          default: []
         edges:
           type: array
           items:
             $ref: "#/components/schemas/HexEdgeSpec"
-          default:
-            []
+          default: []
         vertices:
           type: array
           items:
             $ref: "#/components/schemas/HexVertexSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4401,32 +4191,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SquareSpaceSpec"
-          default:
-            []
+          default: []
         relations:
           type: array
           items:
             $ref: "#/components/schemas/BoardRelationSpec"
-          default:
-            []
+          default: []
         containers:
           type: array
           items:
             $ref: "#/components/schemas/BoardContainerSpec"
-          default:
-            []
+          default: []
         edges:
           type: array
           items:
             $ref: "#/components/schemas/SquareEdgeSpec"
-          default:
-            []
+          default: []
         vertices:
           type: array
           items:
             $ref: "#/components/schemas/SquareVertexSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4489,20 +4274,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BoardSpaceSpec"
-          default:
-            []
+          default: []
         relations:
           type: array
           items:
             $ref: "#/components/schemas/BoardRelationSpec"
-          default:
-            []
+          default: []
         containers:
           type: array
           items:
             $ref: "#/components/schemas/BoardContainerSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4558,20 +4340,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/HexSpaceSpec"
-          default:
-            []
+          default: []
         edges:
           type: array
           items:
             $ref: "#/components/schemas/HexEdgeSpec"
-          default:
-            []
+          default: []
         vertices:
           type: array
           items:
             $ref: "#/components/schemas/HexVertexSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4630,32 +4409,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SquareSpaceSpec"
-          default:
-            []
+          default: []
         relations:
           type: array
           items:
             $ref: "#/components/schemas/BoardRelationSpec"
-          default:
-            []
+          default: []
         containers:
           type: array
           items:
             $ref: "#/components/schemas/BoardContainerSpec"
-          default:
-            []
+          default: []
         edges:
           type: array
           items:
             $ref: "#/components/schemas/SquareEdgeSpec"
-          default:
-            []
+          default: []
         vertices:
           type: array
           items:
             $ref: "#/components/schemas/SquareVertexSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4848,8 +4622,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SetupOptionChoiceSpec"
-          default:
-            []
+          default: []
       required:
         - id
         - name
@@ -4889,66 +4662,56 @@ components:
           items:
             $ref: "#/components/schemas/ZoneSpec"
           description: Shared and per-player authored containers
-          default:
-            []
+          default: []
         boardTemplates:
           type: array
           items:
             $ref: "#/components/schemas/BoardTemplateSpec"
           description: Reusable board topology templates
-          default:
-            []
+          default: []
         boards:
           type: array
           items:
             $ref: "#/components/schemas/BoardSpec"
           description: Shared and per-player authored board shells
-          default:
-            []
+          default: []
         pieceTypes:
           type: array
           items:
             $ref: "#/components/schemas/PieceTypeSpec"
-          default:
-            []
+          default: []
         pieceSeeds:
           type: array
           items:
             $ref: "#/components/schemas/PieceSeedSpec"
-          default:
-            []
+          default: []
         dieTypes:
           type: array
           items:
             $ref: "#/components/schemas/DieTypeSpec"
-          default:
-            []
+          default: []
         dieSeeds:
           type: array
           items:
             $ref: "#/components/schemas/DieSeedSpec"
-          default:
-            []
+          default: []
         resources:
           type: array
           items:
             $ref: "#/components/schemas/ResourceDefinition"
-          default:
-            []
+          default: []
         setupOptions:
           type: array
           items:
             $ref: "#/components/schemas/SetupOptionSpec"
           description: Authored setup-option metadata consumed by reducer-owned setup flows
-          default:
-            []
+          default: []
         setupProfiles:
           type: array
           items:
             $ref: "#/components/schemas/SetupProfileSpec"
           description: "Authored setup recipes, loadouts, or module profiles consumed by reducer setup code"
-          default:
-            []
+          default: []
       required:
         - players
         - cardSets
@@ -7190,49 +6953,6 @@ components:
         - cursor
         - events
         - timedOut
-    LogMessageDto:
-      type: object
-      description: Log entry from the game engine console output
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: Unique identifier for the log entry
-        type:
-          type: string
-          description: Type of log entry
-        message:
-          type: string
-          description: The log message content
-        timestamp:
-          type: string
-          format: date-time
-          description: When the log was recorded
-      required:
-        - id
-        - type
-        - message
-        - timestamp
-    SessionLogBatchResponse:
-      type: object
-      description: Bounded long-poll response for replaying game engine console logs.
-      properties:
-        cursor:
-          type: integer
-          format: int64
-          description: "Latest log id covered by this response, or the supplied cursor when empty."
-        logs:
-          type: array
-          items:
-            $ref: "#/components/schemas/LogMessageDto"
-          description: Log entries after the supplied cursor.
-        timedOut:
-          type: boolean
-          description: True when no log entry arrived before the bounded wait elapsed.
-      required:
-        - cursor
-        - logs
-        - timedOut
     GameplayCapabilityResponse:
       type: object
       required:
@@ -7266,525 +6986,6 @@ components:
               - observe
               - submit
               - restore-history
-    PerfRunTargetClass:
-      type: string
-      description: Runtime target class for a performance run.
-      enum:
-        - local-aws
-        - staging
-        - production
-    CreatePerfRunRequest:
-      type: object
-      description: Request to create an operator-owned performance run.
-      properties:
-        laneId:
-          type: string
-          minLength: 1
-          maxLength: 120
-        scenario:
-          type: string
-          minLength: 1
-          maxLength: 200
-        candidateSha:
-          type: string
-          minLength: 7
-          maxLength: 64
-        targetClass:
-          $ref: "#/components/schemas/PerfRunTargetClass"
-        gameSource:
-          $ref: "#/components/schemas/SessionGameSource"
-        players:
-          $ref: "#/components/schemas/PlayersDefinition"
-        playerCount:
-          type: integer
-          minimum: 1
-          maximum: 64
-        autoAssignSeats:
-          type: boolean
-          default: true
-        rngSeed:
-          type: integer
-          format: int64
-          nullable: true
-        setupProfileId:
-          type: string
-          nullable: true
-          minLength: 1
-          maxLength: 120
-        sessionCount:
-          type: integer
-          minimum: 1
-          maximum: 10000
-        commandsPerSession:
-          type: integer
-          minimum: 1
-          maximum: 100000
-        prerequisiteReceipts:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 500
-          maxItems: 50
-      required:
-        - laneId
-        - scenario
-        - candidateSha
-        - targetClass
-        - gameSource
-        - players
-        - playerCount
-        - sessionCount
-        - commandsPerSession
-    PerfRunStatus:
-      type: string
-      description: Lifecycle status for an operator-owned performance run.
-      enum:
-        - open
-        - closed
-        - expired
-    PerfRunSession:
-      type: object
-      description: Session registered to an operator-owned performance run.
-      properties:
-        sessionId:
-          type: string
-          format: uuid
-        shortCode:
-          type: string
-          minLength: 1
-        playerIds:
-          type: array
-          items:
-            type: string
-            minLength: 1
-          minItems: 1
-      required:
-        - sessionId
-        - shortCode
-        - playerIds
-    PerfRun:
-      type: object
-      description: Operator-owned performance run metadata.
-      properties:
-        runId:
-          type: string
-          format: uuid
-        status:
-          $ref: "#/components/schemas/PerfRunStatus"
-        callerProvider:
-          type: string
-          minLength: 1
-        callerSubject:
-          type: string
-          minLength: 1
-        scopes:
-          type: array
-          items:
-            type: string
-          uniqueItems: true
-        candidateSha:
-          type: string
-          minLength: 7
-          maxLength: 64
-        laneId:
-          type: string
-          minLength: 1
-        scenario:
-          type: string
-          minLength: 1
-        targetClass:
-          $ref: "#/components/schemas/PerfRunTargetClass"
-        createdAt:
-          type: string
-          format: date-time
-        expiresAt:
-          type: string
-          format: date-time
-        closedAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp of the accepted close request; null for open and expired runs.
-        closeOutcome:
-          type: string
-          nullable: true
-          minLength: 1
-          maxLength: 120
-          description: Operator-reported close outcome retained after close.
-        cleanupRequested:
-          type: boolean
-          nullable: true
-          description: Whether the runner requested cleanup during close; null until close.
-        observationBundlePath:
-          type: string
-          nullable: true
-          maxLength: 1000
-          description: Secret-free artifact pointer for retained observation evidence.
-        createdSessions:
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfRunSession"
-      required:
-        - runId
-        - status
-        - callerProvider
-        - callerSubject
-        - scopes
-        - candidateSha
-        - laneId
-        - scenario
-        - targetClass
-        - createdAt
-        - expiresAt
-        - createdSessions
-    PerfGameplayPermission:
-      type: string
-      description: Gameplay operation granted by a run-scoped capability.
-      enum:
-        - observe
-        - submit
-    IssuePerfCapabilityParticipant:
-      type: object
-      description: Participant needing a run-scoped gameplay capability.
-      properties:
-        sessionId:
-          type: string
-          format: uuid
-        playerId:
-          type: string
-          minLength: 1
-        permissions:
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfGameplayPermission"
-          minItems: 1
-          uniqueItems: true
-      required:
-        - sessionId
-        - playerId
-        - permissions
-    IssuePerfCapabilitiesRequest:
-      type: object
-      description: Request to issue capabilities for run participants.
-      properties:
-        participants:
-          type: array
-          items:
-            $ref: "#/components/schemas/IssuePerfCapabilityParticipant"
-          minItems: 1
-      required:
-        - participants
-    PerfGameplayCapability:
-      type: object
-      description: Opaque run-scoped gameplay capability and its non-secret binding summary.
-      properties:
-        token:
-          type: string
-          minLength: 1
-        authorityWebSocketUrl:
-          type: string
-          format: uri
-        expiresAt:
-          type: string
-          format: date-time
-        runId:
-          type: string
-          format: uuid
-        sessionId:
-          type: string
-          format: uuid
-        playerId:
-          type: string
-          minLength: 1
-        permissions:
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfGameplayPermission"
-          minItems: 1
-          uniqueItems: true
-      required:
-        - token
-        - authorityWebSocketUrl
-        - expiresAt
-        - runId
-        - sessionId
-        - playerId
-        - permissions
-    IssuePerfCapabilitiesResponse:
-      type: object
-      description: Capabilities issued for performance run participants.
-      properties:
-        capabilities:
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfGameplayCapability"
-      required:
-        - capabilities
-    PerfCommitEvidence:
-      type: object
-      description: Durable gameplay commit evidence owned by Gameplay Authority.
-      properties:
-        runId:
-          type: string
-          format: uuid
-        sessionId:
-          type: string
-          format: uuid
-        clientActionId:
-          type: string
-          minLength: 1
-        generation:
-          type: integer
-          minimum: 0
-        committedVersion:
-          type: integer
-          minimum: 0
-        leaseTerm:
-          type: integer
-          minimum: 0
-          nullable: true
-        ownerTaskId:
-          type: string
-          nullable: true
-        stateHash:
-          type: string
-          nullable: true
-        committedAt:
-          type: string
-          format: date-time
-          nullable: true
-      required:
-        - runId
-        - sessionId
-        - clientActionId
-        - generation
-        - committedVersion
-    PerfCommitEvidencePage:
-      type: object
-      description: One page of Authority-owned durable commit evidence for a performance run.
-      properties:
-        runId:
-          type: string
-          format: uuid
-        rows:
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfCommitEvidence"
-        nextCursor:
-          type: string
-          nullable: true
-        complete:
-          type: boolean
-      required:
-        - runId
-        - rows
-        - complete
-    PerfTelemetryEvidence:
-      type: object
-      description: Typed telemetry event evidence owned by Gameplay Authority.
-      properties:
-        sequence:
-          type: integer
-          minimum: 0
-        runId:
-          type: string
-          format: uuid
-        observedAt:
-          type: string
-          format: date-time
-        kind:
-          type: string
-          enum:
-            - timing
-            - count
-        name:
-          type: string
-          minLength: 1
-        durationMs:
-          type: number
-          nullable: true
-        value:
-          type: number
-          nullable: true
-        attributes:
-          type: object
-          additionalProperties:
-            type: string
-      required:
-        - sequence
-        - runId
-        - observedAt
-        - kind
-        - name
-        - attributes
-    PerfTelemetryEvidencePage:
-      type: object
-      description: One page of Authority-owned telemetry evidence for a performance run.
-      properties:
-        runId:
-          type: string
-          format: uuid
-        events:
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfTelemetryEvidence"
-        nextCursor:
-          type: string
-          nullable: true
-        complete:
-          type: boolean
-      required:
-        - runId
-        - events
-        - complete
-    ClosePerfRunRequest:
-      type: object
-      description: Request to close a performance run after the measured window.
-      properties:
-        outcome:
-          type: string
-          minLength: 1
-          maxLength: 120
-        cleanupRequested:
-          type: boolean
-          default: true
-        observationBundlePath:
-          type: string
-          maxLength: 1000
-          nullable: true
-          description: Secret-free relative artifact pointer such as build/verification/run-1 or .perf/runs/run-1.
-      required:
-        - outcome
-    GameOutcomeReason:
-      type: object
-      required:
-        - code
-      properties:
-        code:
-          type: string
-          minLength: 1
-        message:
-          type: string
-          minLength: 1
-      additionalProperties: false
-    GameOutcomeResult:
-      type: string
-      enum:
-        - win
-        - draw
-        - loss
-        - eliminated
-    GameOutcomeScoreComponent:
-      type: object
-      required:
-        - id
-        - label
-        - value
-      properties:
-        id:
-          type: string
-          minLength: 1
-        label:
-          type: string
-          minLength: 1
-        value:
-          type: number
-      additionalProperties: false
-    GameOutcomeTieBreak:
-      type: object
-      required:
-        - id
-        - label
-        - value
-      properties:
-        id:
-          type: string
-          minLength: 1
-        label:
-          type: string
-          minLength: 1
-        value:
-          oneOf:
-            - type: number
-            - type: string
-              minLength: 1
-      additionalProperties: false
-    GameOutcomeStanding:
-      type: object
-      required:
-        - playerId
-        - rank
-        - result
-      properties:
-        playerId:
-          type: string
-          minLength: 1
-        rank:
-          type: integer
-          minimum: 1
-        result:
-          $ref: "#/components/schemas/GameOutcomeResult"
-        score:
-          type: number
-        scoreBreakdown:
-          type: array
-          items:
-            $ref: "#/components/schemas/GameOutcomeScoreComponent"
-        tieBreaks:
-          type: array
-          items:
-            $ref: "#/components/schemas/GameOutcomeTieBreak"
-      additionalProperties: false
-    GameOutcome:
-      type: object
-      required:
-        - reason
-        - standings
-      properties:
-        reason:
-          $ref: "#/components/schemas/GameOutcomeReason"
-        standings:
-          type: array
-          minItems: 1
-          items:
-            $ref: "#/components/schemas/GameOutcomeStanding"
-      additionalProperties: false
-    SessionEndedCallbackRequest:
-      type: object
-      required:
-        - generation
-        - version
-        - stateHash
-        - endedAt
-        - outcome
-      properties:
-        generation:
-          type: integer
-          format: int64
-          minimum: 0
-        version:
-          type: integer
-          format: int64
-          minimum: 0
-        stateHash:
-          type: string
-          minLength: 1
-        endedAt:
-          type: string
-          format: date-time
-        outcome:
-          $ref: "#/components/schemas/GameOutcome"
-      additionalProperties: false
-    SessionEndedCallbackResponse:
-      type: object
-      required:
-        - applied
-      properties:
-        applied:
-          type: boolean
-          description: True when this call transitioned the session; false on idempotent no-op.
-      additionalProperties: false
     UpdateSeatRequest:
       type: object
       description: Request to update seat settings (display name and/or player color)
@@ -8006,249 +7207,6 @@ components:
           pattern: "^sha256:[a-f0-9]{64}$"
         gameSource:
           $ref: "#/components/schemas/SessionGameSource"
-    HistoryUpdatedEvent:
-      type: object
-      required:
-        - type
-        - history
-      properties:
-        type:
-          type: string
-          enum:
-            - history.updated
-        history:
-          $ref: "#/components/schemas/SessionSnapshotHistory"
-    GameplayDurableCommitEvidence:
-      type: object
-      required:
-        - sessionId
-        - clientActionId
-        - generation
-        - committedVersion
-      properties:
-        sessionId:
-          type: string
-          format: uuid
-        clientActionId:
-          type: string
-          minLength: 1
-        generation:
-          type: integer
-          format: int64
-        committedVersion:
-          type: integer
-          format: int32
-        leaseTerm:
-          type: integer
-          format: int64
-        ownerTaskId:
-          type: string
-        stateHash:
-          type: string
-        committedAt:
-          type: string
-          format: date-time
-    ParameterType:
-      type: string
-      enum:
-        - cardId
-        - cardType
-        - playerId
-        - string
-        - number
-        - boolean
-        - zoneId
-        - pieceId
-        - dieId
-        - boardId
-        - edgeId
-        - vertexId
-        - spaceId
-        - resourceId
-      description: Type of parameter accepted by a runtime action
-    ActionParameterDefinition:
-      type: object
-      description: Defines a parameter for an action
-      required:
-        - name
-        - type
-      properties:
-        name:
-          type: string
-        type:
-          $ref: "#/components/schemas/ParameterType"
-        required:
-          type: boolean
-          default: true
-        array:
-          type: boolean
-          default: false
-        minLength:
-          type: integer
-          minimum: 0
-          nullable: true
-        maxLength:
-          type: integer
-          minimum: 0
-          nullable: true
-        cardSetId:
-          type: string
-          nullable: true
-          description: Optional card set ID to specify which card set a CARD_ID parameter refers to
-        description:
-          type: string
-          nullable: true
-    ActionDefinition:
-      type: object
-      description: Defines an available player action with metadata and parameter definitions
-      required:
-        - actionType
-        - displayName
-        - parameters
-      properties:
-        actionType:
-          type: string
-          description: Unique action identifier
-        displayName:
-          type: string
-          description: UI display name for this action
-        description:
-          type: string
-          nullable: true
-          description: Optional help text describing the action
-        parameters:
-          type: array
-          items:
-            $ref: "#/components/schemas/ActionParameterDefinition"
-          description: List of parameters this action accepts
-        errorCodes:
-          type: array
-          items:
-            type: string
-          description: List of possible validation error codes
-          nullable: true
-    CardSetSourceType:
-      type: string
-      enum:
-        - preset
-        - csv
-        - manual
-      description: Type of source for the card set
-    BoardLayout:
-      type: string
-      enum:
-        - generic
-        - hex
-        - square
-      description: Engine-level structural board layout discriminator
-    CreateGameRequest:
-      type: object
-      description: Request to create a new game
-      properties:
-        slug:
-          type: string
-          description: URL-safe game slug (lowercase kebab-case). Optional for legacy clients.
-          nullable: true
-        name:
-          type: string
-          description: "Name of the game (default: 'Untitled Game')"
-          maxLength: 200
-        description:
-          type: string
-          description: Optional description of the game
-          maxLength: 1000
-          nullable: true
-        ruleText:
-          type: string
-          description: Optional initial rule text
-          maxLength: 50000
-        enhanceRule:
-          type: boolean
-          description: Whether to enhance the rules using AI before saving
-          default: false
-    UpdateGameRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Updated display name
-          minLength: 1
-          maxLength: 255
-          nullable: true
-        description:
-          type: string
-          description: Updated description
-          nullable: true
-        rule:
-          type: string
-          description: Updated game rules text
-          nullable: true
-        public:
-          type: boolean
-          description: Updated visibility setting
-          nullable: true
-        manifest:
-          $ref: "#/components/schemas/GameTopologyManifest"
-          nullable: true
-        metadata:
-          $ref: "#/components/schemas/GameMetadata"
-          nullable: true
-    DeleteGameResponse:
-      type: object
-      properties:
-        deleted:
-          type: boolean
-          description: Confirms the resource was deleted
-      required:
-        - deleted
-    SourceRevision:
-      type: object
-      description: Immutable authored source revision.
-      additionalProperties: false
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Source revision identifier
-        userId:
-          type: string
-          format: uuid
-          description: User who created the source revision
-        parentSourceRevisionId:
-          type: string
-          format: uuid
-          nullable: true
-          description: Parent source revision identifier
-        treeHash:
-          type: string
-          description: Deterministic hash of the authored source tree
-        fileCount:
-          type: integer
-          format: int32
-          description: Number of authored files stored in this revision
-        createdAt:
-          type: string
-          format: date-time
-          description: Revision creation timestamp
-      required:
-        - id
-        - userId
-        - treeHash
-        - fileCount
-        - createdAt
-    QueueCompiledResultJobRequest:
-      type: object
-      properties:
-        gameRevisionId:
-          type: string
-          format: uuid
-          description: Game revision row to compile
-        devFingerprint:
-          type: string
-          nullable: true
-          description: Private dev compile fingerprint to stamp on the resulting compile for cache reuse.
-      required:
-        - gameRevisionId
   securitySchemes:
     BearerAuth:
       type: http

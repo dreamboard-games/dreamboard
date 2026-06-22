@@ -2987,46 +2987,6 @@ export type HostSessionEventBatchResponse = {
     timedOut: boolean;
 };
 
-/**
- * Log entry from the game engine console output
- */
-export type LogMessageDto = {
-    /**
-     * Unique identifier for the log entry
-     */
-    id: number;
-    /**
-     * Type of log entry
-     */
-    type: string;
-    /**
-     * The log message content
-     */
-    message: string;
-    /**
-     * When the log was recorded
-     */
-    timestamp: string;
-};
-
-/**
- * Bounded long-poll response for replaying game engine console logs.
- */
-export type SessionLogBatchResponse = {
-    /**
-     * Latest log id covered by this response, or the supplied cursor when empty.
-     */
-    cursor: number;
-    /**
-     * Log entries after the supplied cursor.
-     */
-    logs: Array<LogMessageDto>;
-    /**
-     * True when no log entry arrived before the bounded wait elapsed.
-     */
-    timedOut: boolean;
-};
-
 export type GameplayCapabilityResponse = {
     websocketUrl: string;
     token: string;
@@ -3034,230 +2994,6 @@ export type GameplayCapabilityResponse = {
     sessionId: string;
     playerId: string;
     permissions: Array<'observe' | 'submit' | 'restore-history'>;
-};
-
-/**
- * Runtime target class for a performance run.
- */
-export type PerfRunTargetClass = 'local-aws' | 'staging' | 'production';
-
-/**
- * Request to create an operator-owned performance run.
- */
-export type CreatePerfRunRequest = {
-    laneId: string;
-    scenario: string;
-    candidateSha: string;
-    targetClass: PerfRunTargetClass;
-    gameSource: SessionGameSource;
-    players: PlayersDefinition;
-    playerCount: number;
-    autoAssignSeats?: boolean;
-    rngSeed?: number;
-    setupProfileId?: string;
-    sessionCount: number;
-    commandsPerSession: number;
-    prerequisiteReceipts?: Array<string>;
-};
-
-/**
- * Lifecycle status for an operator-owned performance run.
- */
-export type PerfRunStatus = 'open' | 'closed' | 'expired';
-
-/**
- * Session registered to an operator-owned performance run.
- */
-export type PerfRunSession = {
-    sessionId: string;
-    shortCode: string;
-    playerIds: Array<string>;
-};
-
-/**
- * Operator-owned performance run metadata.
- */
-export type PerfRun = {
-    runId: string;
-    status: PerfRunStatus;
-    callerProvider: string;
-    callerSubject: string;
-    scopes: Array<string>;
-    candidateSha: string;
-    laneId: string;
-    scenario: string;
-    targetClass: PerfRunTargetClass;
-    createdAt: string;
-    expiresAt: string;
-    /**
-     * Timestamp of the accepted close request; null for open and expired runs.
-     */
-    closedAt?: string;
-    /**
-     * Operator-reported close outcome retained after close.
-     */
-    closeOutcome?: string;
-    /**
-     * Whether the runner requested cleanup during close; null until close.
-     */
-    cleanupRequested?: boolean;
-    /**
-     * Secret-free artifact pointer for retained observation evidence.
-     */
-    observationBundlePath?: string;
-    createdSessions: Array<PerfRunSession>;
-};
-
-/**
- * Gameplay operation granted by a run-scoped capability.
- */
-export type PerfGameplayPermission = 'observe' | 'submit';
-
-/**
- * Participant needing a run-scoped gameplay capability.
- */
-export type IssuePerfCapabilityParticipant = {
-    sessionId: string;
-    playerId: string;
-    permissions: Array<PerfGameplayPermission>;
-};
-
-/**
- * Request to issue capabilities for run participants.
- */
-export type IssuePerfCapabilitiesRequest = {
-    participants: Array<IssuePerfCapabilityParticipant>;
-};
-
-/**
- * Opaque run-scoped gameplay capability and its non-secret binding summary.
- */
-export type PerfGameplayCapability = {
-    token: string;
-    authorityWebSocketUrl: string;
-    expiresAt: string;
-    runId: string;
-    sessionId: string;
-    playerId: string;
-    permissions: Array<PerfGameplayPermission>;
-};
-
-/**
- * Capabilities issued for performance run participants.
- */
-export type IssuePerfCapabilitiesResponse = {
-    capabilities: Array<PerfGameplayCapability>;
-};
-
-/**
- * Durable gameplay commit evidence owned by Gameplay Authority.
- */
-export type PerfCommitEvidence = {
-    runId: string;
-    sessionId: string;
-    clientActionId: string;
-    generation: number;
-    committedVersion: number;
-    leaseTerm?: number;
-    ownerTaskId?: string;
-    stateHash?: string;
-    committedAt?: string;
-};
-
-/**
- * One page of Authority-owned durable commit evidence for a performance run.
- */
-export type PerfCommitEvidencePage = {
-    runId: string;
-    rows: Array<PerfCommitEvidence>;
-    nextCursor?: string;
-    complete: boolean;
-};
-
-/**
- * Typed telemetry event evidence owned by Gameplay Authority.
- */
-export type PerfTelemetryEvidence = {
-    sequence: number;
-    runId: string;
-    observedAt: string;
-    kind: 'timing' | 'count';
-    name: string;
-    durationMs?: number;
-    value?: number;
-    attributes: {
-        [key: string]: string;
-    };
-};
-
-/**
- * One page of Authority-owned telemetry evidence for a performance run.
- */
-export type PerfTelemetryEvidencePage = {
-    runId: string;
-    events: Array<PerfTelemetryEvidence>;
-    nextCursor?: string;
-    complete: boolean;
-};
-
-/**
- * Request to close a performance run after the measured window.
- */
-export type ClosePerfRunRequest = {
-    outcome: string;
-    cleanupRequested?: boolean;
-    /**
-     * Secret-free relative artifact pointer such as build/verification/run-1 or .perf/runs/run-1.
-     */
-    observationBundlePath?: string;
-};
-
-export type GameOutcomeReason = {
-    code: string;
-    message?: string;
-};
-
-export type GameOutcomeResult = 'win' | 'draw' | 'loss' | 'eliminated';
-
-export type GameOutcomeScoreComponent = {
-    id: string;
-    label: string;
-    value: number;
-};
-
-export type GameOutcomeTieBreak = {
-    id: string;
-    label: string;
-    value: number | string;
-};
-
-export type GameOutcomeStanding = {
-    playerId: string;
-    rank: number;
-    result: GameOutcomeResult;
-    score?: number;
-    scoreBreakdown?: Array<GameOutcomeScoreComponent>;
-    tieBreaks?: Array<GameOutcomeTieBreak>;
-};
-
-export type GameOutcome = {
-    reason: GameOutcomeReason;
-    standings: Array<GameOutcomeStanding>;
-};
-
-export type SessionEndedCallbackRequest = {
-    generation: number;
-    version: number;
-    stateHash: string;
-    endedAt: string;
-    outcome: GameOutcome;
-};
-
-export type SessionEndedCallbackResponse = {
-    /**
-     * True when this call transitioned the session; false on idempotent no-op.
-     */
-    applied: boolean;
 };
 
 /**
@@ -3414,175 +3150,6 @@ export type DemoSessionResponse = {
      */
     reducerArtifactHash: string;
     gameSource: SessionGameSource;
-};
-
-export type HistoryUpdatedEvent = {
-    type: 'history.updated';
-    history: SessionSnapshotHistory;
-};
-
-export type GameplayDurableCommitEvidence = {
-    sessionId: string;
-    clientActionId: string;
-    generation: number;
-    committedVersion: number;
-    leaseTerm?: number;
-    ownerTaskId?: string;
-    stateHash?: string;
-    committedAt?: string;
-};
-
-/**
- * Type of parameter accepted by a runtime action
- */
-export type ParameterType = 'cardId' | 'cardType' | 'playerId' | 'string' | 'number' | 'boolean' | 'zoneId' | 'pieceId' | 'dieId' | 'boardId' | 'edgeId' | 'vertexId' | 'spaceId' | 'resourceId';
-
-/**
- * Defines a parameter for an action
- */
-export type ActionParameterDefinition = {
-    name: string;
-    type: ParameterType;
-    required?: boolean;
-    array?: boolean;
-    minLength?: number;
-    maxLength?: number;
-    /**
-     * Optional card set ID to specify which card set a CARD_ID parameter refers to
-     */
-    cardSetId?: string;
-    description?: string;
-};
-
-/**
- * Defines an available player action with metadata and parameter definitions
- */
-export type ActionDefinition = {
-    /**
-     * Unique action identifier
-     */
-    actionType: string;
-    /**
-     * UI display name for this action
-     */
-    displayName: string;
-    /**
-     * Optional help text describing the action
-     */
-    description?: string;
-    /**
-     * List of parameters this action accepts
-     */
-    parameters: Array<ActionParameterDefinition>;
-    /**
-     * List of possible validation error codes
-     */
-    errorCodes?: Array<string>;
-};
-
-/**
- * Type of source for the card set
- */
-export type CardSetSourceType = 'preset' | 'csv' | 'manual';
-
-/**
- * Engine-level structural board layout discriminator
- */
-export type BoardLayout = 'generic' | 'hex' | 'square';
-
-/**
- * Request to create a new game
- */
-export type CreateGameRequest = {
-    /**
-     * URL-safe game slug (lowercase kebab-case). Optional for legacy clients.
-     */
-    slug?: string;
-    /**
-     * Name of the game (default: 'Untitled Game')
-     */
-    name?: string;
-    /**
-     * Optional description of the game
-     */
-    description?: string;
-    /**
-     * Optional initial rule text
-     */
-    ruleText?: string;
-    /**
-     * Whether to enhance the rules using AI before saving
-     */
-    enhanceRule?: boolean;
-};
-
-export type UpdateGameRequest = {
-    /**
-     * Updated display name
-     */
-    name?: string;
-    /**
-     * Updated description
-     */
-    description?: string;
-    /**
-     * Updated game rules text
-     */
-    rule?: string;
-    /**
-     * Updated visibility setting
-     */
-    public?: boolean;
-    manifest?: GameTopologyManifest;
-    metadata?: GameMetadata;
-};
-
-export type DeleteGameResponse = {
-    /**
-     * Confirms the resource was deleted
-     */
-    deleted: boolean;
-};
-
-/**
- * Immutable authored source revision.
- */
-export type SourceRevision = {
-    /**
-     * Source revision identifier
-     */
-    id: string;
-    /**
-     * User who created the source revision
-     */
-    userId: string;
-    /**
-     * Parent source revision identifier
-     */
-    parentSourceRevisionId?: string;
-    /**
-     * Deterministic hash of the authored source tree
-     */
-    treeHash: string;
-    /**
-     * Number of authored files stored in this revision
-     */
-    fileCount: number;
-    /**
-     * Revision creation timestamp
-     */
-    createdAt: string;
-};
-
-export type QueueCompiledResultJobRequest = {
-    /**
-     * Game revision row to compile
-     */
-    gameRevisionId: string;
-    /**
-     * Private dev compile fingerprint to stamp on the resulting compile for cache reuse.
-     */
-    devFingerprint?: string;
 };
 
 /**
@@ -3816,35 +3383,6 @@ export type GetCurrentBillingEntitlementsResponses = {
 };
 
 export type GetCurrentBillingEntitlementsResponse = GetCurrentBillingEntitlementsResponses[keyof GetCurrentBillingEntitlementsResponses];
-
-export type ReceiveStripeBillingWebhookData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/webhooks/stripe';
-};
-
-export type ReceiveStripeBillingWebhookErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type ReceiveStripeBillingWebhookError = ReceiveStripeBillingWebhookErrors[keyof ReceiveStripeBillingWebhookErrors];
-
-export type ReceiveStripeBillingWebhookResponses = {
-    /**
-     * Stripe event accepted or already processed
-     */
-    204: void;
-};
-
-export type ReceiveStripeBillingWebhookResponse = ReceiveStripeBillingWebhookResponses[keyof ReceiveStripeBillingWebhookResponses];
 
 export type ListProjectsData = {
     body?: never;
@@ -5692,7 +5230,7 @@ export type GetSessionSnapshotResponses = {
 
 export type GetSessionSnapshotResponse = GetSessionSnapshotResponses[keyof GetSessionSnapshotResponses];
 
-export type GetSessionEventBatchData = {
+export type GetSessionLobbyEventBatchData = {
     body?: never;
     path: {
         /**
@@ -5702,11 +5240,7 @@ export type GetSessionEventBatchData = {
     };
     query: {
         /**
-         * Optional controlled player for the selected gameplay perspective.
-         */
-        playerId?: string;
-        /**
-         * Latest message cursor received by the client.
+         * Latest lobby message cursor received by the client.
          */
         afterCursor?: number;
         /**
@@ -5714,7 +5248,7 @@ export type GetSessionEventBatchData = {
          */
         waitMs?: number;
         /**
-         * Stable browser-tab identifier used to replace stale long-poll requests from the same tab.
+         * Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
          */
         clientId: string;
         /**
@@ -5725,7 +5259,7 @@ export type GetSessionEventBatchData = {
     url: '/api/sessions/{sessionId}/event-batches';
 };
 
-export type GetSessionEventBatchErrors = {
+export type GetSessionLobbyEventBatchErrors = {
     /**
      * Bad request - invalid input parameters
      */
@@ -5752,75 +5286,16 @@ export type GetSessionEventBatchErrors = {
     500: ProblemDetails;
 };
 
-export type GetSessionEventBatchError = GetSessionEventBatchErrors[keyof GetSessionEventBatchErrors];
+export type GetSessionLobbyEventBatchError = GetSessionLobbyEventBatchErrors[keyof GetSessionLobbyEventBatchErrors];
 
-export type GetSessionEventBatchResponses = {
+export type GetSessionLobbyEventBatchResponses = {
     /**
-     * Session event batch
+     * Lobby session event batch
      */
     200: HostSessionEventBatchResponse;
 };
 
-export type GetSessionEventBatchResponse = GetSessionEventBatchResponses[keyof GetSessionEventBatchResponses];
-
-export type GetSessionLogBatchData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-    };
-    query?: {
-        /**
-         * Last log id received by the client.
-         */
-        afterLogId?: number;
-        /**
-         * Maximum time to hold the request before returning an empty batch.
-         */
-        waitMs?: number;
-        /**
-         * Maximum log entries to return.
-         */
-        limit?: number;
-    };
-    url: '/api/sessions/{sessionId}/log-batches';
-};
-
-export type GetSessionLogBatchErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetSessionLogBatchError = GetSessionLogBatchErrors[keyof GetSessionLogBatchErrors];
-
-export type GetSessionLogBatchResponses = {
-    /**
-     * Session log batch
-     */
-    200: SessionLogBatchResponse;
-};
-
-export type GetSessionLogBatchResponse = GetSessionLogBatchResponses[keyof GetSessionLogBatchResponses];
+export type GetSessionLobbyEventBatchResponse = GetSessionLobbyEventBatchResponses[keyof GetSessionLobbyEventBatchResponses];
 
 export type StartGameData = {
     body?: never;
@@ -6490,7 +5965,7 @@ export type GetDemoSessionSnapshotResponses = {
 
 export type GetDemoSessionSnapshotResponse = GetDemoSessionSnapshotResponses[keyof GetDemoSessionSnapshotResponses];
 
-export type GetDemoSessionEventBatchData = {
+export type GetDemoSessionLobbyEventBatchData = {
     body?: never;
     path: {
         /**
@@ -6500,11 +5975,7 @@ export type GetDemoSessionEventBatchData = {
     };
     query: {
         /**
-         * Optional controlled player for the selected gameplay perspective.
-         */
-        playerId?: string;
-        /**
-         * Latest message cursor received by the client.
+         * Latest lobby message cursor received by the client.
          */
         afterCursor?: number;
         /**
@@ -6512,7 +5983,7 @@ export type GetDemoSessionEventBatchData = {
          */
         waitMs?: number;
         /**
-         * Stable browser-tab identifier used to replace stale long-poll requests from the same tab.
+         * Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
          */
         clientId: string;
         /**
@@ -6523,7 +5994,7 @@ export type GetDemoSessionEventBatchData = {
     url: '/api/demo/sessions/{sessionId}/event-batches';
 };
 
-export type GetDemoSessionEventBatchErrors = {
+export type GetDemoSessionLobbyEventBatchErrors = {
     /**
      * Bad request - invalid input parameters
      */
@@ -6550,75 +6021,16 @@ export type GetDemoSessionEventBatchErrors = {
     500: ProblemDetails;
 };
 
-export type GetDemoSessionEventBatchError = GetDemoSessionEventBatchErrors[keyof GetDemoSessionEventBatchErrors];
+export type GetDemoSessionLobbyEventBatchError = GetDemoSessionLobbyEventBatchErrors[keyof GetDemoSessionLobbyEventBatchErrors];
 
-export type GetDemoSessionEventBatchResponses = {
+export type GetDemoSessionLobbyEventBatchResponses = {
     /**
-     * Demo session event batch
+     * Demo lobby session event batch
      */
     200: HostSessionEventBatchResponse;
 };
 
-export type GetDemoSessionEventBatchResponse = GetDemoSessionEventBatchResponses[keyof GetDemoSessionEventBatchResponses];
-
-export type GetDemoSessionLogBatchData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-    };
-    query?: {
-        /**
-         * Last log id received by the client.
-         */
-        afterLogId?: number;
-        /**
-         * Maximum time to hold the request before returning an empty batch.
-         */
-        waitMs?: number;
-        /**
-         * Maximum log entries to return.
-         */
-        limit?: number;
-    };
-    url: '/api/demo/sessions/{sessionId}/log-batches';
-};
-
-export type GetDemoSessionLogBatchErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetDemoSessionLogBatchError = GetDemoSessionLogBatchErrors[keyof GetDemoSessionLogBatchErrors];
-
-export type GetDemoSessionLogBatchResponses = {
-    /**
-     * Demo session log batch
-     */
-    200: SessionLogBatchResponse;
-};
-
-export type GetDemoSessionLogBatchResponse = GetDemoSessionLogBatchResponses[keyof GetDemoSessionLogBatchResponses];
+export type GetDemoSessionLobbyEventBatchResponse = GetDemoSessionLobbyEventBatchResponses[keyof GetDemoSessionLobbyEventBatchResponses];
 
 export type StartDemoGameData = {
     body?: never;

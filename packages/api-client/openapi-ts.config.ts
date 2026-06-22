@@ -1,9 +1,15 @@
 import { defineConfig } from "@hey-api/openapi-ts";
+import path from "node:path";
+
+const packageRoot = import.meta.dirname;
+const outputRoot = process.env.DREAMBOARD_GENERATED_OUTPUT_ROOT
+  ? path.resolve(process.env.DREAMBOARD_GENERATED_OUTPUT_ROOT)
+  : path.join(packageRoot, "src");
 
 export default defineConfig({
-  input: "./openapi/documentation.yaml",
+  input: path.join(packageRoot, "openapi/documentation.yaml"),
   output: {
-    path: "src",
+    path: outputRoot,
     // NodeNext consumers (e.g. workspace-codegen) require explicit .js specifiers in imports.
     module: { extension: ".js" },
   },
