@@ -95,6 +95,28 @@ Use this order by default:
 9. Validate the local runtime with `dreamboard dev`.
 10. For agent-built games, run `dreamboard dev` and verify the browser UI before handoff. Use Playwright to open the dev host, check that the plugin iframe renders without console errors, and click a primary interaction such as selecting a playable hand card. Reducer scenarios alone are not enough when the game has an interactive UI.
 
+## Orchestrated Cursor Cloud Jobs
+
+When `AGENTS.md` says the workspace is an orchestrated Dreamboard build job,
+follow that local contract instead of the human-authenticated server-readback
+workflow:
+
+1. Implement the requested game changes.
+2. Create a branch whose name includes the Dreamboard job id, and open one pull request targeting the default branch.
+3. Run local `dreamboard test --json` and `dreamboard verify --commit HEAD --json` only as advisory checks when available.
+4. Commit the finished changes.
+5. Push only the pull-request branch and keep the pull request open.
+
+If the runner continues the same thread with verifier diagnostics, make a
+focused correction on the same pull request, create a new commit, and push the
+updated branch again.
+
+Do not run authenticated project status, preview, release, or accept commands
+from an orchestrated build job. Do not edit `.github/**` or
+`.dreamboard/control/**`. Authoritative verification runs after the Cursor job
+finishes, and the runner and backend report final build and preview state after
+the pull request passes independent verification.
+
 ## Guardrails
 
 - `manifest.json` and `rule.md` are the source of truth for scaffolding.

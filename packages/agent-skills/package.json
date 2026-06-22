@@ -1,0 +1,23 @@
+{
+  "name": "@dreamboard-games/agent-skills",
+  "version": "0.1.0-alpha.1",
+  "description": "Dreamboard agent skills for game development workflows.",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "files": [
+    "skills"
+  ],
+  "scripts": {
+    "prepack": "rm -rf skills && mkdir -p skills && cp -R ../../skills/dreamboard skills/dreamboard",
+    "pack:publish": "npm pack --dry-run ."
+  },
+  "keywords": [
+    "dreamboard",
+    "agent-skills",
+    "game-dev",
+    "board-game"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
