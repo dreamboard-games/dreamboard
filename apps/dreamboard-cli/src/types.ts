@@ -25,6 +25,16 @@ export type LocalMaintainerRegistryPackages = {
   "@dreamboard-games/sdk": string;
 };
 
+export type AgentMaintainerPackageSourceV1 = {
+  version: 1;
+  registryUrl: string;
+  snapshotId: string;
+  fingerprint: string;
+  publishedAt: string;
+  sdkVersion: string;
+  apiClientVersion?: string;
+};
+
 export type LocalMaintainerRegistryConfig = {
   registryUrl: string;
   snapshotId: string;
@@ -99,7 +109,6 @@ export type ProjectEnvironmentBindingV1 = {
   localMaintainerRegistry?: LocalMaintainerRegistryConfig;
   apiBaseUrl?: string;
   webBaseUrl?: string;
-  packageManifest?: Record<string, unknown>;
   environmentManifest?: Record<string, unknown>;
 };
 

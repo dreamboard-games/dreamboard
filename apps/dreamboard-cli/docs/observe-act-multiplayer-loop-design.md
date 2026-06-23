@@ -77,7 +77,7 @@ The current backend and authority split guarantees:
    Gameplay Authority WebSocket.
 
 This is enough to implement resumable observe/act loops without restoring the
-deleted legacy event-stream routes.
+deleted event-stream routes.
 
 ## Proposed User Workflow
 

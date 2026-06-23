@@ -7163,7 +7163,6 @@ components:
         - playerCount
         - seatBindings
         - reducerArtifactIdentity
-        - reducerArtifactHash
         - gameSource
       properties:
         sessionId:
@@ -7201,10 +7200,6 @@ components:
           description: Setup profile selected by default demo behavior; omitted when the manifest has none.
         reducerArtifactIdentity:
           $ref: "#/components/schemas/DemoReducerArtifactIdentity"
-        reducerArtifactHash:
-          type: string
-          description: Legacy digest alias for reducerArtifactIdentity.digest.
-          pattern: "^sha256:[a-f0-9]{64}$"
         gameSource:
           $ref: "#/components/schemas/SessionGameSource"
   securitySchemes:

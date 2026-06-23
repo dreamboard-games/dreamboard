@@ -1,6 +1,13 @@
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { loadProjectConfig, updateProjectState } from "./project-config.js";
 
@@ -141,6 +148,31 @@ describe("project config normalization", () => {
     expect(loaded.compile?.latestSuccessful?.resultId).toBe("result-1");
   });
 
+  test("rejects v2 manifest without environment binding state", async () => {
+    const rootDir = await mkdtemp(path.join(tmpdir(), "dreamboard-config-"));
+    tempDirs.push(rootDir);
+    const configDir = path.join(rootDir, ".dreamboard");
+    await mkdir(configDir, { recursive: true });
+
+    await writeFile(
+      path.join(configDir, "project.json"),
+      `${JSON.stringify(
+        {
+          schemaVersion: 2,
+          projectId: "project-1",
+          slug: "bound-game",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+
+    await expect(loadProjectConfig(rootDir)).rejects.toThrow(
+      /missing an environment binding/,
+    );
+  });
+
   test("rejects schema v1 before writing state", async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), "dreamboard-config-"));
     tempDirs.push(rootDir);
@@ -151,8 +183,8 @@ describe("project config normalization", () => {
     const originalJson = `${JSON.stringify(
       {
         schemaVersion: 1,
-        gameId: "legacy-game-1",
-        slug: "legacy-game",
+        gameId: "schema-v1-game-1",
+        slug: "schema-v1-game",
       },
       null,
       2,

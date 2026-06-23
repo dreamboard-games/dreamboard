@@ -3145,10 +3145,6 @@ export type DemoSessionResponse = {
      */
     setupProfileId?: string;
     reducerArtifactIdentity: DemoReducerArtifactIdentity;
-    /**
-     * Legacy digest alias for reducerArtifactIdentity.digest.
-     */
-    reducerArtifactHash: string;
     gameSource: SessionGameSource;
 };
 

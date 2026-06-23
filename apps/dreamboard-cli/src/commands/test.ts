@@ -27,7 +27,7 @@ export type TestCommandPlan = {
 };
 
 export const REDUCER_NATIVE_TEST_WORKSPACE_ERROR =
-  "dreamboard test now requires a reducer-native workspace with app/game.ts, shared/generated/ui-contract.ts, test/bases/*.base.ts, and test/scenarios/*.scenario.ts. Legacy test/base-scenarios.json workspaces are no longer supported.";
+  "dreamboard test requires a reducer-native workspace with app/game.ts, shared/generated/ui-contract.ts, test/bases/*.base.ts, and test/scenarios/*.scenario.ts.";
 
 export const NO_REDUCER_NATIVE_BASES_FOUND_ERROR =
   "No bases found under test/bases/*.base.ts";

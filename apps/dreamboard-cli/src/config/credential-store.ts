@@ -22,11 +22,9 @@
  *    truncated, and parallel CLI invocations cannot clobber each other's
  *    rotated refresh tokens.
  *
- * 4. The on-disk JSON shape for the file backend is kept backward
- *    compatible: we continue to read/write `authToken` + `refreshToken`
- *    so existing users are not forced to log in again after this change.
- *    A newer `accessToken` key is also accepted for read to ease any
- *    future format bump.
+ * 4. The on-disk JSON shape for the file backend is intentionally singular:
+ *    `clerkAccessToken` + `refreshToken`, plus optional Dreamboard audience
+ *    token cache fields.
  *
  * 5. All builds default to the file backend. The OS keychain is an explicit
  *    opt-in through config or `DREAMBOARD_CREDENTIAL_BACKEND=keychain`.
@@ -44,8 +42,7 @@ import {
 
 /**
  * Fully refreshable session. `accessToken` is the Clerk OAuth bootstrap token
- * retained for refresh/exchange compatibility; ordinary API calls use
- * `dreamboardApiToken`.
+ * used for refresh/exchange; ordinary API calls use `dreamboardApiToken`.
  */
 export type Credentials = {
   readonly accessToken: string;
@@ -101,10 +98,7 @@ export type CredentialClearReason =
 type DiskShape = Partial<{
   clerkAccessToken: string;
   clerkAccessExpiresAt: string;
-  accessToken: string;
-  authToken: string;
   refreshToken: string;
-  tokenExpiresAt: string;
   dreamboardApiToken: string;
   dreamboardApiExpiresAt: string;
   clerkOAuthIssuer: string;
@@ -175,15 +169,13 @@ async function fileRead(): Promise<StoredSessionSnapshot | null> {
   } catch {
     return null;
   }
-  const accessToken =
-    parsed.clerkAccessToken ?? parsed.accessToken ?? parsed.authToken;
+  const accessToken = parsed.clerkAccessToken;
   const refreshToken = parsed.refreshToken;
   if (!accessToken && !refreshToken) return null;
   return {
     accessToken: accessToken || undefined,
     refreshToken: refreshToken || undefined,
-    tokenExpiresAt:
-      parsed.clerkAccessExpiresAt || parsed.tokenExpiresAt || undefined,
+    tokenExpiresAt: parsed.clerkAccessExpiresAt || undefined,
     dreamboardApiToken: parsed.dreamboardApiToken || undefined,
     dreamboardApiExpiresAt: parsed.dreamboardApiExpiresAt || undefined,
     clerkOAuthIssuer: parsed.clerkOAuthIssuer || undefined,
@@ -224,7 +216,7 @@ async function fileWriteAccessOnly(accessToken: string): Promise<void> {
   if (!accessToken) {
     throw new Error("Refusing to persist an empty access token.");
   }
-  await writeFilePayload({ authToken: accessToken });
+  await writeFilePayload({ clerkAccessToken: accessToken });
 }
 
 async function fileClear(
@@ -265,17 +257,7 @@ export type BackendResolver = () =>
   | CredentialBackend
   | Promise<CredentialBackend>;
 
-export class CredentialStoreUnavailableError extends Error {
-  readonly code = "CREDENTIAL_STORE_UNAVAILABLE";
-
-  constructor(reason: string) {
-    super(`Credential store unavailable: ${reason}`);
-    this.name = "CredentialStoreUnavailableError";
-  }
-}
-
 let cachedBackend: CredentialBackend | null = null;
-let migrationCompleted = false;
 let backendResolver: BackendResolver = defaultBackendResolver;
 
 /**
@@ -358,88 +340,13 @@ async function readCredentialBackendPreference(): Promise<boolean> {
 export function setCredentialBackendResolver(resolver: BackendResolver): void {
   backendResolver = resolver;
   cachedBackend = null;
-  migrationCompleted = false;
 }
 
 export async function getCredentialBackend(): Promise<CredentialBackend> {
   if (cachedBackend === null) {
     cachedBackend = await backendResolver();
-    // One-time migration: if we resolved to a non-file backend and
-    // `auth.json` still has credentials from the old layout, copy them
-    // over. The file is intentionally left in place; implicit backend
-    // migration must not make a working CLI session appear to vanish from
-    // the default file-backed view.
-    if (!migrationCompleted && cachedBackend.name !== "file") {
-      await migrateFromFileBackendIfNeeded(cachedBackend);
-    }
-    migrationCompleted = true;
   }
   return cachedBackend;
-}
-
-async function migrateFromFileBackendIfNeeded(
-  target: CredentialBackend,
-  options: { failClosed?: boolean } = {},
-): Promise<void> {
-  try {
-    const [onDisk, onTarget] = await Promise.all([
-      fileCredentialBackend.read(),
-      target.read(),
-    ]);
-    if (!onDisk) return;
-    if (onTarget) {
-      // Target already has a session - the user has already migrated. Leave the
-      // file copy alone so a transient keychain override/probe cannot remove
-      // the visible file-backed session.
-      return;
-    }
-    if (onDisk.accessToken && onDisk.refreshToken) {
-      const migrated: Credentials = {
-        accessToken: onDisk.accessToken,
-        refreshToken: onDisk.refreshToken,
-        tokenExpiresAt: onDisk.tokenExpiresAt,
-        dreamboardApiToken: onDisk.dreamboardApiToken,
-        dreamboardApiExpiresAt: onDisk.dreamboardApiExpiresAt,
-        clerkOAuthIssuer: onDisk.clerkOAuthIssuer,
-        clerkOAuthClientId: onDisk.clerkOAuthClientId,
-        clerkOAuthTokenUrl: onDisk.clerkOAuthTokenUrl,
-        environment: onDisk.environment,
-      };
-      await target.writeFull(migrated);
-      await verifyMigratedSession(target, migrated);
-    } else if (onDisk.accessToken) {
-      await target.writeAccessOnly(onDisk.accessToken);
-      const migrated = await target.read();
-      if (migrated?.accessToken !== onDisk.accessToken) {
-        throw new Error("Credential migration verification failed.");
-      }
-    } else {
-      return;
-    }
-  } catch (error) {
-    if (options.failClosed) {
-      throw new CredentialStoreUnavailableError(
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-    // Migration is best-effort. A failure here should not block CLI
-    // operation; on next run the file backend is still consulted
-    // directly because the keychain backend's `read` returns null and
-    // callers fall through to "missing session" → login prompt.
-  }
-}
-
-async function verifyMigratedSession(
-  target: CredentialBackend,
-  expected: Credentials,
-): Promise<void> {
-  const migrated = await target.read();
-  if (
-    migrated?.accessToken !== expected.accessToken ||
-    migrated.refreshToken !== expected.refreshToken
-  ) {
-    throw new Error("Credential migration verification failed.");
-  }
 }
 
 export async function getActiveCredentialBackendName(): Promise<CredentialBackendName> {
@@ -508,7 +415,6 @@ export async function withCredentialLock<T>(
 /** Test-only reset of module state. Not exported through the barrel. */
 export function _resetCredentialStoreForTests(): void {
   cachedBackend = null;
-  migrationCompleted = false;
   backendResolver = defaultBackendResolver;
   credentialDirectoryOverrideForTests = null;
 }
@@ -519,5 +425,4 @@ export function _setCredentialDirectoryForTests(
 ): void {
   credentialDirectoryOverrideForTests = directory;
   cachedBackend = null;
-  migrationCompleted = false;
 }

@@ -2075,7 +2075,6 @@ export const zDemoSessionResponse = z.object({
     seatBindings: z.array(zDemoSessionSeatBinding).min(1),
     setupProfileId: z.optional(z.string()),
     reducerArtifactIdentity: zDemoReducerArtifactIdentity,
-    reducerArtifactHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
     gameSource: zSessionGameSource
 });
 

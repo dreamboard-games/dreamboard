@@ -1,11 +1,51 @@
 import { readFile } from "node:fs/promises";
 import consola from "consola";
+import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
 import type { ConfigFlags } from "../flags.js";
-import type { ProjectConfig, ResolvedConfig } from "../types.js";
+import type {
+  AgentMaintainerPackageSourceV1,
+  ProjectConfig,
+  ResolvedConfig,
+} from "../types.js";
 import { resolveProjectContext } from "../config/resolve.js";
 import { assertCompilerPortableDependencies } from "../services/project/dependency-portability.js";
+import type { MaterializeWorkspaceProjectInput } from "../services/project/materialize-workspace.js";
 
 type VerificationMode = "preflight" | "verify" | "fin" | "cloud-local";
+type PreparedWorkspaceManifestV2 = {
+  version: 2;
+  workspaceId?: string;
+  workspaceSlug?: string;
+  projectId?: string;
+  deploymentId?: string;
+  ownerScopeId?: string;
+  bindingKey?: string;
+  gameInstanceId?: string;
+  jobId?: string;
+  environmentManifest: {
+    apiBaseUrl: string;
+    webBaseUrl: string;
+    [key: string]: unknown;
+  };
+  maintainerPackageSource?: AgentMaintainerPackageSourceV1;
+  [key: string]: unknown;
+};
+type MaterializePreparedWorkspaceInputV2 = {
+  preparedWorkspace: PreparedWorkspaceManifestV2;
+  destinationDirectory?: string;
+  targetDir?: string;
+  slug?: string;
+  projectId?: string;
+  deploymentId?: string;
+  ownerScopeId?: string;
+  bindingKey?: string;
+  jobId?: string;
+  apiBaseUrl?: string;
+  webBaseUrl?: string;
+  ruleText?: string;
+  manifest?: GameTopologyManifest;
+  environmentManifest?: Record<string, unknown>;
+};
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
@@ -44,9 +84,9 @@ async function materializePreparedWorkspace(args: string[]) {
   const inputPath = readRequiredOption(args, "--input");
   const { materializeWorkspaceProject } =
     await import("../services/project/materialize-workspace.js");
-  const input = JSON.parse(await readFile(inputPath, "utf8")) as Parameters<
-    typeof materializeWorkspaceProject
-  >[0];
+  const input = normalizeMaterializePreparedWorkspaceInput(
+    JSON.parse(await readFile(inputPath, "utf8")),
+  );
   await materializeWorkspaceProject({
     ...input,
     agentManaged: true,
@@ -55,6 +95,161 @@ async function materializePreparedWorkspace(args: string[]) {
     installDependencies: false,
   });
   consola.success(`Prepared workspace in ${input.targetDir}`);
+}
+
+function normalizeMaterializePreparedWorkspaceInput(
+  rawInput: unknown,
+): MaterializeWorkspaceProjectInput {
+  const input = assertObject(
+    rawInput,
+    "materialize input",
+  ) as Partial<MaterializePreparedWorkspaceInputV2> & Record<string, unknown>;
+  const preparedWorkspace = input.preparedWorkspace;
+  if (!preparedWorkspace) {
+    return input as MaterializeWorkspaceProjectInput;
+  }
+
+  const prepared = assertPreparedWorkspaceV2(preparedWorkspace);
+  const targetDir =
+    optionalString(input.targetDir) ??
+    optionalString(input.destinationDirectory);
+  if (!targetDir) {
+    throw new Error(
+      "Prepared workspace materialization requires targetDir or destinationDirectory.",
+    );
+  }
+
+  const environmentManifest =
+    asRecord(input.environmentManifest) ?? prepared.environmentManifest;
+  const apiBaseUrl =
+    optionalString(input.apiBaseUrl) ?? prepared.environmentManifest.apiBaseUrl;
+  const webBaseUrl =
+    optionalString(input.webBaseUrl) ?? prepared.environmentManifest.webBaseUrl;
+  const workspaceId =
+    optionalString(prepared.workspaceId) ??
+    optionalString(prepared.gameInstanceId) ??
+    optionalString(input.projectId);
+  const projectId =
+    optionalString(input.projectId) ??
+    optionalString(prepared.projectId) ??
+    workspaceId;
+  const slug =
+    optionalString(input.slug) ??
+    optionalString(prepared.workspaceSlug) ??
+    optionalString(prepared.workspaceId) ??
+    projectId;
+
+  if (!projectId || !slug) {
+    throw new Error(
+      "Prepared workspace materialization requires projectId/slug or prepared workspace identifiers.",
+    );
+  }
+  const deploymentId =
+    optionalString(input.deploymentId) ?? optionalString(prepared.deploymentId);
+  const ownerScopeId =
+    optionalString(input.ownerScopeId) ?? optionalString(prepared.ownerScopeId);
+  const bindingKey =
+    optionalString(input.bindingKey) ??
+    optionalString(prepared.bindingKey) ??
+    (deploymentId && ownerScopeId
+      ? `${deploymentId}:${ownerScopeId}`
+      : undefined);
+
+  if (!deploymentId || !ownerScopeId) {
+    throw new Error(
+      "Prepared workspace materialization requires deploymentId and ownerScopeId.",
+    );
+  }
+
+  return {
+    targetDir,
+    projectId,
+    slug,
+    deploymentId,
+    ownerScopeId,
+    bindingKey,
+    apiBaseUrl,
+    webBaseUrl,
+    manifest:
+      (input.manifest as GameTopologyManifest | undefined) ?? emptyManifest(),
+    ruleText: optionalString(input.ruleText) ?? "",
+    jobId: optionalString(input.jobId) ?? optionalString(prepared.jobId),
+    environmentManifest,
+    maintainerPackageSource: prepared.maintainerPackageSource,
+  };
+}
+
+function assertPreparedWorkspaceV2(
+  value: unknown,
+): PreparedWorkspaceManifestV2 {
+  const prepared = assertObject(value, "preparedWorkspace");
+  if (prepared.version !== 2) {
+    throw new Error(
+      `Expected preparedWorkspace.version to be 2. Received: ${String(prepared.version)}`,
+    );
+  }
+  const environmentManifest = assertObject(
+    prepared.environmentManifest,
+    "preparedWorkspace.environmentManifest",
+  );
+  const apiBaseUrl = optionalString(environmentManifest.apiBaseUrl);
+  const webBaseUrl = optionalString(environmentManifest.webBaseUrl);
+  if (!apiBaseUrl || !webBaseUrl) {
+    throw new Error(
+      "preparedWorkspace.environmentManifest requires apiBaseUrl and webBaseUrl.",
+    );
+  }
+  return {
+    ...prepared,
+    version: 2,
+    environmentManifest: {
+      ...environmentManifest,
+      apiBaseUrl,
+      webBaseUrl,
+    },
+    maintainerPackageSource: prepared.maintainerPackageSource as
+      | AgentMaintainerPackageSourceV1
+      | undefined,
+  };
+}
+
+function assertObject(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Expected ${label} to be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function emptyManifest(): GameTopologyManifest {
+  return {
+    players: {
+      minPlayers: 2,
+      maxPlayers: 4,
+      optimalPlayers: 4,
+    },
+    cardSets: [],
+    zones: [],
+    boardTemplates: [],
+    boards: [],
+    pieceTypes: [],
+    pieceSeeds: [],
+    dieTypes: [],
+    dieSeeds: [],
+    resources: [],
+    setupOptions: [],
+    setupProfiles: [],
+  };
 }
 
 async function verifyAgentWorkspace(rawMode: string, args: string[]) {

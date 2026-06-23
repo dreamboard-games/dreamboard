@@ -34,7 +34,7 @@ test("dependency profile tracks public Dreamboard packages only", async () => {
   });
 });
 
-test("compiler portability rejects legacy @dreamboard package dependencies", async () => {
+test("compiler portability rejects unsupported @dreamboard package dependencies", async () => {
   const projectRoot = await createProject({
     dependencies: {
       "@dreamboard/app-sdk": "0.1.0",
@@ -43,12 +43,10 @@ test("compiler portability rejects legacy @dreamboard package dependencies", asy
 
   await expect(
     assertCompilerPortableDependencies({ projectRoot }),
-  ).rejects.toThrow(
-    "Legacy @dreamboard/* package dependencies are no longer supported",
-  );
+  ).rejects.toThrow("The @dreamboard/* package namespace is not supported");
 });
 
-test("release portability rejects legacy @dreamboard package dependencies before release proof", async () => {
+test("release portability rejects unsupported @dreamboard package dependencies before release proof", async () => {
   const projectRoot = await createProject({
     devDependencies: {
       "@dreamboard/ui-sdk": "0.1.0",

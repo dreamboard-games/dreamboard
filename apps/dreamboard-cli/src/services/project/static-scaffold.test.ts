@@ -92,36 +92,6 @@ test("ignores local dependency installs in authored Git state", async () => {
   }
 });
 
-test("migrates legacy scenario testing import to local testing-types", async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
-
-  try {
-    const scenariosDir = path.join(tempRoot, "test", "scenarios");
-    await mkdir(scenariosDir, { recursive: true });
-    const scenarioPath = path.join(scenariosDir, "setup.scenario.ts");
-    await Bun.write(
-      scenarioPath,
-      "import { defineScenario } from '@dreamboard/cli/testing';\nexport default defineScenario({});\n",
-    );
-
-    await scaffoldStaticWorkspace(tempRoot, "update");
-
-    const migrated = await Bun.file(scenarioPath).text();
-    expect(migrated).toContain("from '../testing-types'");
-
-    const legacyShimPath = path.join(
-      tempRoot,
-      "node_modules",
-      "@dreamboard",
-      "cli",
-      "testing.js",
-    );
-    expect(await Bun.file(legacyShimPath).exists()).toBe(false);
-  } finally {
-    await rm(tempRoot, { recursive: true, force: true });
-  }
-});
-
 test("fails compile preflight when shared static files are missing", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
   const missingFilePath = path.join(tempRoot, "app", "tsconfig.json");
@@ -151,6 +121,50 @@ test("does not require .npmrc when no local maintainer registry is configured", 
     expect(await Bun.file(path.join(tempRoot, ".npmrc")).exists()).toBe(false);
     await expect(assertCliStaticScaffoldComplete(tempRoot)).resolves.toBe(
       undefined,
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("applies local maintainer package source consistently", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+
+  try {
+    await scaffoldStaticWorkspace(tempRoot, "new", {
+      localMaintainerRegistry: {
+        registryUrl: "http://127.0.0.1:4873",
+        snapshotId: "local-20260623T021500Z",
+        fingerprint: "sha256:local",
+        publishedAt: "2026-06-23T02:15:00.000Z",
+        packages: {
+          "@dreamboard-games/api-client": "0.3.0-local.20260623.1",
+          "@dreamboard-games/sdk": "0.4.0-local.20260623.1",
+        },
+      },
+    });
+
+    const packageJson = JSON.parse(
+      await Bun.file(path.join(tempRoot, "package.json")).text(),
+    ) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+      pnpm: { overrides: Record<string, string> };
+    };
+    expect(packageJson.dependencies["@dreamboard-games/sdk"]).toBe(
+      "0.4.0-local.20260623.1",
+    );
+    expect(packageJson.pnpm.overrides["@dreamboard-games/sdk"]).toBe(
+      packageJson.dependencies["@dreamboard-games/sdk"],
+    );
+    expect(packageJson.pnpm.overrides["@dreamboard-games/api-client"]).toBe(
+      "0.3.0-local.20260623.1",
+    );
+    expect(packageJson.pnpm.overrides["@dreamboard-games/dev-host"]).toBe(
+      packageJson.devDependencies["@dreamboard-games/dev-host"],
+    );
+    expect(await Bun.file(path.join(tempRoot, ".npmrc")).text()).toBe(
+      "@dreamboard-games:registry=http://127.0.0.1:4873\n",
     );
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

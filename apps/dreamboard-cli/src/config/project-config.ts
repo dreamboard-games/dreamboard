@@ -13,10 +13,6 @@ import {
 import { ensureDir, exists, readJsonFile } from "../utils/fs.js";
 import { atomicWriteFile } from "../utils/atomic-file.js";
 
-const LEGACY_DEFAULT_DEPLOYMENT_ID = "legacy";
-const LEGACY_DEFAULT_OWNER_SCOPE_ID = "default";
-const LEGACY_DEFAULT_BINDING_KEY = `${LEGACY_DEFAULT_DEPLOYMENT_ID}:${LEGACY_DEFAULT_OWNER_SCOPE_ID}`;
-
 function normalizeProjectManifest(config: ProjectConfig): ProjectManifestV2 {
   return {
     schemaVersion: 2,
@@ -29,8 +25,8 @@ function normalizeProjectBinding(
   config: ProjectConfig,
 ): ProjectEnvironmentBindingV1 {
   return {
-    deploymentId: config.deploymentId ?? LEGACY_DEFAULT_DEPLOYMENT_ID,
-    ownerScopeId: config.ownerScopeId ?? LEGACY_DEFAULT_OWNER_SCOPE_ID,
+    deploymentId: config.deploymentId,
+    ownerScopeId: config.ownerScopeId,
     remoteHeadDigest: config.remoteHeadDigest,
     jobId: config.jobId,
     agentManaged: config.agentManaged,
@@ -42,7 +38,6 @@ function normalizeProjectBinding(
     localMaintainerRegistry: config.localMaintainerRegistry,
     apiBaseUrl: config.apiBaseUrl,
     webBaseUrl: config.webBaseUrl,
-    packageManifest: config.packageManifest,
     environmentManifest: config.environmentManifest,
   };
 }
@@ -68,17 +63,15 @@ function mergeManifestAndBinding(
   binding: ProjectEnvironmentBindingV1 | undefined,
   bindingKey: string | undefined,
 ): ProjectConfig {
+  if (!binding) {
+    throw new Error(
+      "Project state is missing an environment binding. Recreate or reclone the project.",
+    );
+  }
   return {
     ...manifest,
-    ...(binding ?? {
-      deploymentId: LEGACY_DEFAULT_DEPLOYMENT_ID,
-      ownerScopeId: LEGACY_DEFAULT_OWNER_SCOPE_ID,
-    }),
-    bindingKey:
-      bindingKey ??
-      `${binding?.deploymentId ?? LEGACY_DEFAULT_DEPLOYMENT_ID}:${
-        binding?.ownerScopeId ?? LEGACY_DEFAULT_OWNER_SCOPE_ID
-      }`,
+    ...binding,
+    bindingKey: bindingKey ?? `${binding.deploymentId}:${binding.ownerScopeId}`,
   };
 }
 
@@ -117,10 +110,7 @@ export async function loadProjectConfig(
 
   const state = await loadProjectEnvironmentState(rootDir);
   const entries = Object.entries(state.bindings);
-  const [bindingKey, binding] =
-    entries.find(([key]) => key !== LEGACY_DEFAULT_BINDING_KEY) ??
-    entries.find(([key]) => key === LEGACY_DEFAULT_BINDING_KEY) ??
-    [];
+  const [bindingKey, binding] = entries[0] ?? [];
   return mergeManifestAndBinding(rawConfig, binding, bindingKey);
 }
 

@@ -28,7 +28,7 @@ type DependencyProblem = {
   specifier: string;
 };
 
-type LegacyDependencyProblem = {
+type UnsupportedNamespaceProblem = {
   location: string;
   packageName: string;
 };
@@ -70,9 +70,9 @@ export async function assertCompilerPortableDependencies(options: {
   projectConfig?: ProjectConfig;
 }): Promise<SourceDependencyProfile> {
   const packageJson = await readProjectPackageJson(options.projectRoot);
-  const legacyProblems = collectLegacyDreamboardSpecifiers(packageJson);
-  if (legacyProblems.length > 0) {
-    throwLegacyDreamboardPackageError(legacyProblems);
+  const namespaceProblems = collectUnsupportedDreamboardNamespaces(packageJson);
+  if (namespaceProblems.length > 0) {
+    throwUnsupportedDreamboardNamespaceError(namespaceProblems);
   }
 
   const problems = collectUnportableDreamboardSpecifiers(packageJson);
@@ -111,9 +111,9 @@ export async function assertReleaseEnvironmentPortableDependencies(options: {
   environment: string;
 }): Promise<SourceDependencyProfile> {
   const packageJson = await readProjectPackageJson(options.projectRoot);
-  const legacyProblems = collectLegacyDreamboardSpecifiers(packageJson);
-  if (legacyProblems.length > 0) {
-    throwLegacyDreamboardPackageError(legacyProblems);
+  const namespaceProblems = collectUnsupportedDreamboardNamespaces(packageJson);
+  if (namespaceProblems.length > 0) {
+    throwUnsupportedDreamboardNamespaceError(namespaceProblems);
   }
 
   const profile = await buildSourceDependencyProfile(options);
@@ -224,15 +224,15 @@ function collectUnportableDreamboardSpecifiers(
   return problems;
 }
 
-function collectLegacyDreamboardSpecifiers(
+function collectUnsupportedDreamboardNamespaces(
   packageJson: PackageJsonWithDeps,
-): LegacyDependencyProblem[] {
-  const problems: LegacyDependencyProblem[] = [];
+): UnsupportedNamespaceProblem[] {
+  const problems: UnsupportedNamespaceProblem[] = [];
   for (const field of DEPENDENCY_FIELDS) {
     const dependencies = packageJson[field];
     if (!dependencies) continue;
     for (const packageName of Object.keys(dependencies)) {
-      if (isLegacyDreamboardPackage(packageName)) {
+      if (isUnsupportedDreamboardNamespace(packageName)) {
         problems.push({ location: field, packageName });
       }
     }
@@ -241,7 +241,7 @@ function collectLegacyDreamboardSpecifiers(
   const overrides = packageJson.pnpm?.overrides;
   if (overrides) {
     for (const packageName of Object.keys(overrides)) {
-      if (isLegacyDreamboardPackage(packageName)) {
+      if (isUnsupportedDreamboardNamespace(packageName)) {
         problems.push({ location: "pnpm.overrides", packageName });
       }
     }
@@ -249,15 +249,15 @@ function collectLegacyDreamboardSpecifiers(
   return problems;
 }
 
-function throwLegacyDreamboardPackageError(
-  problems: LegacyDependencyProblem[],
+function throwUnsupportedDreamboardNamespaceError(
+  problems: UnsupportedNamespaceProblem[],
 ): never {
   const details = problems
     .map((problem) => `${problem.location} ${problem.packageName}`)
     .join("; ");
   throw new Error(
     [
-      "Legacy @dreamboard/* package dependencies are no longer supported in compiler-bound workspaces.",
+      "The @dreamboard/* package namespace is not supported in compiler-bound workspaces.",
       `Found ${details}.`,
       "Repin to the public @dreamboard-games/* packages and rerun the command.",
     ].join(" "),
@@ -270,7 +270,7 @@ function isPortableDreamboardPackage(packageName: string): boolean {
   );
 }
 
-function isLegacyDreamboardPackage(packageName: string): boolean {
+function isUnsupportedDreamboardNamespace(packageName: string): boolean {
   return packageName.startsWith("@dreamboard/");
 }
 

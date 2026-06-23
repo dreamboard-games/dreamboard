@@ -13,11 +13,6 @@
  * This module is loaded optionally: `@napi-rs/keyring` is declared as an
  * `optionalDependencies` entry. If the native binary or OS keyring is
  * unavailable, the resolver falls back to the file backend.
- *
- * One-time migration: when the active backend is keychain and `auth.json` still
- * has tokens, `credential-store.ts` copies them into the keychain, verifies the
- * keychain read, and deletes the file. This is the only path that intentionally
- * mutates both backends.
  */
 
 import type {
@@ -75,10 +70,8 @@ function keychainProbe(entry: EntryInstance): boolean {
 
 type KeychainPayload = {
   clerkAccessToken?: string;
-  accessToken?: string;
   refreshToken?: string;
   clerkAccessExpiresAt?: string;
-  tokenExpiresAt?: string;
   dreamboardApiToken?: string;
   dreamboardApiExpiresAt?: string;
   clerkOAuthIssuer?: string;
@@ -95,13 +88,12 @@ function parsePayload(
   if (trimmed.length === 0) return null;
   try {
     const parsed = JSON.parse(trimmed) as KeychainPayload;
-    const accessToken = parsed.clerkAccessToken ?? parsed.accessToken;
+    const accessToken = parsed.clerkAccessToken;
     if (!accessToken && !parsed.refreshToken) return null;
     return {
       accessToken: accessToken || undefined,
       refreshToken: parsed.refreshToken || undefined,
-      tokenExpiresAt:
-        parsed.clerkAccessExpiresAt || parsed.tokenExpiresAt || undefined,
+      tokenExpiresAt: parsed.clerkAccessExpiresAt || undefined,
       dreamboardApiToken: parsed.dreamboardApiToken || undefined,
       dreamboardApiExpiresAt: parsed.dreamboardApiExpiresAt || undefined,
       clerkOAuthIssuer: parsed.clerkOAuthIssuer || undefined,
@@ -138,7 +130,7 @@ function writeAccessOnly(entry: EntryInstance, accessToken: string): void {
   if (!accessToken) {
     throw new Error("Refusing to persist an empty access token.");
   }
-  const payload: KeychainPayload = { accessToken };
+  const payload: KeychainPayload = { clerkAccessToken: accessToken };
   entry.setPassword(JSON.stringify(payload));
 }
 
