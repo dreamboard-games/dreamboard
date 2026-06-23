@@ -1,5 +1,10 @@
 import type {
-  ProblemDetails,
+  ExitCode,
+  NextAction,
+  ProblemDetails as CliProblemDetails,
+} from "@dreamboard-games/cli-core";
+import type {
+  ProblemDetails as ApiProblemDetails,
   ProblemViolation,
 } from "@dreamboard-games/api-client";
 import { zProblemDetails } from "@dreamboard-games/api-client/zod.gen";
@@ -7,15 +12,20 @@ import { CLI_PROBLEM_TYPES } from "./problem-types.js";
 import type { CliProblemType } from "./problem-types.js";
 
 type ApiClientError =
-  | ProblemDetails
+  | ApiProblemDetails
   | Error
   | string
   | Record<string, unknown>
   | null
   | undefined;
 
-type ApiProblem = Omit<ProblemDetails, "type"> & {
+type ProblemContextValue = string | number | boolean;
+export type CliProblemContext = Readonly<Record<string, ProblemContextValue>>;
+
+type ApiProblem = Omit<ApiProblemDetails, "type" | "context"> & {
   type: CliProblemType | (string & {});
+  code?: string;
+  context?: CliProblemContext;
 };
 
 type CliErrorPresentation = {
@@ -24,8 +34,50 @@ type CliErrorPresentation = {
   details: string[];
 };
 
+export type ProjectCreateStep =
+  | "configure_client"
+  | "prepare_local_packages"
+  | "resolve_identity"
+  | "ensure_project"
+  | "ensure_repository"
+  | "wait_for_repository"
+  | "materialize_workspace"
+  | "configure_git";
+
+export type CliOperationContext = CliProblemContext & {
+  operationId: string;
+  command: "project.create";
+  step: ProjectCreateStep;
+  environment: "local" | "staging" | "prod";
+  apiBaseUrl: string;
+  slug: string;
+  projectId: string;
+  targetDir: string;
+  remoteProjectState: "not_started" | "attempted" | "confirmed";
+  repositoryState: "not_started" | "attempted" | "confirmed";
+  workspaceState: "not_started" | "attempted" | "confirmed";
+  gitState: "not_started" | "attempted" | "confirmed";
+};
+
+export type ClassifiedCliFailure = {
+  problem: CliProblemDetails;
+  exitCode: ExitCode;
+  nextActions: readonly NextAction[];
+  humanDetails: readonly string[];
+};
+
 export const STALE_CONTRACT_ARTIFACT_CODE = "STALE_CONTRACT_ARTIFACT";
 export const STALE_CONTRACT_ARTIFACT_EXIT_CODE = 42;
+export const PROJECT_CREATE_STEP_FAILED_CODE = "PROJECT_CREATE_STEP_FAILED";
+
+const CLI_EXIT_CODE = {
+  Unexpected: 1,
+  Unauthenticated: 2,
+  Forbidden: 3,
+  Conflict: 4,
+  Validation: 5,
+  Transient: 6,
+} as const satisfies Record<string, ExitCode>;
 
 type ResponseLike = {
   status?: number;
@@ -47,7 +99,7 @@ function isProblemViolationArray(value: unknown): value is ProblemViolation[] {
   );
 }
 
-export function isProblemDetails(value: unknown): value is ProblemDetails {
+export function isProblemDetails(value: unknown): value is ApiProblemDetails {
   return zProblemDetails.safeParse(value).success;
 }
 
@@ -79,6 +131,16 @@ export function toApiProblem(
   response: ResponseLike | undefined,
   fallback: string,
 ): ApiProblem {
+  if (response === undefined) {
+    return {
+      type: CLI_PROBLEM_TYPES.TRANSPORT_ERROR,
+      title: "Could not reach the Dreamboard API",
+      status: 0,
+      detail: getTransportDetail(error, fallback),
+      code: "API_TRANSPORT_ERROR",
+    };
+  }
+
   if (isProblemDetails(error)) {
     return {
       ...error,
@@ -90,9 +152,10 @@ export function toApiProblem(
   if (error instanceof Error) {
     return {
       type: CLI_PROBLEM_TYPES.TRANSPORT_ERROR,
-      title: response?.statusText || "API error",
+      title: response.statusText || "API error",
       status: response?.status ?? 0,
       detail: error.message || fallback,
+      code: "API_TRANSPORT_ERROR",
       requestId: getRequestId(response),
     };
   }
@@ -130,7 +193,7 @@ export function toApiProblem(
           typeof obj.retryable === "boolean" ? obj.retryable : undefined,
         context:
           typeof obj.context === "object" && obj.context !== null
-            ? (obj.context as Record<string, string>)
+            ? coerceProblemContext(obj.context)
             : undefined,
         violations,
         timestamp:
@@ -148,8 +211,20 @@ export function toApiProblem(
     title: response?.statusText || "API error",
     status: response?.status ?? 0,
     detail,
+    code: "API_UNKNOWN_ERROR",
     requestId: getRequestId(response),
   };
+}
+
+function getTransportDetail(error: ApiClientError, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (error && typeof error === "object") {
+    const obj = error as Record<string, unknown>;
+    if (typeof obj.detail === "string") return obj.detail;
+    if (typeof obj.message === "string") return obj.message;
+  }
+  return fallback;
 }
 
 function formatProblem(problem: ApiProblem): string {
@@ -177,6 +252,36 @@ export class DreamboardApiError extends Error {
     this.requestId = problem.requestId;
     this.retryable = problem.retryable;
   }
+
+  withOperationContext(context: CliOperationContext): DreamboardApiError {
+    return new DreamboardApiError(
+      {
+        ...this.problem,
+        context: {
+          ...this.problem.context,
+          ...sanitizeProblemContext(context),
+        },
+      },
+      this.cause ?? this,
+    );
+  }
+}
+
+export class CliOperationError extends Error {
+  readonly code: string;
+  readonly context: CliOperationContext;
+
+  constructor(options: {
+    code: string;
+    message: string;
+    context: CliOperationContext;
+    cause?: unknown;
+  }) {
+    super(options.message, { cause: options.cause });
+    this.name = "CliOperationError";
+    this.code = options.code;
+    this.context = options.context;
+  }
 }
 
 export function toDreamboardApiError(
@@ -199,6 +304,27 @@ export function isDreamboardApiError(
   error: unknown,
 ): error is DreamboardApiError {
   return error instanceof DreamboardApiError;
+}
+
+export function isCliOperationError(
+  error: unknown,
+): error is CliOperationError {
+  return error instanceof CliOperationError;
+}
+
+export function contextualizeCliError(
+  cause: unknown,
+  context: CliOperationContext,
+): Error {
+  if (cause instanceof DreamboardApiError) {
+    return cause.withOperationContext(context);
+  }
+  return new CliOperationError({
+    code: PROJECT_CREATE_STEP_FAILED_CODE,
+    message: cause instanceof Error ? cause.message : String(cause),
+    context,
+    cause,
+  });
 }
 
 export function isProblemType(error: unknown, ...types: string[]): boolean {
@@ -235,23 +361,20 @@ export function isStaleContractArtifactError(error: unknown): boolean {
   return message ? isStaleContractArtifactMessage(message) : false;
 }
 
-export function getCliErrorExitCode(error: unknown): number {
-  return isStaleContractArtifactError(error)
-    ? STALE_CONTRACT_ARTIFACT_EXIT_CODE
-    : 1;
-}
-
 export function getProblemContext(
   error: unknown,
-): Record<string, string> | undefined {
-  return isDreamboardApiError(error) ? error.problem.context : undefined;
+): CliProblemContext | undefined {
+  if (isDreamboardApiError(error)) return error.problem.context;
+  if (isCliOperationError(error)) return sanitizeProblemContext(error.context);
+  return undefined;
 }
 
 export function getProblemContextValue(
   error: unknown,
   key: string,
 ): string | undefined {
-  return getProblemContext(error)?.[key];
+  const value = getProblemContext(error)?.[key];
+  return typeof value === "string" ? value : undefined;
 }
 
 function isGameNotFoundProblem(problem: ApiProblem): boolean {
@@ -310,6 +433,157 @@ function getProblemDetails(problem: ApiProblem): string[] {
   ].filter((detail): detail is string => Boolean(detail));
 }
 
+function coerceProblemContext(value: unknown): CliProblemContext | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    (entry): entry is [string, ProblemContextValue] => {
+      const entryValue = entry[1];
+      return (
+        typeof entryValue === "string" ||
+        typeof entryValue === "number" ||
+        typeof entryValue === "boolean"
+      );
+    },
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function sanitizeUrlForOutput(value: string): string {
+  try {
+    const url = new URL(value);
+    const path = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${path}`;
+  } catch {
+    return value;
+  }
+}
+
+function sanitizeProblemContext(context: CliProblemContext): CliProblemContext {
+  return Object.fromEntries(
+    Object.entries(context).map(([key, value]) => [
+      key,
+      typeof value === "string" &&
+      (key === "apiBaseUrl" || key.toLowerCase().endsWith("url"))
+        ? sanitizeUrlForOutput(value)
+        : value,
+    ]),
+  );
+}
+
+function cliProblemFromApiProblem(problem: ApiProblem): CliProblemDetails {
+  return {
+    type: problem.type,
+    title: problem.title,
+    status: problem.status,
+    detail: problem.detail,
+    code: problem.code ?? problem.type,
+    requestId: problem.requestId,
+    context: problem.context
+      ? sanitizeProblemContext(problem.context)
+      : undefined,
+  };
+}
+
+function getExitCodeFromError(error: unknown): ExitCode {
+  if (isStaleContractArtifactError(error)) return CLI_EXIT_CODE.Validation;
+  if (isDreamboardApiError(error)) {
+    if (error.problem.type === CLI_PROBLEM_TYPES.TRANSPORT_ERROR) {
+      return CLI_EXIT_CODE.Transient;
+    }
+    if (error.status === 401) return CLI_EXIT_CODE.Unauthenticated;
+    if (error.status === 403) return CLI_EXIT_CODE.Forbidden;
+    if (error.status === 409) return CLI_EXIT_CODE.Conflict;
+    if (error.status === 422 || error.status === 400) {
+      return CLI_EXIT_CODE.Validation;
+    }
+    if (error.retryable || error.status === 429 || error.status >= 500) {
+      return CLI_EXIT_CODE.Transient;
+    }
+  }
+  return CLI_EXIT_CODE.Unexpected;
+}
+
+function getNextActionsFromError(error: unknown): readonly NextAction[] {
+  if (isDreamboardApiError(error) && error.status === 401) {
+    const environment = getProblemContextValue(error, "environment") ?? "staging";
+    return [
+      {
+        id: "auth.login",
+        environment,
+        unattended: false,
+      },
+    ];
+  }
+  if (
+    isDreamboardApiError(error) &&
+    (error.problem.type === CLI_PROBLEM_TYPES.TRANSPORT_ERROR ||
+      error.retryable ||
+      error.status === 429 ||
+      error.status >= 500)
+  ) {
+    return [{ id: "retry", unattended: true }];
+  }
+  if (isCliOperationError(error)) {
+    return [{ id: "retry", unattended: true }];
+  }
+  return [];
+}
+
+function operationDetails(context: CliProblemContext | undefined): string[] {
+  if (!context) return [];
+  return [
+    typeof context.step === "string" ? `Step: ${context.step}` : undefined,
+    typeof context.operationId === "string"
+      ? `Operation ID: ${context.operationId}`
+      : undefined,
+    typeof context.projectId === "string"
+      ? `Project ID: ${context.projectId}`
+      : undefined,
+  ].filter((detail): detail is string => Boolean(detail));
+}
+
+export function classifyCliFailure(error: unknown): ClassifiedCliFailure {
+  if (isDreamboardApiError(error)) {
+    const presentation = presentCliError(error);
+    return {
+      problem: cliProblemFromApiProblem(error.problem),
+      exitCode: getExitCodeFromError(error),
+      nextActions: getNextActionsFromError(error),
+      humanDetails: [
+        ...presentation.details,
+        ...operationDetails(error.problem.context),
+      ],
+    };
+  }
+
+  if (isCliOperationError(error)) {
+    const context = sanitizeProblemContext(error.context);
+    return {
+      problem: {
+        title: "Project create step failed",
+        detail: error.message,
+        code: error.code,
+        context,
+      },
+      exitCode: CLI_EXIT_CODE.Unexpected,
+      nextActions: getNextActionsFromError(error),
+      humanDetails: operationDetails(context),
+    };
+  }
+
+  const presentation = presentCliError(error);
+  return {
+    problem: {
+      title: presentation.message || "Command failed",
+      detail: presentation.resolution,
+      code: error instanceof Error ? error.name : undefined,
+    },
+    exitCode: getExitCodeFromError(error),
+    nextActions: getNextActionsFromError(error),
+    humanDetails: presentation.details,
+  };
+}
+
 export function presentCliError(error: unknown): CliErrorPresentation {
   if (isDreamboardApiError(error)) {
     return {
@@ -346,14 +620,35 @@ export function presentCliError(error: unknown): CliErrorPresentation {
 }
 
 export function formatCliError(error: unknown): string {
-  const presentation = presentCliError(error);
-  return [
-    presentation.message,
-    presentation.resolution
-      ? `Resolution: ${presentation.resolution}`
-      : undefined,
-    ...presentation.details,
-  ]
+  const failure = classifyCliFailure(error);
+  const message = failure.problem.detail
+    ? `${failure.problem.detail}${failure.problem.status ? ` (HTTP ${failure.problem.status})` : ""}`
+    : failure.problem.title;
+  const resolution =
+    isDreamboardApiError(error) && getProblemResolution(error.problem)
+      ? `Resolution: ${getProblemResolution(error.problem)}`
+      : undefined;
+  const stack =
+    process.env.DREAMBOARD_CLI_DEBUG === "1" && error instanceof Error
+      ? error.stack
+      : undefined;
+  return [message, resolution, ...failure.humanDetails, stack]
     .filter((line): line is string => Boolean(line))
     .join("\n");
+}
+
+export function getCliErrorExitCode(error: unknown): number {
+  return classifyCliFailure(error).exitCode;
+}
+
+export function problemFromError(error: unknown): CliProblemDetails {
+  return classifyCliFailure(error).problem;
+}
+
+export function exitCodeFromError(error: unknown): ExitCode {
+  return classifyCliFailure(error).exitCode;
+}
+
+export function nextActionsFromError(error: unknown): readonly NextAction[] {
+  return classifyCliFailure(error).nextActions;
 }

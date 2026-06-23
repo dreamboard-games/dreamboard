@@ -10,7 +10,7 @@ import {
 describe("command results", () => {
   test("builds versioned success and failure envelopes", () => {
     expect(commandSuccess("project.status", { clean: true })).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       ok: true,
       command: "project.status",
       result: { clean: true },
@@ -25,7 +25,7 @@ describe("command results", () => {
         [{ id: "auth.login", environment: "staging", unattended: false }],
       ),
     ).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       ok: false,
       command: "project.status",
       exitCode: ExitCode.Unauthenticated,

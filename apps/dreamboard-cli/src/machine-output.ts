@@ -6,13 +6,8 @@ import {
   createProgressSequencer,
   type CommandId,
   type CommandResult,
-  type ProblemDetails,
 } from "@dreamboard-games/cli-core";
-import {
-  isDreamboardApiError,
-  isStaleContractArtifactError,
-  presentCliError,
-} from "./utils/errors.js";
+import { classifyCliFailure } from "./utils/errors.js";
 
 export type MachineMode = "json" | "json-events";
 
@@ -131,14 +126,15 @@ export async function runWithMachineOutput<T>(
     emitMachineResult(context, sequencer.terminal(result), result);
     process.exitCode = exitCode;
   } catch (error) {
+    const classified = classifyCliFailure(error);
     const failure = commandFailure(
       command,
-      problemFromError(error),
-      exitCodeFromError(error),
-      nextActionsFromError(error),
+      classified.problem,
+      classified.exitCode,
+      classified.nextActions,
     );
     emitMachineResult(context, sequencer.terminal(failure), failure);
-    process.exit(exitCodeFromError(error));
+    process.exit(classified.exitCode);
   } finally {
     if (process.exitCode === 0 && previousExitCode) {
       process.exitCode = previousExitCode;
@@ -155,11 +151,12 @@ export function emitMachineFailureAndExit(
     runId: context.runId,
     command,
   });
+  const classified = classifyCliFailure(error);
   const failure = commandFailure(
     command,
-    problemFromError(error),
-    exitCodeFromError(error),
-    nextActionsFromError(error),
+    classified.problem,
+    classified.exitCode,
+    classified.nextActions,
   );
   emitMachineResult(context, sequencer.terminal(failure), failure);
   process.exit(failure.exitCode);
@@ -227,56 +224,8 @@ function stringifyChunk(chunk: unknown): string {
   return String(chunk);
 }
 
-function problemFromError(error: unknown): ProblemDetails {
-  if (isDreamboardApiError(error)) {
-    return {
-      type: error.problem.type,
-      title: error.problem.title,
-      status: error.problem.status,
-      detail: error.problem.detail,
-      code: error.problem.type,
-    };
-  }
-
-  const presentation = presentCliError(error);
-  return {
-    title: presentation.message || "Command failed",
-    detail: presentation.resolution,
-    code: error instanceof Error ? error.name : undefined,
-  };
-}
-
-function exitCodeFromError(error: unknown): ExitCode {
-  if (isStaleContractArtifactError(error)) return ExitCode.Validation;
-  if (isDreamboardApiError(error)) {
-    if (error.status === 401) return ExitCode.Unauthenticated;
-    if (error.status === 403) return ExitCode.Forbidden;
-    if (error.status === 409) return ExitCode.Conflict;
-    if (error.status === 422 || error.status === 400) {
-      return ExitCode.Validation;
-    }
-    if (error.retryable || error.status === 429 || error.status >= 500) {
-      return ExitCode.Transient;
-    }
-  }
-  return ExitCode.Unexpected;
-}
-
 function normalizeExitCode(exitCode: number): ExitCode {
   return Object.values(ExitCode).includes(exitCode)
     ? (exitCode as ExitCode)
     : ExitCode.Unexpected;
-}
-
-function nextActionsFromError(error: unknown) {
-  if (isDreamboardApiError(error) && error.status === 401) {
-    return [
-      {
-        id: "auth.login" as const,
-        environment: "staging",
-        unattended: false as const,
-      },
-    ];
-  }
-  return [];
 }

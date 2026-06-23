@@ -366,18 +366,18 @@ function unwrapBackendResponse<T>(
     | {
         data: T;
         error: undefined;
-        response: Response;
+        response?: Response;
       }
     | {
         data: undefined;
         error: unknown;
-        response: Response;
+        response?: Response;
       },
   fallback: string,
 ): T {
   if (result.error || !result.data) {
     throw new HttpError(
-      result.response.status,
+      result.response?.status ?? 502,
       formatBackendError(result.error, fallback),
     );
   }

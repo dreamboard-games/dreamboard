@@ -31,10 +31,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "release-set:generate": "tsx scripts/generate-authoring-release-set.ts",
     "check:authoring-version-authority": "tsx scripts/check-authoring-version-authority.ts",
+    "check:authoring-release-set-npm-freshness": "tsx scripts/check-authoring-release-set-npm-freshness.ts",
     "build": "pnpm run release-set:generate && pnpm run typecheck && tsup",
     "build:published": "pnpm run release-set:generate && DREAMBOARD_BUILD_CHANNEL=published tsup",
     "build:agent-verifier": "tsup --config tsup.agent-verifier.config.ts",
-    "stage:publish": "pnpm run build:published && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts && pnpm run check:authoring-version-authority",
+    "stage:publish": "pnpm run build:published && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts && pnpm run check:authoring-release-set-npm-freshness && pnpm run check:authoring-version-authority",
     "stage:publish:development": "pnpm run build && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts",
     "stage:install-smoke-package": "tsx scripts/stage-install-smoke-package.ts",
     "pack:publish": "pnpm run stage:publish && npm pack --dry-run .publish/package",
@@ -51,7 +52,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@dreamboard-games/sdk": "0.4.0-alpha.6",
+    "@dreamboard-games/sdk": "0.4.0-alpha.7",
     "@types/bun": "latest",
     "@types/node": "^24.12.4",
     "playwright": "^1.60.0",

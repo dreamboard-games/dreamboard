@@ -122,7 +122,7 @@ Error: Game slug already exists: sushi-go (HTTP 409)
 Step: ensuring remote project
 Environment: staging
 Request ID: req_...
-Resolution: Choose a different slug, or retry with --force if you intend to rebind the existing slug.
+Resolution: Choose a different slug, or run `dreamboard project clone sushi-go` if you intended to use the existing project.
 ```
 
 Example replacement message for repository provisioning timeout:
@@ -163,7 +163,7 @@ Resolution: Retry project creation after repository provisioning recovers. If th
 | Transport failure | fetch throws or response is missing | Check selected environment/API URL; start local backend or retry remote target. |
 | Authentication failure | HTTP 401 or auth problem type | Run `dreamboard auth login` for the selected environment. |
 | Authorization failure | HTTP 403 | Sign in with an account that has access to the project/account. |
-| Slug/project conflict | HTTP 409 or slug conflict problem type | Choose another slug or use an explicit force/rebind path. |
+| Slug/project conflict | HTTP 409 or slug conflict problem type | Choose another slug or clone the existing project. |
 | Validation failure | HTTP 400/422 | Fix the validation details returned by the backend. |
 | Repository provisioning failure | terminal repository state or timeout | Retry after provisioning recovers; avoid creating duplicate projects. |
 | Local maintainer setup failure | local snapshot helper spawn/parse failure | Install source-checkout tooling or switch to a published/remote package path. |
@@ -189,8 +189,9 @@ environments, API URLs, repository provisioning, or auth login wording.
 
 1. Should `project create` record partial creation state when the remote project
    exists but local scaffolding did not finish?
-2. Should `--force` be the recovery path for slug conflicts, or should we add a
-   more explicit rebind/recreate command?
+2. Should slug conflict recovery stay limited to choosing another slug or
+   cloning the existing project, or should a separate rebind/recreate command be
+   designed later?
 3. Should local dev default messages mention the exact command that starts the
    local backend, or should they stay generic until that command surface is
    stable?

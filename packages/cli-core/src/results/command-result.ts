@@ -1,4 +1,4 @@
-export const COMMAND_RESULT_SCHEMA_VERSION = 1;
+export const COMMAND_RESULT_SCHEMA_VERSION = 2;
 
 export type CommandId =
   | "auth.login"
@@ -35,6 +35,8 @@ export type ProblemDetails = {
   readonly status?: number;
   readonly detail?: string;
   readonly code?: string;
+  readonly requestId?: string;
+  readonly context?: Readonly<Record<string, string | number | boolean>>;
   readonly errors?: Record<string, readonly string[]>;
 };
 

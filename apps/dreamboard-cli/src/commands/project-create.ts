@@ -21,7 +21,7 @@ import {
 import { configureWorkspaceGitOrigin } from "../services/git/workspace-origin.js";
 import { materializeWorkspaceProject } from "../services/project/materialize-workspace.js";
 import { ensureLocalMaintainerSnapshot } from "../services/project/local-maintainer-registry.js";
-import { createUuidV7 } from "../utils/uuid-v7.js";
+import { ProjectCreateOperation } from "../services/project/project-create-operation.js";
 
 const DEFAULT_REPOSITORY_WAIT_TIMEOUT_MS = 120_000;
 const DEFAULT_REPOSITORY_POLL_INTERVAL_MS = 1_000;
@@ -53,11 +53,6 @@ export default defineCommand({
       description: "Short description of the game to create",
       required: true,
     },
-    force: {
-      type: "boolean",
-      description: "Delete existing game with the same slug before creating",
-      default: false,
-    },
     "wait-timeout-ms": {
       type: "string",
       description: "Maximum time to wait for Git repository setup",
@@ -84,7 +79,6 @@ export default defineCommand({
     );
 
     const normalizedSlug = normalizeSlug(slugInput);
-    const projectId = createUuidV7();
     if (!normalizedSlug) {
       throw new Error("Slug must contain at least one alphanumeric character.");
     }
@@ -102,32 +96,53 @@ export default defineCommand({
       undefined,
       storedSession,
     );
+    const targetDir = path.resolve(process.cwd(), normalizedSlug);
+    const operation = await ProjectCreateOperation.open({
+      environment: config.environment,
+      apiBaseUrl: config.apiBaseUrl,
+      slug: normalizedSlug,
+      targetDir,
+    });
     requireAuth(config);
-    await configureClient(config);
-    const localMaintainerRegistry = await ensureLocalMaintainerSnapshot(
-      config.apiBaseUrl,
+    await operation.run("configure_client", () => configureClient(config));
+    const localMaintainerRegistry = await operation.run(
+      "prepare_local_packages",
+      () => ensureLocalMaintainerSnapshot(config.apiBaseUrl),
     );
 
-    const identity = await loadRemoteProjectIdentity();
-    const project = await ensureProjectSdk({
-      projectId,
-      slug: normalizedSlug,
-      description,
-      updateAlias: Boolean(parsedArgs.force),
-    });
-    await ensureProjectRepositorySdk(project.projectId);
+    const identity = await operation.run("resolve_identity", () =>
+      loadRemoteProjectIdentity(),
+    );
+
+    await operation.markAttempted("remoteProjectState");
+    const project = await operation.run("ensure_project", () =>
+      ensureProjectSdk({
+        projectId: operation.projectId,
+        slug: normalizedSlug,
+        description,
+      }),
+    );
+    await operation.markConfirmed("remoteProjectState");
+
+    await operation.markAttempted("repositoryState");
+    await operation.run("ensure_repository", () =>
+      ensureProjectRepositorySdk(operation.projectId),
+    );
 
     consola.start("Setting up Git repository...");
-    const repository = await pollProjectRepository({
-      projectId: project.projectId,
-      timeoutMs: repositoryWaitTimeoutMs,
-      intervalMs: repositoryPollIntervalMs,
-    });
+    const repository = await operation.run("wait_for_repository", () =>
+      pollProjectRepository({
+        projectId: operation.projectId,
+        timeoutMs: repositoryWaitTimeoutMs,
+        intervalMs: repositoryPollIntervalMs,
+      }),
+    );
     if (repository.provisioningState !== "READY") {
       throw new Error(
-        `Repository setup did not complete for ${project.projectId}: ${repository.provisioningState}${repository.errorCode ? ` (${repository.errorCode})` : ""}. Retry project creation after fixing the repository provisioning issue.`,
+        `Repository setup did not complete for ${operation.projectId}: ${repository.provisioningState}${repository.errorCode ? ` (${repository.errorCode})` : ""}. Retry project creation after fixing the repository provisioning issue.`,
       );
     }
+    await operation.markConfirmed("repositoryState");
     consola.success("Git repository ready.");
 
     const blankManifest: GameTopologyManifest = {
@@ -150,26 +165,33 @@ export default defineCommand({
     };
 
     consola.start("Scaffolding local workspace...");
+    await operation.markAttempted("workspaceState");
+    await operation.run("materialize_workspace", () =>
+      materializeWorkspaceProject({
+        targetDir,
+        projectId: operation.projectId,
+        slug: project.slug,
+        deploymentId: identity.deploymentId,
+        ownerScopeId: identity.ownerScopeId,
+        bindingKey: identity.bindingKey,
+        remoteHeadDigest: project.head?.revisionDigest,
+        apiBaseUrl: config.apiBaseUrl,
+        webBaseUrl: config.webBaseUrl,
+        manifest: blankManifest,
+        ruleText: "",
+        localMaintainerRegistry,
+      }),
+    );
+    await operation.markConfirmed("workspaceState");
 
-    const targetDir = path.resolve(process.cwd(), project.slug);
-    await materializeWorkspaceProject({
-      targetDir,
-      projectId,
-      slug: project.slug,
-      deploymentId: identity.deploymentId,
-      ownerScopeId: identity.ownerScopeId,
-      bindingKey: identity.bindingKey,
-      remoteHeadDigest: project.head?.revisionDigest,
-      apiBaseUrl: config.apiBaseUrl,
-      webBaseUrl: config.webBaseUrl,
-      manifest: blankManifest,
-      ruleText: "",
-      localMaintainerRegistry,
-    });
-    await configureWorkspaceGitOrigin({
-      projectRoot: targetDir,
-      cloneUrl: repository.cloneUrl,
-    });
+    await operation.markAttempted("gitState");
+    await operation.run("configure_git", () =>
+      configureWorkspaceGitOrigin({
+        projectRoot: targetDir,
+        cloneUrl: repository.cloneUrl,
+      }),
+    );
+    await operation.markConfirmed("gitState");
 
     consola.success(`Created new project in ${targetDir}`);
     consola.info(

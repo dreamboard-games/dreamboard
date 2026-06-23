@@ -5,6 +5,7 @@
   "description": "Dreamboard public source repo: the dreamboard CLI, docs, skills, and public packages.",
   "scripts": {
     "build": "pnpm --dir apps/dreamboard-cli run build",
+    "bump": "pnpm --dir apps/dreamboard-cli exec tsx ../../scripts/bump-authoring-package.ts",
     "cli:dev": "pnpm --dir apps/dreamboard-cli run dev",
     "cli:stage:publish": "pnpm --dir apps/dreamboard-cli run stage:publish",
     "cli:pack:publish": "pnpm --dir apps/dreamboard-cli run pack:publish",

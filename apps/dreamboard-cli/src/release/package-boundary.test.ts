@@ -16,3 +16,21 @@ test("public package boundary excludes authoring compatibility internals", async
   expect(stagePublish).not.toContain("authoring-compatibility-internal");
   expect(tsupConfig).not.toContain("authoring-compatibility-internal");
 });
+
+test("stage publish checks npm freshness before version authority", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(packageRoot, "package.json"), "utf8"),
+  ) as {
+    scripts: Record<string, string>;
+  };
+
+  const stagePublish = packageJson.scripts["stage:publish"];
+  expect(stagePublish).toContain(
+    "pnpm run check:authoring-release-set-npm-freshness",
+  );
+  expect(
+    stagePublish.indexOf("pnpm run check:authoring-release-set-npm-freshness"),
+  ).toBeLessThan(
+    stagePublish.indexOf("pnpm run check:authoring-version-authority"),
+  );
+});

@@ -25,8 +25,9 @@ export async function exchangeDreamboardUserToken(input: {
   });
 
   if (error || !data) {
+    const status = response?.status ?? "no response";
     throw new Error(
-      `Dreamboard token exchange failed (${response.status}). Run \`dreamboard auth login\` to authenticate again.`,
+      `Dreamboard token exchange failed (${status}). Run \`dreamboard auth login\` to authenticate again.`,
     );
   }
 

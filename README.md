@@ -138,6 +138,13 @@ pnpm agent-skills:pack:publish
 
 `cli:stage:publish` creates `apps/dreamboard-cli/.publish/package` as the public npm artifact for package name `@dreamboard-games/cli`, including the public `skills/dreamboard` tree and embedded authoring release set. `dev-host:stage:publish` and `agent-skills:stage:publish` create matching `.publish/package` directories under their package roots.
 
+CLI publish staging fails when the embedded authoring release set points at a
+stale public `@dreamboard-games/*` package for the target npm tag. The target
+tag is inferred from the CLI version (`alpha` for `-alpha.*`, otherwise
+`latest`), or can be set explicitly with `AUTHORING_RELEASE_NPM_TAG=alpha|latest`.
+Set `AUTHORING_RELEASE_SET_ALLOW_STALE_NPM=1` only for intentional recovery
+publishes where stale package pins are expected.
+
 Package-local authoring proof and version checks:
 
 ```bash

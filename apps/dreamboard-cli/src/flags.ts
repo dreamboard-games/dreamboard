@@ -18,7 +18,6 @@ const playerCountFlagsSchema = z.object({
 const newCommandArgsSchema = configFlagsSchema.extend({
   slug: z.string().min(1),
   description: z.string().min(1),
-  force: z.boolean().default(false),
   "wait-timeout-ms": z.string().optional(),
   "repository-poll-interval-ms": z.string().optional(),
 });
