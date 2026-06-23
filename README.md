@@ -127,14 +127,23 @@ npx skills add https://github.com/dreamboard-games/dreamboard --skill dreamboard
 
 ## Publish Prep
 
-Build a staged public package:
+Build staged public packages:
 
 ```bash
-pnpm run stage:publish
-pnpm run pack:publish
+pnpm cli:stage:publish
+pnpm cli:pack:publish
+pnpm dev-host:pack:publish
+pnpm agent-skills:pack:publish
 ```
 
-`stage:publish` creates `.publish/package` as the public npm artifact for package name `dreamboard`, including the public `skills/dreamboard` tree.
+`cli:stage:publish` creates `apps/dreamboard-cli/.publish/package` as the public npm artifact for package name `@dreamboard-games/cli`, including the public `skills/dreamboard` tree and embedded authoring release set. `dev-host:stage:publish` and `agent-skills:stage:publish` create matching `.publish/package` directories under their package roots.
+
+Package-local authoring proof and version checks:
+
+```bash
+pnpm --dir packages/api-client authoring:candidate
+pnpm --dir apps/dreamboard-cli check:authoring-version-authority
+```
 
 Optional public metadata env vars for staging:
 
@@ -145,7 +154,7 @@ export DREAMBOARD_PUBLIC_BUGS_URL="https://github.com/<org>/<repo>/issues"
 export DREAMBOARD_PUBLIC_LICENSE="MIT"
 ```
 
-If the source package already defines `repository`, `homepage`, `bugs`, or `license`, `stage:publish` will reuse those fields automatically.
+If the source package already defines `repository`, `homepage`, `bugs`, or `license`, CLI staging will reuse those fields automatically.
 
 Before creating GitHub PRs or releases, verify `gh` is authenticated to the account you intend to use:
 

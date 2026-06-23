@@ -8,8 +8,8 @@
     "skills"
   ],
   "scripts": {
-    "prepack": "rm -rf skills && mkdir -p skills && cp -R ../../skills/dreamboard skills/dreamboard",
-    "pack:publish": "npm pack --dry-run ."
+    "stage:publish": "node scripts/stage-publish.mjs",
+    "pack:publish": "pnpm run stage:publish && npm pack --dry-run .publish/package"
   },
   "keywords": [
     "dreamboard",
