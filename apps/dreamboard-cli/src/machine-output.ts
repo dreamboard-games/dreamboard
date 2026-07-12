@@ -68,6 +68,17 @@ export function consumeMachineOutputMode(
     argv.splice(index, 1);
   }
 
+  // Citty owns usage rendering. Help is the sole non-semantic surface in the
+  // test family and must remain readable even though executions default to
+  // JSON. Running it through semantic capture would turn Citty's intentional
+  // stdout into TEST_UNEXPECTED.
+  if (
+    argv[2] === "test" &&
+    argv.slice(3).some((arg) => arg === "--help" || arg === "-h")
+  ) {
+    return null;
+  }
+
   const semanticJson = argv[2] === "test";
   if (sawJson && sawJsonEvents && !semanticJson) {
     throw new Error(

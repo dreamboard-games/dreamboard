@@ -13,6 +13,7 @@ export {
   type ScenarioLoaderErrorCode,
 } from "./scenario-loader.js";
 export {
+  findReducerNativeTestingWorkspace,
   isReducerNativeTestingWorkspace,
   runReducerNativeScenarios,
   type ReducerNativeScenarioResult,

@@ -41,6 +41,17 @@ describe("machine output mode", () => {
     ]);
   });
 
+  test("leaves test-family help on Citty's usage-rendering path", () => {
+    for (const argv of [
+      ["node", "dreamboard", "test", "--help"],
+      ["node", "dreamboard", "test", "inspect", "-h"],
+      ["node", "dreamboard", "test", "explore", "--help", "--json"],
+    ]) {
+      expect(consumeMachineOutputMode(argv)).toBeNull();
+      expect(argv).not.toContain("--json");
+    }
+  });
+
   test("rejects mutually exclusive machine output flags", () => {
     const argv = ["node", "dreamboard", "status", "--json", "--json-events"];
 

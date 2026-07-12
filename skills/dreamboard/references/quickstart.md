@@ -50,16 +50,48 @@ Verify the exact commit:
 dreamboard verify --commit HEAD
 ```
 
+Author reducer proof in `test/scenarios/*.scenario.ts`. The test family returns
+one JSON envelope by default:
+
+```bash
+# Observe the node after every `given` command.
+dreamboard test inspect test/scenarios/first-turn.scenario.ts \
+  --perspective player:0
+
+# Enumerate accepted next commands, then copy one candidates[].command to source.
+dreamboard test explore test/scenarios/first-turn.scenario.ts \
+  --perspective player:0 --limit 50 --max-evaluations 5000
+
+# Replay the authored scenario and run its assertions.
+dreamboard test --scenario test/scenarios/first-turn.scenario.ts
+```
+
+Inspection and exploration require `player:<zero-based-seat>` or `spectator`.
+Use `--at setup|given:<n>|when:<n>` to select a prefix. For reducer-owned
+randomness, compare at most 64 inclusive safe-integer seeds with
+`--seed-range <start>:<end>`, check one using `--seed <n>`, then persist the
+selected number in `scenario.setup.seed`.
+
 Start a local server to play the project:
 
 ```bash
 dreamboard dev
 ```
 
+To open an authored prefix instead, use:
+
+```bash
+dreamboard dev --from-scenario test/scenarios/first-turn.scenario.ts --at given:2
+```
+
 Useful follow-up commands:
 
 - `dreamboard project clone <project>` clones an existing project repository.
-- `dreamboard test` runs offline reducer tests.
+- `dreamboard test` replays scenarios and returns a stable JSON result.
+- `dreamboard test inspect <path> --perspective <value>` observes one replay
+  node.
+- `dreamboard test explore <path> --perspective <value>` returns canonical
+  commands to copy into the scenario.
 - `dreamboard build --commit HEAD` creates a server build for a pushed commit.
 - `dreamboard preview --commit HEAD` creates a preview for a pushed commit.
 

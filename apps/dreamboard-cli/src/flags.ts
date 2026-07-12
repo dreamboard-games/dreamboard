@@ -71,6 +71,7 @@ const devCommandArgsSchema = configFlagsSchema.extend({
   debug: z.boolean().default(false),
   resume: z.string().optional(),
   "from-scenario": z.string().optional(),
+  at: z.string().optional(),
   "new-session": z.boolean().default(false),
   open: z.boolean().default(false),
   port: z.string().optional(),

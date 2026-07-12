@@ -2,12 +2,17 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import {
+  materializeReducerNativeProcessFixture,
+  type ReducerNativeProcessFixture,
+} from "./test-support/reducer-native-process-fixture.js";
 
 const packageRoot = path.resolve(import.meta.dir, "..");
 const stageRoot = path.join(packageRoot, ".publish", "package");
 const stagedExecutablePath = path.join(stageRoot, "dist", "index.js");
 
 const temporaryHomes: string[] = [];
+let reducerFixture: ReducerNativeProcessFixture;
 
 function runPackageScript(scriptName: string): void {
   const pnpmExecutable = Bun.which("pnpm") ?? "pnpm";
@@ -29,11 +34,15 @@ function runPackageScript(scriptName: string): void {
   }
 }
 
-function runPublishedCli(args: string[], env: Record<string, string>) {
+function runPublishedCli(
+  args: string[],
+  env: Record<string, string>,
+  cwd = stageRoot,
+) {
   const nodeExecutable = Bun.which("node") ?? "node";
   const result = Bun.spawnSync({
     cmd: [nodeExecutable, stagedExecutablePath, ...args],
-    cwd: stageRoot,
+    cwd,
     env: {
       ...process.env,
       DREAMBOARD_CREDENTIAL_BACKEND: "file",
@@ -50,14 +59,16 @@ function runPublishedCli(args: string[], env: Record<string, string>) {
   };
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   runPackageScript("stage:publish");
-});
+  reducerFixture = await materializeReducerNativeProcessFixture();
+}, 30_000);
 
 afterAll(async () => {
-  await Promise.all(
-    temporaryHomes.map((home) => rm(home, { recursive: true, force: true })),
-  );
+  await Promise.all([
+    ...temporaryHomes.map((home) => rm(home, { recursive: true, force: true })),
+    reducerFixture?.cleanup(),
+  ]);
 });
 
 describe("staged published package", () => {
@@ -140,4 +151,84 @@ describe("staged published package", () => {
       "production-only",
     );
   });
+
+  test("published package executes test, inspect, and explore offline", () => {
+    const environment = {
+      HOME: reducerFixture.home,
+      DREAMBOARD_ENV: "local",
+      NO_COLOR: "1",
+      FORCE_COLOR: "0",
+    };
+    const testRun = runPublishedCli(
+      ["test"],
+      environment,
+      reducerFixture.root,
+    );
+    const inspectRun = runPublishedCli(
+      [
+        "test",
+        "inspect",
+        reducerFixture.scenarioPath,
+        "--perspective",
+        "player:0",
+      ],
+      environment,
+      reducerFixture.root,
+    );
+    const exploreRun = runPublishedCli(
+      [
+        "test",
+        "explore",
+        reducerFixture.scenarioPath,
+        "--perspective",
+        "player:0",
+      ],
+      environment,
+      reducerFixture.root,
+    );
+
+    expectPublishedSemanticSuccess(testRun, "test").toMatchObject({
+      result: { summary: { total: 1, passed: 1, failed: 0 } },
+    });
+    expectPublishedSemanticSuccess(inspectRun, "test.inspect").toMatchObject({
+      result: {
+        scenario: { id: "fixture.increment" },
+        node: {
+          perspective: { kind: "player", actor: { seat: 0 } },
+          actions: [{ interactionId: "increment" }],
+        },
+      },
+    });
+    expectPublishedSemanticSuccess(exploreRun, "test.explore").toMatchObject({
+      result: {
+        mode: "transitions",
+        candidates: [
+          { command: { interactionId: "increment", params: { amount: 1 } } },
+          { command: { interactionId: "increment", params: { amount: 2 } } },
+        ],
+      },
+    });
+  });
 });
+
+function expectPublishedSemanticSuccess(
+  result: {
+    readonly exitCode: number;
+    readonly stdout: string;
+    readonly stderr: string;
+  },
+  command: "test" | "test.inspect" | "test.explore",
+) {
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(result.stdout.endsWith("\n")).toBe(true);
+  expect(result.stdout.split("\n")).toHaveLength(2);
+  const envelope = JSON.parse(result.stdout);
+  expect(envelope).toMatchObject({
+    schemaVersion: 2,
+    ok: true,
+    command,
+    nextActions: [],
+  });
+  return expect(envelope);
+}

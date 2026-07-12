@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -7,6 +7,10 @@ import {
   discoverReducerNativeScenarioPaths,
   loadReducerNativeScenarios,
 } from "./scenario-loader.js";
+import {
+  exploreReducerNativeScenario,
+  inspectReducerNativeScenario,
+} from "./scenario-inspection-service.js";
 import { runReducerNativeScenarios } from "./scenario-test-runner.js";
 
 const roots: string[] = [];
@@ -37,7 +41,7 @@ describe("scenario loader", () => {
 
     const selected = await discoverReducerNativeScenarioPaths({
       projectRoot: root,
-      scenarioPath: "nested/a-first.scenario.ts",
+      scenarioPath: "test/scenarios/nested/a-first.scenario.ts",
     });
     expect(selected.map((file) => relative(root, file))).toEqual([
       "test/scenarios/nested/a-first.scenario.ts",
@@ -76,6 +80,24 @@ describe("scenario loader", () => {
     ).toBe(false);
   });
 
+  test("returns exactly the selected workspace scenario", async () => {
+    const root = await createScenarioProject();
+    await writeScenario(root, "first.scenario.ts", { id: "first" });
+    await writeScenario(root, "nested/selected.scenario.ts", {
+      id: "selected",
+    });
+
+    const loaded = await loadReducerNativeScenarios({
+      projectRoot: root,
+      scenarioPath: "test/scenarios/nested/selected.scenario.ts",
+    });
+
+    expect(loaded.map((scenario) => scenario.id)).toEqual(["selected"]);
+    expect(loaded.map((scenario) => scenario.scenarioPath)).toEqual([
+      "test/scenarios/nested/selected.scenario.ts",
+    ]);
+  });
+
   test("source digest includes assertion helpers but not the SDK package", async () => {
     const root = await createScenarioProject();
     await writeFile(
@@ -101,7 +123,7 @@ describe("scenario loader", () => {
     expect(after?.sdkVersion).toBe(before?.sdkVersion);
   });
 
-  test("rejects duplicate ids with both canonical paths", async () => {
+  test("rejects duplicate ids across the workspace with authored id and canonical paths", async () => {
     const root = await createScenarioProject();
     await writeScenario(root, "first.scenario.ts", { id: "duplicate" });
     await writeScenario(root, "nested/second.scenario.ts", {
@@ -109,12 +131,16 @@ describe("scenario loader", () => {
     });
 
     try {
-      await loadReducerNativeScenarios({ projectRoot: root });
+      await loadReducerNativeScenarios({
+        projectRoot: root,
+        scenarioPath: "test/scenarios/first.scenario.ts",
+      });
       throw new Error("expected duplicate scenario id to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(ScenarioLoaderError);
       expect(error).toMatchObject({
         code: "DUPLICATE_SCENARIO_ID",
+        scenarioId: "duplicate",
         scenarioPaths: [
           "test/scenarios/first.scenario.ts",
           "test/scenarios/nested/second.scenario.ts",
@@ -129,29 +155,107 @@ describe("scenario loader", () => {
     }
   });
 
-  test("rejects missing and escaping selectors", async () => {
+  test("rejects selectors with stable structural reasons", async () => {
     const root = await createScenarioProject();
 
     await expect(
       loadReducerNativeScenarios({ projectRoot: root }),
     ).rejects.toMatchObject({ code: "NO_SCENARIOS_FOUND" });
-    await expect(
-      discoverReducerNativeScenarioPaths({
-        projectRoot: root,
+
+    const cases = [
+      {
+        scenarioPath: "test/scenarios/missing.scenario.ts",
+        selectorReason: "notFound",
+      },
+      {
         scenarioPath: "../outside.scenario.ts",
-      }),
-    ).rejects.toMatchObject({ code: "INVALID_SCENARIO_SELECTOR" });
-    await expect(
-      discoverReducerNativeScenarioPaths({
-        projectRoot: root,
+        selectorReason: "outsideRoot",
+      },
+      {
         scenarioPath: path.join(
           root,
           "test",
           "scenarios",
           "absolute.scenario.ts",
         ),
+        selectorReason: "outsideRoot",
+      },
+      {
+        scenarioPath: "test/scenarios/../outside.scenario.ts",
+        selectorReason: "outsideRoot",
+      },
+      {
+        scenarioPath: "nested/shorthand.scenario.ts",
+        selectorReason: "outsideRoot",
+      },
+      {
+        scenarioPath: "test/scenarios/not-a-scenario.ts",
+        selectorReason: "invalidExtension",
+      },
+    ] as const;
+    for (const selector of cases) {
+      await expect(
+        discoverReducerNativeScenarioPaths({
+          projectRoot: root,
+          scenarioPath: selector.scenarioPath,
+        }),
+      ).rejects.toMatchObject({
+        code: "INVALID_SCENARIO_SELECTOR",
+        scenarioPath: selector.scenarioPath.replaceAll("\\", "/"),
+        selectorReason: selector.selectorReason,
+      });
+    }
+  });
+
+  test("loads only a scenario file's single default definition", async () => {
+    const root = await createScenarioProject();
+    const scenarioPath = path.join(
+      root,
+      "test",
+      "scenarios",
+      "no-default.scenario.ts",
+    );
+    await writeFile(
+      scenarioPath,
+      [
+        'import { defineScenario } from "../testing-types";',
+        'export const scenario = defineScenario({ id: "named-only", setup: { players: 2, seed: 0 }, given: [], when: [], then: async () => {} });',
+        "",
+      ].join("\n"),
+    );
+
+    await expect(
+      loadReducerNativeScenarios({
+        projectRoot: root,
+        scenarioPath: "test/scenarios/no-default.scenario.ts",
       }),
-    ).rejects.toMatchObject({ code: "INVALID_SCENARIO_SELECTOR" });
+    ).rejects.toMatchObject({
+      code: "INVALID_SCENARIO_EXPORT",
+      scenarioPath: "test/scenarios/no-default.scenario.ts",
+    });
+  });
+
+  test("rejects a canonical-looking selector that resolves outside the scenario tree", async () => {
+    const root = await createScenarioProject();
+    await writeFile(
+      path.join(root, "app", "outside.scenario.ts"),
+      "export default {};\n",
+    );
+    await symlink(
+      path.join("..", "..", "app", "outside.scenario.ts"),
+      path.join(root, "test", "scenarios", "linked.scenario.ts"),
+    );
+
+    await expect(
+      discoverReducerNativeScenarioPaths({
+        projectRoot: root,
+        scenarioPath: "test/scenarios/linked.scenario.ts",
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_SCENARIO_SELECTOR",
+      scenarioPath: "test/scenarios/linked.scenario.ts",
+      selectorReason: "outsideRoot",
+    });
   });
 
   test("preserves SDK validation code and path from module evaluation", async () => {
@@ -171,6 +275,59 @@ describe("scenario loader", () => {
       causeName: "ScenarioDefinitionValidationError",
       causeCode: "UNKNOWN_INTERACTION",
       validationPath: "scenario.when[0].interactionId",
+    });
+  });
+});
+
+describe("scenario inspection service", () => {
+  test("runs inspect and explore through the selected source-closure bundle", async () => {
+    const root = await createScenarioProject();
+    await writeScenario(root, "observe.scenario.ts", { id: "observe" });
+    const common = {
+      projectRoot: root,
+      scenarioPath: "test/scenarios/observe.scenario.ts",
+      perspective: { kind: "player" as const, seat: 0 },
+      checkpoint: { segment: "given" as const, count: 0 },
+    };
+
+    await expect(inspectReducerNativeScenario(common)).resolves.toMatchObject({
+      schemaVersion: 1,
+      node: {
+        checkpoint: { segment: "given", completed: 0 },
+        perspective: { kind: "player", seat: 0 },
+      },
+    });
+    await expect(
+      exploreReducerNativeScenario({
+        ...common,
+        limit: 50,
+        maxEvaluations: 5_000,
+      }),
+    ).resolves.toMatchObject({
+      schemaVersion: 1,
+      mode: "transitions",
+      candidates: [],
+      page: { limit: 50, nextCursor: null },
+    });
+  });
+
+  test("rejects checkpoint bounds before SDK replay", async () => {
+    const root = await createScenarioProject();
+    await writeScenario(root, "bounds.scenario.ts", { id: "bounds" });
+
+    await expect(
+      inspectReducerNativeScenario({
+        projectRoot: root,
+        scenarioPath: "test/scenarios/bounds.scenario.ts",
+        perspective: { kind: "player", seat: 0 },
+        checkpoint: { segment: "given", count: 1 },
+      }),
+    ).rejects.toMatchObject({
+      name: "TestFamilyCommandError",
+      problem: {
+        code: "TEST_CHECKPOINT_INVALID",
+        context: { maximumCompleted: 0 },
+      },
     });
   });
 });
@@ -220,21 +377,16 @@ describe("scenario test runner", () => {
     });
   });
 
-  test("reports assertion failures against their scenario source", async () => {
+  test("does not classify arbitrary assertion exceptions as scenario failures", async () => {
     const root = await createScenarioProject();
     await writeScenario(root, "assertion.scenario.ts", {
       id: "assertion",
       assertionError: "expected a visible card",
     });
 
-    const summary = await runReducerNativeScenarios({ projectRoot: root });
-
-    expect(summary.results[0]).toMatchObject({
-      id: "assertion",
-      scenarioPath: "test/scenarios/assertion.scenario.ts",
-      success: false,
-      error: "expected a visible card",
-    });
+    await expect(
+      runReducerNativeScenarios({ projectRoot: root }),
+    ).rejects.toThrow("expected a visible card");
   });
 });
 
@@ -258,6 +410,7 @@ async function createScenarioProject(): Promise<string> {
       type: "module",
       exports: {
         "./testing": "./testing.js",
+        "./testing-runtime": "./testing-runtime.js",
         "./package.json": "./package.json",
       },
     }),
@@ -265,6 +418,16 @@ async function createScenarioProject(): Promise<string> {
   await writeFile(
     path.join(root, "node_modules", "@dreamboard-games", "sdk", "testing.js"),
     fakeSdkTestingSource,
+  );
+  await writeFile(
+    path.join(
+      root,
+      "node_modules",
+      "@dreamboard-games",
+      "sdk",
+      "testing-runtime.js",
+    ),
+    fakeSdkTestingRuntimeSource,
   );
   await writeFile(
     path.join(root, "app", "game.ts"),
@@ -429,5 +592,66 @@ export async function replayScenario({ game, scenario }) {
 export async function assertScenario({ replay, assertion }) {
   if (!replay.complete) throw new Error("partial replay");
   await assertion({});
+}
+
+export async function inspectScenario({ scenario, perspective, at }) {
+  return {
+    schemaVersion: 1,
+    node: {
+      checkpoint: at,
+      checkpointDigest: "sha256:fixture",
+      flow: { phase: "main" },
+      perspective,
+      view: null,
+      interactions: [],
+    },
+  };
+}
+
+export async function exploreScenario({ scenario, perspective, at }) {
+  return {
+    schemaVersion: 1,
+    mode: "transitions",
+    scenario: { id: scenario.id },
+    perspective,
+    node: {
+      checkpoint: at,
+      checkpointDigest: "sha256:fixture",
+    },
+    candidates: [],
+    omissions: [],
+    page: { limit: 50, evaluated: 0, truncated: false, nextCursor: null },
+  };
+}
+
+`;
+
+const fakeSdkTestingRuntimeSource = `
+export function resolveScenarioCommandParams({ params }) {
+  return params;
+}
+
+export function scenarioProjectionInputMetadata(input) {
+  return { key: input.key, kind: input.kind, eligibleCount: 0 };
+}
+
+export function scenarioProjectionParityFromInspectNode(node) {
+  return {
+    perspective: { seat: node.perspective.seat },
+    flow: {
+      phase: node.flow.phase,
+      step: null,
+      activeSeats: [],
+      pendingSeats: [],
+      continuationWaiterSeats: [],
+      blockedBy: [],
+    },
+    view: node.view,
+    interactions: [],
+  };
+}
+
+export function digestScenarioProjection(projection) {
+  return JSON.stringify(projection);
 }
 `;

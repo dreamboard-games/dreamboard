@@ -1,5 +1,4 @@
 import {
-  ExitCode,
   commandSuccess,
   type CommandResult,
   type JsonValue,
@@ -8,8 +7,12 @@ import { defineCommand, type CommandDef } from "citty";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import { resolveProjectContext } from "../config/resolve.js";
 import { parseConfigFlags, type ConfigFlags } from "../flags.js";
-import { assertReleaseEnvironmentPortableDependencies } from "../services/project/dependency-portability.js";
 import {
+  assertCompilerPortableDependencies,
+  assertReleaseEnvironmentPortableDependencies,
+} from "../services/project/dependency-portability.js";
+import {
+  findReducerNativeTestingWorkspace,
   isReducerNativeTestingWorkspace,
   runReducerNativeScenarios,
 } from "../services/testing/reducer-native-test-harness.js";
@@ -18,6 +21,10 @@ import {
   toTestCommandResult,
   type TestRunResult,
 } from "../services/testing/test-command-result.js";
+import {
+  exploreReducerNativeScenario,
+  inspectReducerNativeScenario,
+} from "../services/testing/scenario-inspection-service.js";
 
 export type TestCommandArgs = ConfigFlags & {
   operation?: string;
@@ -53,7 +60,7 @@ export type TestExploreServiceRequest = TestInspectServiceRequest & {
     readonly start: number;
     readonly end: number;
   };
-  readonly limit: number;
+  readonly limit?: number;
   readonly maxEvaluations: number;
   readonly cursor?: string;
 };
@@ -105,6 +112,8 @@ async function assertReducerNativeTestingWorkspace(
 }
 
 export type TestCommandDeps = {
+  findTestingWorkspace?: typeof findReducerNativeTestingWorkspace;
+  assertLocalPortableDependencies?: typeof assertCompilerPortableDependencies;
   resolveProjectContext?: typeof resolveProjectContext;
   assertPortableDependencies?: typeof assertReleaseEnvironmentPortableDependencies;
   assertTestingWorkspace?: typeof assertReducerNativeTestingWorkspace;
@@ -115,25 +124,7 @@ export async function runTestCommand(
   args: TestCommandArgs,
   deps: TestCommandDeps = {},
 ): Promise<CommandResult<TestRunResult>> {
-  const parsedFlags = parseConfigFlags(args);
-
-  const { projectRoot, projectConfig, config } = await (
-    deps.resolveProjectContext ?? resolveProjectContext
-  )(parsedFlags, {
-    requireAuth: false,
-  });
-  await (
-    deps.assertPortableDependencies ??
-    assertReleaseEnvironmentPortableDependencies
-  )({
-    projectRoot,
-    projectConfig,
-    environment: config.environment,
-  });
-
-  await (deps.assertTestingWorkspace ?? assertReducerNativeTestingWorkspace)(
-    projectRoot,
-  );
+  const projectRoot = await resolveTestingProject(args, deps);
 
   const summary = await (deps.runScenarios ?? runReducerNativeScenarios)({
     projectRoot,
@@ -176,10 +167,8 @@ export async function runTestFamilyCommand(
 
   if (args.operation === "inspect") {
     assertNoExploreOnlyArgs(args, "test.inspect");
-    const inspectScenario = deps.inspectScenario;
-    if (!inspectScenario) {
-      throw unavailableServiceError("test.inspect");
-    }
+    const inspectScenario =
+      deps.inspectScenario ?? inspectReducerNativeScenario;
     const projectRoot = await resolveTestingProject(args, deps);
     return commandSuccess(
       command,
@@ -204,15 +193,27 @@ export async function runTestFamilyCommand(
       },
     });
   }
-  const limit = parseExploreLimit(args.limit, "test.explore");
+  if (
+    seedRange !== undefined &&
+    (args.limit !== undefined || args.cursor !== undefined)
+  ) {
+    throw testValidationError(command, {
+      title: "Seed-range exploration does not use transition pagination",
+      code: "TEST_EXPLORE_LIMIT_INVALID",
+      context: {
+        option: args.limit !== undefined ? "limit" : "cursor",
+      },
+    });
+  }
+  const limit =
+    seedRange === undefined
+      ? parseExploreLimit(args.limit, "test.explore")
+      : undefined;
   const maxEvaluations = parseMaxEvaluations(
     args["max-evaluations"],
     "test.explore",
   );
-  const exploreScenario = deps.exploreScenario;
-  if (!exploreScenario) {
-    throw unavailableServiceError("test.explore");
-  }
+  const exploreScenario = deps.exploreScenario ?? exploreReducerNativeScenario;
   const projectRoot = await resolveTestingProject(args, deps);
   return commandSuccess(
     command,
@@ -223,9 +224,9 @@ export async function runTestFamilyCommand(
       checkpoint,
       seed,
       seedRange,
-      limit,
+      ...(limit === undefined ? {} : { limit }),
       maxEvaluations,
-      cursor: args.cursor,
+      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
     }),
   );
 }
@@ -234,6 +235,19 @@ async function resolveTestingProject(
   args: TestCommandArgs,
   deps: TestCommandDeps,
 ): Promise<string> {
+  const localWorkspace = await (
+    deps.findTestingWorkspace ?? findReducerNativeTestingWorkspace
+  )(process.cwd());
+  if (localWorkspace) {
+    await (
+      deps.assertLocalPortableDependencies ?? assertCompilerPortableDependencies
+    )({ projectRoot: localWorkspace });
+    await (deps.assertTestingWorkspace ?? assertReducerNativeTestingWorkspace)(
+      localWorkspace,
+    );
+    return localWorkspace;
+  }
+
   const parsedFlags = parseConfigFlags(args);
   const { projectRoot, projectConfig, config } = await (
     deps.resolveProjectContext ?? resolveProjectContext
@@ -463,20 +477,6 @@ function parseBoundedPositiveInteger(options: {
   });
 }
 
-function unavailableServiceError(
-  command: "test.inspect" | "test.explore",
-): TestFamilyCommandError {
-  return new TestFamilyCommandError({
-    command,
-    problem: {
-      title: "The scenario observation service is unavailable",
-      code: "TEST_UNEXPECTED",
-      context: { category: "observation-service-unavailable" },
-    },
-    exitCode: ExitCode.Unexpected,
-  });
-}
-
 function testValidationError(
   command: "test" | "test.inspect" | "test.explore",
   problem: ConstructorParameters<typeof TestFamilyCommandError>[0]["problem"],
@@ -488,7 +488,8 @@ export function createTestCommand(deps: TestCommandDeps = {}): CommandDef<any> {
   return defineCommand({
     meta: {
       name: "test",
-      description: "Replay, inspect, or explore authored scenarios as JSON",
+      description:
+        "Replay, inspect, or explore authored scenarios as one JSON envelope by default",
     },
     args: {
       operation: {

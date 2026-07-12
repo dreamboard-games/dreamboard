@@ -7,7 +7,7 @@ Reference for Dreamboard workflows and commands.
 
 Dreamboard manages the Git-native authored workspace loop: authenticate,
 create or clone a project, verify exact commits, build or preview pushed
-commits, run a local dev host, and test reducer scenarios.
+commits, and author reducer scenarios through one JSON-first test workflow.
 
 ## Responsibility
 
@@ -19,7 +19,7 @@ Use Dreamboard for:
 - verifying an exact commit from a detached worktree
 - building, previewing, and publishing pushed commits
 - starting the local dev host
-- running offline reducer tests
+- authoring, inspecting, exploring, and replaying offline reducer scenarios
 
 ## Install targets
 
@@ -37,12 +37,14 @@ Use this sequence for the normal authored loop:
 1. `dreamboard auth login`
 2. `dreamboard project create ...` or `dreamboard project clone ...`
 3. edit `rule.md`, `manifest.json`, and authored source files
-4. commit with Git and push to the configured remote
-5. `dreamboard project status --commit <rev> --wait`
-6. `dreamboard verify --commit <rev>`
-7. `dreamboard test`
-8. `dreamboard build --commit <rev>`
-9. `dreamboard preview --commit <rev>`
+4. author and prove scenarios with `dreamboard test inspect`,
+   `dreamboard test explore`, and `dreamboard test`
+5. optionally open an authored prefix with `dreamboard dev --from-scenario`
+6. commit with Git and push to the configured remote
+7. `dreamboard project status --commit <rev> --wait`
+8. `dreamboard verify --commit <rev>`
+9. `dreamboard build --commit <rev>`
+10. `dreamboard preview --commit <rev>`
 
 ## Workspace commands
 
@@ -65,19 +67,22 @@ dreamboard project status --commit HEAD --wait
 dreamboard verify --commit HEAD
 ```
 
-## Commit commands
+## Authoring and release commands
 
-Use commit commands after the commit has been pushed to the configured Git
-remote.
+Scenario and dev commands run against local authored source. Build, preview,
+and release commands use a pushed commit.
 
-| Command                                           | Use it for                                |
-| ------------------------------------------------- | ----------------------------------------- |
-| `dreamboard test`                                 | Run offline reducer tests                 |
-| `dreamboard dev [--from-scenario <id>]`           | Start the local project dev host          |
-| `dreamboard build --commit <rev>`                 | Create a server build for a pushed commit |
-| `dreamboard preview --commit <rev>`               | Create a preview for a pushed commit      |
-| `dreamboard release publish --commit <rev> --yes` | Publish an explicit release               |
-| `dreamboard release current`                      | Show the current release pointer          |
+| Command                                                 | Use it for                                |
+| ------------------------------------------------------- | ----------------------------------------- |
+| `dreamboard test`                                       | Replay all scenarios and run assertions   |
+| `dreamboard test --scenario <path>`                     | Replay one scenario file                  |
+| `dreamboard test inspect <path> --perspective <value>`  | Observe one replay node                   |
+| `dreamboard test explore <path> --perspective <value>`  | Enumerate accepted next commands          |
+| `dreamboard dev [--from-scenario <path>] [--at <node>]` | Start the local project dev host          |
+| `dreamboard build --commit <rev>`                       | Create a server build for a pushed commit |
+| `dreamboard preview --commit <rev>`                     | Create a preview for a pushed commit      |
+| `dreamboard release publish --commit <rev> --yes`       | Publish an explicit release               |
+| `dreamboard release current`                            | Show the current release pointer          |
 
 ```bash
 dreamboard test
@@ -86,14 +91,78 @@ dreamboard build --commit HEAD
 dreamboard preview --commit HEAD
 ```
 
-## Test commands
+## Scenario commands
 
-Use the scaffolded reducer-native test workspace for repeatable game assertions.
+The `test` family emits exactly one newline-terminated JSON envelope to stdout
+by default. Successful stderr is empty. Recognized failures also use one JSON
+envelope, a stable `problem.code`, typed context, empty stderr, and a nonzero
+exit code.
+
+Start with a scenario file whose `setup`, `given`, and `when` fields describe a
+normal reducer replay. Observe the current prefix:
 
 ```bash
-dreamboard test
+dreamboard test inspect test/scenarios/player-two-wins.scenario.ts \
+  --perspective player:1 --at when:0
+```
+
+Enumerate concrete accepted commands from the same node:
+
+```bash
+dreamboard test explore test/scenarios/player-two-wins.scenario.ts \
+  --perspective player:1 --at when:0 \
+  --limit 50 --max-evaluations 5000
+```
+
+Copy a returned `candidates[].command` into `given` or `when`, then prove the
+authored file:
+
+```bash
 dreamboard test --scenario test/scenarios/player-two-wins.scenario.ts
 ```
+
+`--perspective` is required for inspection and exploration. It accepts exactly
+`player:<zero-based-seat>` or `spectator`. A spectator receives no player
+command candidates.
+
+`--at` accepts exactly `setup`, `given:<n>`, or `when:<n>`, where `n` is the
+number of completed commands. The default is the end of `given`.
+
+Transition exploration uses deterministic limits:
+
+- `--limit <n>`: page size 1 to 200; default 50
+- `--max-evaluations <n>`: evaluation budget 1 to 5,000; default 5,000
+- `--cursor <value>`: opaque cursor returned by the previous page
+
+Inspect or explore one alternate normal seed with `--seed <safe-integer>`. To
+compare seeded branches, use an inclusive range of at most 64 safe integers:
+
+```bash
+dreamboard test explore test/scenarios/random-setup.scenario.ts \
+  --perspective player:0 --at setup --seed-range 1:64
+```
+
+Seed options are diagnostic overrides and never edit source. `--seed` and
+`--seed-range` cannot be combined. Persist the selected number in
+`scenario.setup.seed`, copy the returned canonical command, and rerun the full
+test.
+
+Stable test-family failure codes are:
+
+- `TEST_SCENARIO_NOT_FOUND`
+- `TEST_SCENARIO_DUPLICATE_ID`
+- `TEST_SCENARIO_INVALID`
+- `TEST_CHECKPOINT_INVALID`
+- `TEST_SCENARIO_REPLAY_REJECTED`
+- `TEST_SCENARIOS_FAILED`
+- `TEST_PERSPECTIVE_INVALID`
+- `TEST_SEED_RANGE_INVALID`
+- `TEST_EXPLORE_CURSOR_STALE`
+- `TEST_EXPLORE_LIMIT_INVALID`
+- `TEST_JSON_EVENTS_UNSUPPORTED`
+- `TEST_UNEXPECTED`
+
+Branch on the code and typed `problem.context`, not the message text.
 
 ## Start local server
 
@@ -101,4 +170,17 @@ dreamboard test --scenario test/scenarios/player-two-wins.scenario.ts
 dreamboard dev
 ```
 
-See [Testing](./testing.md) for the scenario and base-file format.
+Open a normal backend session at an authored prefix when visual work is useful:
+
+```bash
+dreamboard dev \
+  --from-scenario test/scenarios/player-two-wins.scenario.ts \
+  --at given:5
+```
+
+The scenario path is project-relative. The default checkpoint is the end of
+`given`; backend setup and commands are replayed normally, and scenario
+assertions are not run.
+
+See [Testing](./testing.md) for the scenario format, result fields,
+privacy boundary, and complete agent workflow.

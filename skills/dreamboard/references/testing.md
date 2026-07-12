@@ -3,240 +3,332 @@
 
 # Testing
 
-Reference for Dreamboard's reducer-native test framework.
+Author, inspect, explore, and replay reducer-native Dreamboard scenarios.
 
-Dreamboard's scaffolded test workspace is reducer-native. It uses typed base
-definitions and typed scenarios that run against your compiled reducer and
-generated contracts.
+Dreamboard uses one executable scenario format for authoring and proof. A
+scenario starts from normal game setup, replays accepted commands through the
+production reducer, and runs typed assertions:
 
-## Responsibility
+- `dreamboard test` proves the authored scenario.
+- `dreamboard test inspect` observes a node in that same replay.
+- `dreamboard test explore` enumerates accepted next commands from that node.
+- `dreamboard dev --from-scenario` can open a real local session at the same
+  authored prefix.
 
-Use the scaffolded test workspace for:
-
-- reusable seeded base states
-- reducer and view assertions
-- happy-path coverage
-- rejection and turn-gating coverage
-- deterministic regression testing in CI or local development
+Every command in the `test` family writes exactly one newline-terminated JSON
+envelope to stdout by default. Successful commands leave stderr empty. A
+recognized failure also writes one JSON envelope to stdout, leaves stderr
+empty, and exits nonzero.
 
 ## Workspace layout
 
-The current scaffold uses these paths:
+The scaffolded test surface is intentionally small:
 
 - `test/README.md`
-- `test/bases/*.base.ts`
-- `test/scenarios/*.scenario.ts`
 - `test/testing-types.ts`
-- `test/generated/*`
+- `test/scenarios/**/*.scenario.ts`
 
-Generated files under `test/generated/*` are owned by Dreamboard and should not
-be edited manually.
-
-## Command flow
-
-Run all scenarios:
-
-```bash
-dreamboard test
-```
-
-Run one scenario:
-
-```bash
-dreamboard test --scenario test/scenarios/win-the-game.scenario.ts
-```
-
-`dreamboard test` regenerates reducer-native artifacts automatically when
-changes affect the runtime shape of the game, including:
-
-- `manifest.json`
-- reducer code under `app/`
-- setup-profile behavior
-- generated contract output
-
-## Base definitions
-
-A base is a named, seeded checkpoint that scenarios can reuse.
-
-Use `defineBase(...)` from `test/testing-types.ts`.
-
-| Field | Required | Notes |
-| --- | --- | --- |
-| `id` | Yes | Stable base identifier referenced by scenarios |
-| `seed` | Yes | Deterministic random seed |
-| `players` | Yes | Player count used for that base |
-| `setup` | Yes | Async setup callback that prepares the checkpoint |
+`test/testing-types.ts` binds the authoring types to your game:
 
 ```ts
-import { defineBase } from "../testing-types";
+import game from "../app/game";
+import { createScenarioAuthoring } from "@dreamboard-games/sdk/testing";
 
-export default defineBase({
-  id: "initial-turn",
-  seed: 1337,
-  players: 2,
-  setup: async ({ game }) => {
-    await game.start();
-  },
-});
+export const { defineScenario } = createScenarioAuthoring(game);
 ```
 
-The base `seed` drives runtime-owned randomness. Effects such as
-`effects.rollDie(...)`, `effects.randomInt(...)`, `effects.sample(...)`, and
-`effects.shuffleSharedZone(...)` consume the seeded reducer RNG, so repeated
-test runs with the same base seed are reproducible.
+Each scenario file default-exports exactly one definition. Scenario IDs must be
+unique across the workspace, but commands select scenarios by normalized,
+project-relative file path.
 
-Use bases for:
-
-- opening-state invariants
-- post-setup checkpoints shared by many scenarios
-- seeded states that would be noisy to rebuild inline
-
-Keep bases small and composable. A base should represent one meaningful
-checkpoint, not a full playthrough.
-
-## Scenario definitions
-
-Scenarios are typed files under `test/scenarios/*.scenario.ts`.
-
-Use `defineScenario(...)` from `test/testing-types.ts`.
-
-| Field | Required | Notes |
-| --- | --- | --- |
-| `id` | Yes | Scenario identifier |
-| `description` | No | Short human-readable summary |
-| `from` | Yes | Base ID from `test/bases/*.base.ts` |
-| `when` | Yes | Async action flow |
-| `then` | Yes | Assertions over state, view, and history |
+## Author a scenario
 
 ```ts
 import { defineScenario } from "../testing-types";
 
 export default defineScenario({
-  id: "player-two-wins",
-  description: "The deterministic roll sequence lets player 2 reach ten first",
-  from: "initial-turn",
-  when: async ({ game }) => {
-    await game.action("player-1", "rollDie", {});
-    await game.action("player-2", "rollDie", {});
-    await game.action("player-1", "rollDie", {});
-    await game.action("player-2", "rollDie", {});
-    await game.action("player-1", "rollDie", {});
-    await game.action("player-2", "rollDie", {});
-  },
-  then: ({ publicState, view, expect, history }) => {
-    const state = publicState();
+  id: "mosaic.master-share",
+  description: "A master worker can share an occupied space",
+  setup: { players: 2, seed: 17 },
+  given: [
+    {
+      actor: { seat: 0 },
+      interactionId: "placeWorker",
+      params: { workerId: "ordinary-1", spaceId: "timberYard" },
+    },
+  ],
+  when: [
+    {
+      actor: { seat: 1 },
+      interactionId: "placeWorker",
+      params: { workerId: "master", spaceId: "timberYard" },
+    },
+  ],
+  then: async ({ expect, view, probe }) => {
+    expect(view({ seat: 1 })).toMatchObject({ resources: { wood: 3 } });
 
-    expect(state.lastRoll).toBe(6);
-    expect(state.scores["player-1"]).toBe(9);
-    expect(state.scores["player-2"]).toBe(12);
-    expect(state.winnerPlayerId).toBe("player-2");
-    expect(view("player-2").winnerPlayerId).toBe("player-2");
-    expect(history().accepted().length).toBe(6);
+    const wrongActor = await probe({
+      actor: { seat: 1 },
+      interactionId: "placeWorker",
+      params: { workerId: "ordinary-2", spaceId: "stoneYard" },
+    });
+    await expect(wrongActor).toRejectWith({ errorCode: "NOT_YOUR_TURN" });
   },
 });
 ```
 
-## Scenario context
+The fields have these meanings:
 
-`when(...)` and `then(...)` receive typed helpers from `test/testing-types.ts`.
+| Field                  | Meaning                                                       |
+| ---------------------- | ------------------------------------------------------------- |
+| `id`                   | Stable, workspace-unique scenario identifier                  |
+| `description`          | Optional source-level explanation                             |
+| `setup.players`        | Player count used by normal setup                             |
+| `setup.seed`           | Safe-integer seed for runtime-owned randomness                |
+| `setup.setupProfileId` | Optional manifest-owned setup profile                         |
+| `given`                | Accepted commands that establish the behavior's starting node |
+| `when`                 | Accepted commands that perform the behavior under test        |
+| `then`                 | Assertions run after the complete replay                      |
 
-### `game`
+Commands are serializable data. Actors and player-valued parameters use
+zero-based seat references such as `{ seat: 1 }`, so source does not depend on
+runtime-generated player IDs. Both command arrays may be empty while an agent
+is discovering the first step.
 
-`game` is the typed scenario driver.
+Every command in `given` and `when` must be accepted. Use `probe(command)` for
+negative assertions. Each probe dispatches on a fresh clone and cannot change
+the scenario checkpoint or another probe.
 
-Use it to:
+## Run scenarios
 
-- `start()` the game inside base setup
-- `action(playerId, actionType, params)` for reducer actions
-- `action(playerId, command)` for generated command objects
-- `respond(...)` for prompts
-- `windowAction(...)` for reducer-owned window actions
-- `expectPrompt(...)` and `expectWindow(...)` when testing prompt/window flow
+Run every discovered scenario:
 
-### Shared state helpers
+```bash
+dreamboard test
+```
 
-Use these in `when(...)` and `then(...)`:
+Run one scenario by path:
 
-| Helper | Notes |
-| --- | --- |
-| `phase()` | Current reducer phase name |
-| `publicState()` | Current shared reducer state |
-| `view(playerId)` | Projected player view |
-| `runtime()` | Runtime metadata |
-| `history()` | Accepted and rejected inputs |
-| `expect(...)` | Built-in assertion API |
+```bash
+dreamboard test --scenario test/scenarios/mosaic-master-share.scenario.ts
+```
 
-`then(...)` also exposes `hiddenState()` unless the active runner omits hidden
-state access.
+The success envelope contains a deterministic, versioned result with totals
+and one entry per scenario. Entries are ordered by normalized path and then ID.
+If any scenario fails, the failure envelope includes the same complete summary
+in `problem.data` and exits nonzero; an agent never needs to parse a PASS/FAIL
+transcript.
 
-## Generated testing types
+## Checkpoints
 
-The scaffold writes `test/testing-types.ts` as the test-facing import surface.
+`inspect`, `explore`, and scenario-backed `dev` accept this exact `--at`
+grammar:
 
-It re-exports:
+- `setup`
+- `given:<n>`
+- `when:<n>`
 
-- `defineBase(...)`
-- `defineScenario(...)`
-- `phaseCommands`
-- `windowCommands`
-- reducer-derived types such as `GameState`, `GameView`, `ActionName`, and
-  `PromptId`
+`n` is the number of commands completed, not a zero-based source index.
+`given:0` is immediately after normal setup. `given:3` is after the first three
+`given` commands. `when:0` is after every `given` command and before the first
+`when` command.
 
-Import from `../testing-types` instead of reaching into `test/generated/*`
-directly.
+For `inspect` and `explore`, omitting `--at` selects the end of `given`. An
+invalid segment or command count fails with `TEST_CHECKPOINT_INVALID` and
+reports the valid bounds.
+
+## Perspectives
+
+Observation always requires exactly one perspective:
+
+- `--perspective player:<zero-based-seat>`
+- `--perspective spectator`
+
+A player receives only that player's normal view, visible descriptors,
+explanations, and command candidates. A spectator receives the spectator view
+and no player commands. Query each acting seat separately when authoring a
+multiplayer path; there is no combined private view.
+
+## Inspect a replay node
+
+```bash
+dreamboard test inspect test/scenarios/mosaic-master-share.scenario.ts \
+  --perspective player:1 --at given:1
+```
+
+The JSON result includes the selected scenario identity, checkpoint and
+digest, public state, exact perspective view, flow diagnostics, visible
+`interactions`, performable `actions`, structured entropy draws, and a
+perspective-safe dispatch trace.
+
+`interactions` are the descriptors visible to that perspective, including
+authoritative availability and explanations. `actions` is the subset proven
+to have at least one complete legal input assignment now. Use `explore` to
+materialize those assignments as concrete commands.
+
+Flow diagnostics report scheduler-derived active actors, unresolved actors,
+continuation waiters, and causal `blockedBy` edges. Games do not author these
+diagnostics. An ordinary inactive player is not described as blocked merely
+because another player owns the turn.
+
+Inspection never serializes the authoritative private reducer snapshot, joins
+player views, or exposes hidden random samples.
+
+## Explore accepted next commands
+
+```bash
+dreamboard test explore test/scenarios/mosaic-master-share.scenario.ts \
+  --perspective player:1 --at given:1 \
+  --limit 50 --max-evaluations 5000
+```
+
+Transition exploration enumerates complete input assignments through the
+trusted collector/domain layer, dispatches each one on a fresh clone, and
+returns only accepted commands. Candidates are ordered deterministically by
+interaction declaration order and canonical parameter bytes.
+
+The response includes:
+
+- `candidates[].command`, the canonical seat-based object to copy into
+  `given` or `when`
+- `candidates[].after`, digests and diagnostics for the speculative next node
+- `omissions`, for lazy or non-enumerable input domains
+- `page.nextCursor`, when another deterministic page exists
+
+Pagination and evaluation limits are fixed:
+
+| Option              | Default |    Allowed |
+| ------------------- | ------: | ---------: |
+| `--limit`           |      50 |   1 to 200 |
+| `--max-evaluations` |   5,000 | 1 to 5,000 |
+
+Pass the opaque cursor back unchanged to continue:
+
+```bash
+dreamboard test explore test/scenarios/mosaic-master-share.scenario.ts \
+  --perspective player:1 --at given:1 \
+  --limit 50 --max-evaluations 5000 --cursor '<nextCursor>'
+```
+
+A cursor is bound to the source digest, checkpoint, perspective, seed
+override, and enumeration version. Editing the scenario or changing those
+inputs makes it stale instead of silently changing the page.
+
+Copy a returned command without translating its shape:
+
+```json
+{
+  "actor": { "seat": 1 },
+  "interactionId": "placeWorker",
+  "params": { "workerId": "master", "spaceId": "timberYard" }
+}
+```
+
+Paste it into the scenario, then rerun `dreamboard test`. Exploration never
+writes the scenario or persists a speculative state.
+
+## Discover seeded branches
+
+Use an ephemeral seed override to inspect or explore one seed without editing
+source:
+
+```bash
+dreamboard test inspect test/scenarios/random-setup.scenario.ts \
+  --perspective player:0 --at setup --seed 17
+```
+
+Use seed exploration to compare an inclusive range:
+
+```bash
+dreamboard test explore test/scenarios/random-setup.scenario.ts \
+  --perspective player:0 --at setup --seed-range 1:64
+```
+
+Both endpoints must be safe integers. A range may contain at most 64 seeds and
+is ordered ascending. `--seed` and `--seed-range` cannot be combined. Each
+variant reports only the selected perspective's observable state, action
+signature, structured entropy trace, and any replay rejection.
+
+Seed discovery is generic: it works for shuffled decks, random setup, dice,
+automa choices, and other reducer-owned randomness. After choosing a branch,
+rerun `inspect` or `explore` with `--seed <n>`, then persist that number in
+`scenario.setup.seed`. The override itself is never test authority.
+
+## Agent authoring loop
+
+Use this one loop for deterministic and random games:
+
+```bash
+# 1. Observe the current authored prefix.
+dreamboard test inspect test/scenarios/complete-game.scenario.ts \
+  --perspective player:0
+
+# 2. If setup consumes randomness, compare normal seeded replays.
+dreamboard test explore test/scenarios/complete-game.scenario.ts \
+  --perspective player:0 --at setup --seed-range 1:64
+
+# 3. Check one selected seed without changing source.
+dreamboard test inspect test/scenarios/complete-game.scenario.ts \
+  --perspective player:0 --at setup --seed 17
+
+# 4. Enumerate accepted commands at the current prefix.
+dreamboard test explore test/scenarios/complete-game.scenario.ts \
+  --perspective player:0 --at given:3 --seed 17 --limit 50
+
+# 5. Copy candidates[...].command into source, persist setup.seed, and prove it.
+dreamboard test --scenario test/scenarios/complete-game.scenario.ts
+
+# 6. Optionally open the same prefix in a normal local backend session.
+dreamboard dev \
+  --from-scenario test/scenarios/complete-game.scenario.ts \
+  --at given:3
+```
+
+If the acting seat changes, rerun `inspect` or `explore` with that player's
+perspective. Keep extending the same scenario until the rule branch or complete
+game arc is proven.
+
+`dreamboard dev --from-scenario` performs normal setup and replays the selected
+accepted prefix through backend dispatch. It defaults to the end of `given`,
+does not run `then`, and does not write a snapshot back to source.
+
+## Stable failure codes
+
+Agents should branch on `problem.code` and typed `problem.context`, not message
+text.
+
+| Code                            | Meaning                                                           |
+| ------------------------------- | ----------------------------------------------------------------- |
+| `TEST_SCENARIO_NOT_FOUND`       | The requested project-relative scenario path was not found        |
+| `TEST_SCENARIO_DUPLICATE_ID`    | More than one discovered scenario has the same ID                 |
+| `TEST_SCENARIO_INVALID`         | A scenario path, export, or field is invalid                      |
+| `TEST_CHECKPOINT_INVALID`       | `--at` does not name a valid replay node                          |
+| `TEST_SCENARIO_REPLAY_REJECTED` | An authored `given` or `when` command was rejected                |
+| `TEST_SCENARIOS_FAILED`         | One or more full scenario assertions failed                       |
+| `TEST_PERSPECTIVE_INVALID`      | The perspective syntax or player seat is invalid                  |
+| `TEST_SEED_RANGE_INVALID`       | The seed range is malformed, too wide, or conflicts with `--seed` |
+| `TEST_EXPLORE_CURSOR_STALE`     | The cursor no longer matches replay authority                     |
+| `TEST_EXPLORE_LIMIT_INVALID`    | A pagination or evaluation limit is outside its allowed range     |
+| `TEST_JSON_EVENTS_UNSUPPORTED`  | Streaming JSON events were requested for a one-envelope command   |
+| `TEST_UNEXPECTED`               | A recognized test-family operation failed unexpectedly            |
+
+Failure context identifies the relevant path, field, checkpoint bounds,
+perspective seats, source command, range, cursor authority, or limit. Replay
+rejections include the segment, zero-based source index, interaction ID, and
+reducer error code.
 
 ## Recommended coverage
 
-Every game should have at least:
+Author scenarios from normal setup for:
 
-- one opening-state scenario that asserts the initial phase, active player, and
-  starting view
-- one happy-path scenario that completes a typical turn or round
-- one winning-condition scenario
-- one rejection scenario for out-of-turn or otherwise illegal input
+- opening projections and action availability
+- representative turns, rounds, prompts, or response windows
+- important rule branches and complete game outcomes
+- player-count and seat-order differences
+- deterministic seeded behavior
+- typed rejection probes such as wrong actor, insufficient resources, stale
+  input, or action after game end
 
-When the game uses prompts or windows, add at least one scenario that exercises
-that continuation path end to end.
-
-## Rejection-path coverage
-
-Rejection scenarios are part of the main test harness, not a separate workflow.
-
-Prefer direct reducer-native assertions for:
-
-- wrong player acting out of turn
-- wrong action for the current phase
-- invalid parameters
-- action attempts after game end
-- repeated submission of one-time actions
-
-Typical checks:
-
-```ts
-then: ({ phase, history, expect, publicState }) => {
-  expect(history().rejected().length).toBe(1);
-  expect(history().accepted().length).toBe(0);
-  expect(phase()).toBe("takeTurn");
-  expect(publicState().winnerPlayerId).toBe(null);
-};
-```
-
-## Failure and staleness signals
-
-If the generated test artifacts no longer match the compiled game, refresh them:
-
-- `dreamboard test`
-
-Common symptoms:
-
-- generated files missing under `test/generated/*`
-- type errors caused by stale generated contracts
-- scenario runs using an outdated runtime shape after reducer or manifest edits
-
-## Related workflows
-
-This page documents the scaffolded reducer-native test workspace.
-
-If you also use `dreamboard dev` for manual debugging or operational inspection,
-treat that as a separate workflow. It is useful for ad hoc runtime exploration,
-but it is not the primary authored test surface for a new Dreamboard project.
+Use pure unit tests for isolated algorithms such as scoring or graph
+connectivity. Use scenarios for reducer integration. Do not hydrate state or
+introduce a test-only setup path to shorten a game arc.

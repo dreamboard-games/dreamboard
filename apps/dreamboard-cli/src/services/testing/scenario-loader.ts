@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import {
@@ -9,6 +9,7 @@ import {
 const SCENARIO_SUFFIX = ".scenario.ts";
 const SCENARIO_ROOT = path.join("test", "scenarios");
 const SDK_TESTING_SPECIFIER = "@dreamboard-games/sdk/testing";
+const SDK_TESTING_RUNTIME_SPECIFIER = "@dreamboard-games/sdk/testing-runtime";
 const SDK_PACKAGE_JSON_SPECIFIER = "@dreamboard-games/sdk/package.json";
 
 const cliRequire = createRequire(import.meta.url);
@@ -29,10 +30,17 @@ export type ScenarioLoaderErrorCode =
   | "SCENARIO_LOAD_FAILED"
   | "SDK_VERSION_UNAVAILABLE";
 
+export type ScenarioSelectorReason =
+  | "notFound"
+  | "outsideRoot"
+  | "invalidExtension";
+
 export class ScenarioLoaderError extends Error {
   readonly code: ScenarioLoaderErrorCode;
+  readonly scenarioId?: string;
   readonly scenarioPath?: string;
   readonly scenarioPaths?: readonly string[];
+  readonly selectorReason?: ScenarioSelectorReason;
   readonly sourceDigest?: string;
   readonly sdkVersion?: string;
   readonly causeName?: string;
@@ -42,8 +50,10 @@ export class ScenarioLoaderError extends Error {
   constructor(options: {
     readonly code: ScenarioLoaderErrorCode;
     readonly message: string;
+    readonly scenarioId?: string;
     readonly scenarioPath?: string;
     readonly scenarioPaths?: readonly string[];
+    readonly selectorReason?: ScenarioSelectorReason;
     readonly sourceDigest?: string;
     readonly sdkVersion?: string;
     readonly causeName?: string;
@@ -54,8 +64,10 @@ export class ScenarioLoaderError extends Error {
     super(options.message, { cause: options.cause });
     this.name = "ScenarioLoaderError";
     this.code = options.code;
+    this.scenarioId = options.scenarioId;
     this.scenarioPath = options.scenarioPath;
     this.scenarioPaths = options.scenarioPaths;
+    this.selectorReason = options.selectorReason;
     this.sourceDigest = options.sourceDigest;
     this.sdkVersion = options.sdkVersion;
     this.causeName = options.causeName;
@@ -64,9 +76,67 @@ export class ScenarioLoaderError extends Error {
   }
 }
 
-type ScenarioDefinitionLike = {
+export type ScenarioCommandLike = {
+  readonly actor: { readonly seat: number };
+  readonly interactionId: string;
+  readonly params: Readonly<Record<string, unknown>>;
+};
+
+export type ScenarioDefinitionLike = {
   readonly id: string;
+  readonly setup: {
+    readonly players: number;
+    readonly seed: number;
+    readonly setupProfileId?: string | null;
+  };
+  readonly given: readonly ScenarioCommandLike[];
+  readonly when: readonly ScenarioCommandLike[];
   readonly then: (context: unknown) => void | Promise<void>;
+};
+
+export type ScenarioCheckpointLike =
+  | { readonly segment: "setup"; readonly completed: 0 }
+  | { readonly segment: "given" | "when"; readonly completed: number };
+
+export type ScenarioProjectionParityLike = {
+  readonly perspective: "spectator" | { readonly seat: number };
+  readonly flow: {
+    readonly phase: string;
+    readonly step: string | null;
+    readonly activeSeats: readonly number[];
+    readonly pendingSeats: readonly number[];
+    readonly continuationWaiterSeats: readonly number[];
+    readonly blockedBy: readonly {
+      readonly actorSeat: number;
+      readonly blockerSeats: readonly number[];
+    }[];
+  };
+  readonly view: unknown;
+  readonly interactions: readonly {
+    readonly actorSeat: number;
+    readonly interactionId: string;
+    readonly availability: {
+      readonly status: string;
+      readonly code?: string;
+      readonly reason?: string;
+    };
+    readonly inputs: readonly {
+      readonly key: string;
+      readonly kind: string;
+      readonly eligibleCount: number | "lazy";
+    }[];
+  }[];
+};
+
+export type InspectScenarioResultLike = {
+  readonly schemaVersion: 1;
+  readonly node: {
+    readonly checkpoint: ScenarioCheckpointLike;
+    readonly checkpointDigest: string;
+    readonly flow: {
+      readonly phase: string;
+    };
+  };
 };
 
 type ScenarioReplayErrorConstructor = new (...args: never[]) => Error;
@@ -74,11 +144,66 @@ type ScenarioReplayErrorConstructor = new (...args: never[]) => Error;
 type LoadedBundleModule = {
   readonly game: unknown;
   readonly scenario: unknown;
-  readonly replayDefinition: unknown;
+  readonly toScenarioReplayDefinition: (scenario: unknown) => unknown;
   readonly replayScenario: (options: {
     readonly game: unknown;
     readonly scenario: unknown;
   }) => Promise<unknown>;
+  readonly inspectScenario: (options: {
+    readonly game: unknown;
+    readonly scenario: unknown;
+    readonly identity: {
+      readonly id: string;
+      readonly path: string;
+      readonly sourceDigest: string;
+    };
+    readonly perspective:
+      | { readonly kind: "player"; readonly seat: number }
+      | { readonly kind: "spectator" };
+    readonly at?: ScenarioCheckpointLike;
+    readonly seed?: number;
+  }) => Promise<InspectScenarioResultLike>;
+  readonly exploreScenario: (options: {
+    readonly game: unknown;
+    readonly scenario: unknown;
+    readonly identity: {
+      readonly id: string;
+      readonly path: string;
+      readonly sourceDigest: string;
+    };
+    readonly perspective:
+      | { readonly kind: "player"; readonly seat: number }
+      | { readonly kind: "spectator" };
+    readonly at?: ScenarioCheckpointLike;
+    readonly seed?: number;
+    readonly seedRange?: { readonly start: number; readonly end: number };
+    readonly limit?: number;
+    readonly maxEvaluations?: number;
+    readonly cursor?: string;
+  }) => Promise<unknown>;
+  readonly resolveScenarioCommandParams: (options: {
+    readonly game: unknown;
+    readonly phase: string;
+    readonly interactionId: string;
+    readonly params: unknown;
+    readonly playerIds: readonly string[];
+    readonly path: string;
+  }) => Record<string, unknown>;
+  readonly scenarioProjectionParityFromInspectNode: (
+    node: InspectScenarioResultLike["node"],
+  ) => ScenarioProjectionParityLike;
+  readonly scenarioProjectionInputMetadata: (input: {
+    readonly key: string;
+    readonly kind: string;
+    readonly domain: unknown;
+  }) => {
+    readonly key: string;
+    readonly kind: string;
+    readonly eligibleCount: number | "lazy";
+  };
+  readonly digestScenarioProjection: (
+    projection: ScenarioProjectionParityLike,
+  ) => string;
   readonly assertScenario: (options: {
     readonly replay: unknown;
     readonly assertion: (context: unknown) => void | Promise<void>;
@@ -100,9 +225,25 @@ export type LoadedReducerNativeScenario = {
   readonly definition: ScenarioDefinitionLike;
   readonly replayDefinition: unknown;
   readonly replayScenario: LoadedBundleModule["replayScenario"];
+  readonly inspectScenario: LoadedBundleModule["inspectScenario"];
+  readonly exploreScenario: LoadedBundleModule["exploreScenario"];
+  readonly resolveScenarioCommandParams: LoadedBundleModule["resolveScenarioCommandParams"];
+  readonly scenarioProjectionParityFromInspectNode: LoadedBundleModule["scenarioProjectionParityFromInspectNode"];
+  readonly scenarioProjectionInputMetadata: LoadedBundleModule["scenarioProjectionInputMetadata"];
+  readonly digestScenarioProjection: LoadedBundleModule["digestScenarioProjection"];
   readonly assertScenario: LoadedBundleModule["assertScenario"];
   readonly ScenarioReplayError: ScenarioReplayErrorConstructor;
   readonly ScenarioDefinitionValidationError: ScenarioReplayErrorConstructor;
+};
+
+type EvaluatedReducerNativeScenario = {
+  readonly id: string;
+  readonly scenarioPath: string;
+  readonly sourceDigest: string;
+  readonly sourceInputs: LoadedReducerNativeScenario["sourceInputs"];
+  readonly sdkVersion: string;
+  readonly definition: ScenarioDefinitionLike;
+  readonly bundleModule: LoadedBundleModule;
 };
 
 export async function discoverReducerNativeScenarioPaths(options: {
@@ -135,9 +276,16 @@ export async function loadReducerNativeScenarios(options: {
   readonly scenarioPath?: string;
 }): Promise<readonly LoadedReducerNativeScenario[]> {
   const projectRoot = path.resolve(options.projectRoot);
+  const selectedScenarioFile = options.scenarioPath
+    ? (
+        await discoverReducerNativeScenarioPaths({
+          projectRoot,
+          scenarioPath: options.scenarioPath,
+        })
+      )[0]
+    : undefined;
   const scenarioFiles = await discoverReducerNativeScenarioPaths({
     projectRoot,
-    scenarioPath: options.scenarioPath,
   });
   if (scenarioFiles.length === 0) {
     throw new ScenarioLoaderError({
@@ -147,24 +295,39 @@ export async function loadReducerNativeScenarios(options: {
   }
 
   const sdkVersion = await resolveInstalledSdkVersion(projectRoot);
-  const scenarios = await Promise.all(
+  const evaluatedScenarios = await Promise.all(
     scenarioFiles.map((scenarioFile) =>
-      loadReducerNativeScenario({
+      evaluateReducerNativeScenario({
         projectRoot,
         scenarioFile,
         sdkVersion,
       }),
     ),
   );
-  assertUniqueScenarioIds(scenarios);
-  return scenarios;
+  assertUniqueScenarioIds(evaluatedScenarios);
+  const selectedScenarioPath = selectedScenarioFile
+    ? canonicalProjectPath(projectRoot, selectedScenarioFile)
+    : undefined;
+  const selectedScenarios = selectedScenarioPath
+    ? evaluatedScenarios.filter(
+        (scenario) => scenario.scenarioPath === selectedScenarioPath,
+      )
+    : evaluatedScenarios;
+  if (selectedScenarioPath && selectedScenarios.length !== 1) {
+    throw invalidScenarioSelector({
+      selector: selectedScenarioPath,
+      reason: "notFound",
+      detail: "was not present in the discovered scenario workspace",
+    });
+  }
+  return selectedScenarios.map(materializeReducerNativeScenario);
 }
 
-async function loadReducerNativeScenario(options: {
+async function evaluateReducerNativeScenario(options: {
   readonly projectRoot: string;
   readonly scenarioFile: string;
   readonly sdkVersion: string;
-}): Promise<LoadedReducerNativeScenario> {
+}): Promise<EvaluatedReducerNativeScenario> {
   const gamePath = path.join(options.projectRoot, "app", "game.ts");
   const scenarioPath = canonicalProjectPath(
     options.projectRoot,
@@ -196,32 +359,78 @@ async function loadReducerNativeScenario(options: {
       sourceDigest: bundled.sourceDigest,
       sourceInputs: bundled.inputs,
       sdkVersion: options.sdkVersion,
-      game: loaded.game,
       definition,
-      replayDefinition: loaded.replayDefinition,
+      bundleModule: loaded,
+    };
+  } catch (error) {
+    if (error instanceof ScenarioLoaderError) {
+      throw error;
+    }
+    throw scenarioLoadError({
+      scenarioPath,
+      sourceDigest,
+      sdkVersion: options.sdkVersion,
+      error,
+    });
+  }
+}
+
+function materializeReducerNativeScenario(
+  evaluated: EvaluatedReducerNativeScenario,
+): LoadedReducerNativeScenario {
+  const loaded = evaluated.bundleModule;
+  try {
+    return {
+      id: evaluated.id,
+      scenarioPath: evaluated.scenarioPath,
+      sourceDigest: evaluated.sourceDigest,
+      sourceInputs: evaluated.sourceInputs,
+      sdkVersion: evaluated.sdkVersion,
+      game: loaded.game,
+      definition: evaluated.definition,
+      replayDefinition: loaded.toScenarioReplayDefinition(evaluated.definition),
       replayScenario: loaded.replayScenario,
+      inspectScenario: loaded.inspectScenario,
+      exploreScenario: loaded.exploreScenario,
+      resolveScenarioCommandParams: loaded.resolveScenarioCommandParams,
+      scenarioProjectionParityFromInspectNode:
+        loaded.scenarioProjectionParityFromInspectNode,
+      scenarioProjectionInputMetadata: loaded.scenarioProjectionInputMetadata,
+      digestScenarioProjection: loaded.digestScenarioProjection,
       assertScenario: loaded.assertScenario,
       ScenarioReplayError: loaded.ScenarioReplayError,
       ScenarioDefinitionValidationError:
         loaded.ScenarioDefinitionValidationError,
     };
   } catch (error) {
-    if (error instanceof ScenarioLoaderError) {
-      throw error;
-    }
-    throw new ScenarioLoaderError({
-      code: "SCENARIO_LOAD_FAILED",
-      message: `Failed to load scenario '${scenarioPath}': ${errorMessage(error)}`,
-      scenarioPath,
-      sourceDigest,
-      sdkVersion: options.sdkVersion,
-      causeName: objectString(error, "name"),
-      causeCode:
-        objectString(error, "code") ?? objectString(error, "errorCode"),
-      validationPath: objectString(error, "path"),
-      cause: error,
+    throw scenarioLoadError({
+      scenarioPath: evaluated.scenarioPath,
+      sourceDigest: evaluated.sourceDigest,
+      sdkVersion: evaluated.sdkVersion,
+      error,
     });
   }
+}
+
+function scenarioLoadError(options: {
+  readonly scenarioPath: string;
+  readonly sourceDigest?: string;
+  readonly sdkVersion: string;
+  readonly error: unknown;
+}): ScenarioLoaderError {
+  return new ScenarioLoaderError({
+    code: "SCENARIO_LOAD_FAILED",
+    message: `Failed to load scenario '${options.scenarioPath}': ${errorMessage(options.error)}`,
+    scenarioPath: options.scenarioPath,
+    sourceDigest: options.sourceDigest,
+    sdkVersion: options.sdkVersion,
+    causeName: objectString(options.error, "name"),
+    causeCode:
+      objectString(options.error, "code") ??
+      objectString(options.error, "errorCode"),
+    validationPath: objectString(options.error, "path"),
+    cause: options.error,
+  });
 }
 
 function buildSyntheticScenarioEntry(options: {
@@ -239,10 +448,11 @@ function buildSyntheticScenarioEntry(options: {
   );
   return [
     `import game from ${JSON.stringify(gameSpecifier)};`,
-    `import scenario from ${JSON.stringify(scenarioSpecifier)};`,
-    `import { assertScenario, replayScenario, ScenarioDefinitionValidationError, ScenarioReplayError, toScenarioReplayDefinition } from ${JSON.stringify(SDK_TESTING_SPECIFIER)};`,
-    "const replayDefinition = toScenarioReplayDefinition(scenario);",
-    "export { assertScenario, game, replayDefinition, replayScenario, scenario, ScenarioDefinitionValidationError, ScenarioReplayError };",
+    `import * as scenarioModule from ${JSON.stringify(scenarioSpecifier)};`,
+    `import { assertScenario, exploreScenario, inspectScenario, replayScenario, ScenarioDefinitionValidationError, ScenarioReplayError, toScenarioReplayDefinition } from ${JSON.stringify(SDK_TESTING_SPECIFIER)};`,
+    `import { digestScenarioProjection, resolveScenarioCommandParams, scenarioProjectionInputMetadata, scenarioProjectionParityFromInspectNode } from ${JSON.stringify(SDK_TESTING_RUNTIME_SPECIFIER)};`,
+    'const scenario = Reflect.get(scenarioModule, "default");',
+    "export { assertScenario, digestScenarioProjection, exploreScenario, game, inspectScenario, replayScenario, resolveScenarioCommandParams, scenario, scenarioProjectionInputMetadata, scenarioProjectionParityFromInspectNode, ScenarioDefinitionValidationError, ScenarioReplayError, toScenarioReplayDefinition };",
   ].join("\n");
 }
 
@@ -280,8 +490,18 @@ function requireBundleExports(
   scenarioPath: string,
 ): void {
   const requiredFunctions = [
+    ["toScenarioReplayDefinition", loaded.toScenarioReplayDefinition],
     ["replayScenario", loaded.replayScenario],
     ["assertScenario", loaded.assertScenario],
+    ["inspectScenario", loaded.inspectScenario],
+    ["exploreScenario", loaded.exploreScenario],
+    ["resolveScenarioCommandParams", loaded.resolveScenarioCommandParams],
+    [
+      "scenarioProjectionParityFromInspectNode",
+      loaded.scenarioProjectionParityFromInspectNode,
+    ],
+    ["scenarioProjectionInputMetadata", loaded.scenarioProjectionInputMetadata],
+    ["digestScenarioProjection", loaded.digestScenarioProjection],
     ["ScenarioReplayError", loaded.ScenarioReplayError],
     [
       "ScenarioDefinitionValidationError",
@@ -303,20 +523,33 @@ function requireBundleExports(
 }
 
 function assertUniqueScenarioIds(
-  scenarios: readonly LoadedReducerNativeScenario[],
+  scenarios: readonly Pick<
+    EvaluatedReducerNativeScenario,
+    "id" | "scenarioPath"
+  >[],
 ): void {
-  const firstPathById = new Map<string, string>();
+  const pathsById = new Map<string, string[]>();
   for (const scenario of scenarios) {
-    const firstPath = firstPathById.get(scenario.id);
-    if (firstPath) {
-      const scenarioPaths = [firstPath, scenario.scenarioPath] as const;
-      throw new ScenarioLoaderError({
-        code: "DUPLICATE_SCENARIO_ID",
-        message: `Duplicate scenario id '${scenario.id}' in '${firstPath}' and '${scenario.scenarioPath}'.`,
-        scenarioPaths,
-      });
+    const paths = pathsById.get(scenario.id) ?? [];
+    paths.push(scenario.scenarioPath);
+    pathsById.set(scenario.id, paths);
+  }
+
+  for (const [scenarioId, scenarioPaths] of pathsById) {
+    if (scenarioPaths.length < 2) {
+      continue;
     }
-    firstPathById.set(scenario.id, scenario.scenarioPath);
+    const orderedPaths = [...scenarioPaths].sort((left, right) =>
+      left.localeCompare(right),
+    );
+    throw new ScenarioLoaderError({
+      code: "DUPLICATE_SCENARIO_ID",
+      message: `Duplicate scenario id '${scenarioId}' in ${orderedPaths
+        .map((scenarioPath) => `'${scenarioPath}'`)
+        .join(", ")}.`,
+      scenarioId,
+      scenarioPaths: orderedPaths,
+    });
   }
 }
 
@@ -325,43 +558,100 @@ async function resolveScenarioSelector(options: {
   readonly scenarioRoot: string;
   readonly selector: string;
 }): Promise<string> {
-  const canonicalSelector = options.selector.split(path.sep).join("/");
-  if (path.isAbsolute(options.selector)) {
-    throw new ScenarioLoaderError({
-      code: "INVALID_SCENARIO_SELECTOR",
-      message: `Scenario selector '${canonicalSelector}' must be project-relative.`,
-      scenarioPath: canonicalSelector,
+  const canonicalSelector = options.selector.replaceAll("\\", "/");
+  const normalizedSelector = path.posix.normalize(canonicalSelector);
+  const scenarioRootPrefix = `${SCENARIO_ROOT.split(path.sep).join("/")}/`;
+  const selectorSegments = canonicalSelector.split("/");
+  if (
+    canonicalSelector === "" ||
+    canonicalSelector.includes("\0") ||
+    path.isAbsolute(options.selector) ||
+    path.posix.isAbsolute(canonicalSelector) ||
+    path.win32.isAbsolute(options.selector) ||
+    normalizedSelector !== canonicalSelector ||
+    selectorSegments.includes("..") ||
+    !canonicalSelector.startsWith(scenarioRootPrefix)
+  ) {
+    throw invalidScenarioSelector({
+      selector: canonicalSelector,
+      reason: "outsideRoot",
+      detail: `must be a normalized project-relative path under '${SCENARIO_ROOT.split(path.sep).join("/")}'`,
     });
   }
-  const candidates = [
-    path.resolve(options.projectRoot, options.selector),
-    path.resolve(options.scenarioRoot, options.selector),
-  ];
-  const candidate = candidates.find((value) =>
-    isWithinDirectory(options.scenarioRoot, value),
-  );
-  if (!candidate || !candidate.endsWith(SCENARIO_SUFFIX)) {
-    throw new ScenarioLoaderError({
-      code: "INVALID_SCENARIO_SELECTOR",
-      message:
-        `Scenario selector '${canonicalSelector}' must name a ` +
-        `*.scenario.ts file under '${SCENARIO_ROOT.split(path.sep).join("/")}'.`,
-      scenarioPath: canonicalSelector,
+  if (!canonicalSelector.endsWith(SCENARIO_SUFFIX)) {
+    throw invalidScenarioSelector({
+      selector: canonicalSelector,
+      reason: "invalidExtension",
+      detail: `must end with '${SCENARIO_SUFFIX}'`,
     });
   }
+
+  const candidate = path.resolve(options.projectRoot, ...selectorSegments);
+  if (!isWithinDirectory(options.scenarioRoot, candidate)) {
+    throw invalidScenarioSelector({
+      selector: canonicalSelector,
+      reason: "outsideRoot",
+      detail: `must remain under '${SCENARIO_ROOT.split(path.sep).join("/")}'`,
+    });
+  }
+
   try {
-    if (!(await stat(candidate)).isFile()) {
-      throw new Error("not a file");
+    const candidateStats = await lstat(candidate);
+    const resolvedProjectRoot = await realpath(options.projectRoot);
+    const resolvedScenarioRoot = await realpath(options.scenarioRoot);
+    const resolvedCandidate = await realpath(candidate);
+    const expectedResolvedCandidate = path.resolve(
+      resolvedProjectRoot,
+      ...selectorSegments,
+    );
+    if (
+      !isWithinDirectory(resolvedProjectRoot, resolvedCandidate) ||
+      !isWithinDirectory(resolvedScenarioRoot, resolvedCandidate) ||
+      resolvedCandidate !== expectedResolvedCandidate
+    ) {
+      throw invalidScenarioSelector({
+        selector: canonicalSelector,
+        reason: "outsideRoot",
+        detail: "resolves outside the canonical project scenario tree",
+      });
+    }
+    if (!candidateStats.isFile()) {
+      throw invalidScenarioSelector({
+        selector: canonicalSelector,
+        reason: "notFound",
+        detail: "does not name a regular scenario file",
+      });
     }
   } catch (error) {
-    throw new ScenarioLoaderError({
-      code: "INVALID_SCENARIO_SELECTOR",
-      message: `Scenario selector '${canonicalSelector}' does not exist.`,
-      scenarioPath: canonicalSelector,
-      cause: error,
-    });
+    if (error instanceof ScenarioLoaderError) {
+      throw error;
+    }
+    if (isMissingPathError(error)) {
+      throw invalidScenarioSelector({
+        selector: canonicalSelector,
+        reason: "notFound",
+        detail: "does not exist",
+        cause: error,
+      });
+    }
+    throw error;
   }
   return candidate;
+}
+
+function invalidScenarioSelector(options: {
+  readonly selector: string;
+  readonly reason: ScenarioSelectorReason;
+  readonly detail: string;
+  readonly cause?: unknown;
+}): ScenarioLoaderError {
+  return new ScenarioLoaderError({
+    code: "INVALID_SCENARIO_SELECTOR",
+    message: `Scenario selector '${options.selector}' ${options.detail}.`,
+    scenarioPath: options.selector,
+    selectorReason: options.reason,
+    cause: options.cause,
+  });
 }
 
 async function collectScenarioFiles(directory: string): Promise<string[]> {
@@ -431,12 +721,10 @@ function sanitizeModuleName(value: string): string {
 }
 
 function isMissingPathError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
-  );
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+  return error.code === "ENOENT" || error.code === "ENOTDIR";
 }
 
 function errorMessage(error: unknown): string {

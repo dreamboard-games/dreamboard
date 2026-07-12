@@ -77,6 +77,41 @@ test("test command returns one semantic scenario result", async () => {
   });
 });
 
+test("test commands run directly from a reducer-native package without project metadata", async () => {
+  const calls: string[] = [];
+  const result = await runTestFamilyCommand(
+    {
+      operation: "inspect",
+      path: "test/scenarios/first.scenario.ts",
+      perspective: "player:0",
+    },
+    {
+      findTestingWorkspace: async () => "/workspace/reference-game",
+      assertLocalPortableDependencies: async ({ projectRoot }) => {
+        calls.push(`portable:${projectRoot}`);
+        return {} as never;
+      },
+      resolveProjectContext: async () => {
+        throw new Error("project metadata must not be required");
+      },
+      assertTestingWorkspace: async (projectRoot) => {
+        calls.push(`workspace:${projectRoot}`);
+      },
+      inspectScenario: async ({ projectRoot }) => {
+        calls.push(`inspect:${projectRoot}`);
+        return { schemaVersion: 1 };
+      },
+    },
+  );
+
+  expect(calls).toEqual([
+    "portable:/workspace/reference-game",
+    "workspace:/workspace/reference-game",
+    "inspect:/workspace/reference-game",
+  ]);
+  expect(result).toMatchObject({ ok: true, command: "test.inspect" });
+});
+
 describe("inspect and explore argument contract", () => {
   test("parses the frozen inspect positional path and selectors through Citty", async () => {
     const requests: unknown[] = [];
@@ -144,9 +179,7 @@ describe("inspect and explore argument contract", () => {
         checkpoint: { segment: "setup" },
         seed: undefined,
         seedRange: { start: -2, end: 3 },
-        limit: 50,
         maxEvaluations: 5_000,
-        cursor: undefined,
       },
     ]);
     expect(result).toMatchObject({ ok: true, command: "test.explore" });
@@ -168,6 +201,14 @@ describe("inspect and explore argument contract", () => {
       },
       {
         args: { perspective: "player:0", limit: "201" },
+        code: "TEST_EXPLORE_LIMIT_INVALID",
+      },
+      {
+        args: {
+          perspective: "player:0",
+          "seed-range": "1:2",
+          limit: "10",
+        },
         code: "TEST_EXPLORE_LIMIT_INVALID",
       },
     ] as const;
