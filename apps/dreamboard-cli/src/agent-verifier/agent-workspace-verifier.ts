@@ -5,7 +5,6 @@ import type { ConfigFlags } from "../flags.js";
 import type {
   AgentMaintainerPackageSourceV1,
   ProjectConfig,
-  ResolvedConfig,
 } from "../types.js";
 import { resolveProjectContext } from "../config/resolve.js";
 import { assertCompilerPortableDependencies } from "../services/project/dependency-portability.js";
@@ -255,7 +254,7 @@ function emptyManifest(): GameTopologyManifest {
 async function verifyAgentWorkspace(rawMode: string, args: string[]) {
   const requestedMode = parseVerificationMode(rawMode);
   const parsedFlags = parseConfigArgs(args);
-  const { projectRoot, projectConfig, config } =
+  const { projectRoot, projectConfig } =
     await resolveProjectContext(parsedFlags);
   await assertCompilerPortableDependencies({ projectRoot, projectConfig });
 
@@ -269,7 +268,7 @@ async function verifyAgentWorkspace(rawMode: string, args: string[]) {
     requestedMode === "verify" ||
     requestedMode === "fin"
   ) {
-    await runCloudLocalVerification(projectRoot, projectConfig, config);
+    await runCloudLocalVerification(projectRoot, projectConfig);
     return;
   }
 
@@ -319,7 +318,6 @@ function parseConfigArgs(args: string[]): ConfigFlags {
 async function runCloudLocalVerification(
   projectRoot: string,
   projectConfig: ProjectConfig,
-  config: ResolvedConfig,
 ): Promise<void> {
   const [
     { scaffoldStaticWorkspace },
@@ -372,42 +370,17 @@ async function runCloudLocalVerification(
   consola.start("Smoke-testing reducer bundle...");
   await assertReducerBundleSmoke({ projectRoot, manifest });
 
-  const {
-    generateReducerNativeArtifacts,
-    isReducerNativeTestingWorkspace,
-    runReducerNativeScenarios,
-  } = await import("../services/testing/reducer-native-test-harness.js");
+  const { requirePassingReducerNativeScenarios } =
+    await import("../services/testing/reducer-native-verification.js");
 
-  if (await isReducerNativeTestingWorkspace(projectRoot)) {
-    const { bases } = await generateReducerNativeArtifacts({
-      projectRoot,
-      projectId: projectConfig.projectId,
-      compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
-    });
-    const summary = await runReducerNativeScenarios({
-      projectRoot,
-      projectConfig,
-      resolvedConfig: config,
-      projectId: projectConfig.projectId,
-      compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
-    });
-    if (summary.failed > 0) {
-      const failures = summary.results
-        .filter((result) => !result.success)
-        .map((result) =>
-          result.error
-            ? `FAIL ${result.id}: ${result.error}`
-            : `FAIL ${result.id}`,
-        );
-      throw new Error(
-        [
-          `Reducer-native verification failed: ${summary.failed} failed, ${summary.passed} passed.`,
-          ...failures,
-        ].join("\n"),
-      );
-    }
-    consola.success(`Generated ${bases.length} reducer-native base state(s).`);
-  }
+  consola.start("Running reducer-native scenarios...");
+  const summary = await requirePassingReducerNativeScenarios({
+    projectRoot,
+    verificationLabel: "Reducer-native verification",
+  });
+  consola.success(
+    `Verified ${summary.results.length} reducer-native scenario(s).`,
+  );
 
   consola.success("Agent workspace cloud-local verification passed.");
 }

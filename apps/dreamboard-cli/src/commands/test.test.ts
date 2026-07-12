@@ -2,7 +2,6 @@ import { expect, test } from "bun:test";
 import {
   assertNoRemovedTestFlags,
   runTestCommand,
-  resolveTestCommandPlan,
   resolveTestRunExitCode,
 } from "./test.js";
 import {
@@ -10,19 +9,10 @@ import {
   STALE_CONTRACT_ARTIFACT_EXIT_CODE,
 } from "../utils/errors.js";
 
-test("test command plan is reducer-only", () => {
-  expect(resolveTestCommandPlan({})).toEqual({
-    updateSnapshots: false,
-  });
-  expect(resolveTestCommandPlan({ "update-snapshots": true })).toEqual({
-    updateSnapshots: true,
-  });
-});
-
 test("removed test runner flags fail before project resolution", () => {
-  expect(() => assertNoRemovedTestFlags(["test", "--runner", "remote"])).toThrow(
-    "dreamboard test no longer supports --runner",
-  );
+  expect(() =>
+    assertNoRemovedTestFlags(["test", "--runner", "remote"]),
+  ).toThrow("dreamboard test no longer supports --runner");
   expect(() => assertNoRemovedTestFlags(["test", "--runner=browser"])).toThrow(
     "dreamboard test no longer supports --runner",
   );
@@ -32,7 +22,15 @@ test("removed test runner flags fail before project resolution", () => {
   expect(() => assertNoRemovedTestFlags(["test", "--commit=HEAD"])).toThrow(
     "dreamboard test no longer supports --commit",
   );
-  expect(() => assertNoRemovedTestFlags(["test", "--scenario", "x"])).not.toThrow();
+  expect(() =>
+    assertNoRemovedTestFlags(["test", "--update-snapshots"]),
+  ).toThrow("dreamboard test no longer supports --update-snapshots");
+  expect(() =>
+    assertNoRemovedTestFlags(["test", "--update-snapshots=true"]),
+  ).toThrow("dreamboard test no longer supports --update-snapshots");
+  expect(() =>
+    assertNoRemovedTestFlags(["test", "--scenario", "x"]),
+  ).not.toThrow();
 });
 
 test("stale contract artifact failures use the dedicated exit code", () => {
@@ -42,6 +40,9 @@ test("stale contract artifact failures use the dedicated exit code", () => {
     results: [
       {
         id: "scenario-1",
+        scenarioPath: "test/scenarios/scenario-1.scenario.ts",
+        sourceDigest: "sha256:scenario-1",
+        sdkVersion: "0.4.0-test",
         success: false,
         errorCode: STALE_CONTRACT_ARTIFACT_CODE,
       },
@@ -60,8 +61,6 @@ test("test command runs reducer scenarios against the current workspace", async 
     await runTestCommand(
       {
         scenario: "test/scenarios/first.scenario.ts",
-        debug: true,
-        "update-snapshots": true,
       },
       {
         resolveProjectContext: async (_flags, options) => {
@@ -94,23 +93,21 @@ test("test command runs reducer scenarios against the current workspace", async 
         assertTestingWorkspace: async (projectRoot) => {
           calls.push(`workspace:${projectRoot}`);
         },
-        generateArtifacts: async (options) => {
-          calls.push(
-            `generate:${options.projectRoot}:${options.compiledResultId}:${options.projectId}:${options.scenarioPath}:${options.debug}`,
-          );
-          return {
-            bases: [{}],
-            scenarios: [{}],
-          } as any;
-        },
         runScenarios: async (options) => {
-          calls.push(
-            `run:${options.projectRoot}:${options.compiledResultId}:${options.projectId}:${options.scenarioPath}:${options.debug}:${options.updateSnapshots}`,
-          );
+          calls.push(`run:${options.projectRoot}:${options.scenarioPath}`);
           return {
+            sdkVersion: "0.4.0-test",
             passed: 1,
             failed: 0,
-            results: [{ id: "first", success: true }],
+            results: [
+              {
+                id: "first",
+                scenarioPath: "test/scenarios/first.scenario.ts",
+                sourceDigest: "sha256:first",
+                sdkVersion: "0.4.0-test",
+                success: true,
+              },
+            ],
           } as any;
         },
       },
@@ -123,7 +120,6 @@ test("test command runs reducer scenarios against the current workspace", async 
     "resolve:false",
     "portable:prod:/workspace",
     "workspace:/workspace",
-    "generate:/workspace:compiled-local:project-1:test/scenarios/first.scenario.ts:true",
-    "run:/workspace:compiled-local:project-1:test/scenarios/first.scenario.ts:true:true",
+    "run:/workspace:test/scenarios/first.scenario.ts",
   ]);
 });

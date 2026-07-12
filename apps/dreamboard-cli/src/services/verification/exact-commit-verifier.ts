@@ -16,12 +16,10 @@ import { assertReducerBundleSmoke } from "../project/reducer-bundle-preflight.js
 import { runLocalTypecheck } from "../project/local-typecheck.js";
 import { applyWorkspaceCodegen } from "../project/workspace-codegen.js";
 import {
-  generateReducerNativeArtifacts,
-  isReducerNativeTestingWorkspace,
-  runReducerNativeScenarios,
-} from "../testing/reducer-native-test-harness.js";
+  requirePassingReducerNativeScenarios,
+  type ReducerNativeScenarioRunner,
+} from "../testing/reducer-native-verification.js";
 import type { ProjectConfig } from "../../types.js";
-import type { ReducerNativeScenarioSummary } from "../testing/reducer-native-test-harness.js";
 
 export type ExactCommitVerificationResult = {
   projectId: string;
@@ -62,19 +60,7 @@ export type ExactCommitVerifierDeps = {
     projectRoot: string;
     manifest: GameTopologyManifest;
   }) => Promise<void>;
-  isTestingWorkspace?: (root: string) => Promise<boolean>;
-  generateArtifacts?: (options: {
-    projectRoot: string;
-    projectId: string;
-    compiledResultId?: string;
-  }) => Promise<{ bases: unknown[]; scenarios: unknown[] }>;
-  runScenarios?: (options: {
-    projectRoot: string;
-    projectConfig: ProjectConfig;
-    resolvedConfig: ResolvedConfig;
-    projectId: string;
-    compiledResultId?: string;
-  }) => Promise<ReducerNativeScenarioSummary>;
+  runScenarios?: ReducerNativeScenarioRunner;
 };
 
 export type ExactCommitWorktreeDeps = Pick<
@@ -178,55 +164,14 @@ export async function runExactCommitVerification(
       });
       steps.push("reducer-bundle");
 
-      if (
-        !(await (deps.isTestingWorkspace ?? isReducerNativeTestingWorkspace)(
-          worktreeRoot,
-        ))
-      ) {
-        throw new Error(
-          "Exact commit verification requires reducer-native bases and scenarios.",
-        );
-      }
-      const runtimeIdentity = {
-        projectId: projectConfig.projectId,
-        compiledResultId: projectConfig.compile?.latestSuccessful?.resultId,
-      };
-      const generated = await (
-        deps.generateArtifacts ?? generateReducerNativeArtifacts
-      )({
-        projectRoot: worktreeRoot,
-        projectId: runtimeIdentity.projectId,
-        compiledResultId: runtimeIdentity.compiledResultId,
-      });
-      if (generated.bases.length === 0) {
-        throw new Error("No bases found under test/bases/*.base.ts.");
-      }
-      if (generated.scenarios.length === 0) {
-        throw new Error(
-          "No scenarios found under test/scenarios/*.scenario.ts.",
-        );
-      }
-      const scenarioSummary = await (
-        deps.runScenarios ?? runReducerNativeScenarios
-      )({
-        projectRoot: worktreeRoot,
-        projectConfig,
-        resolvedConfig: options.config,
-        projectId: runtimeIdentity.projectId,
-        compiledResultId: runtimeIdentity.compiledResultId,
-      });
+      const scenarioSummary = await requirePassingReducerNativeScenarios(
+        {
+          projectRoot: worktreeRoot,
+          verificationLabel: "Exact commit scenario verification",
+        },
+        { runScenarios: deps.runScenarios },
+      );
       steps.push("scenarios");
-      if (scenarioSummary.failed > 0) {
-        const failures = scenarioSummary.results
-          .filter((result) => !result.success)
-          .map((result) => `FAIL ${result.id}: ${result.error ?? "failed"}`);
-        throw new Error(
-          [
-            `Exact commit scenario verification failed: ${scenarioSummary.failed} failed, ${scenarioSummary.passed} passed.`,
-            ...failures,
-          ].join("\n"),
-        );
-      }
 
       return {
         projectId: projectConfig.projectId,

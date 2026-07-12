@@ -33,10 +33,6 @@ import { isStaleContractArtifactError } from "../utils/errors.js";
 import { openBrowser } from "../auth/auth-server.js";
 import { loadProjectDevHost } from "../services/dev-host/loader.js";
 import { createCliDevHostPlatform } from "../services/dev-host/platform.js";
-import {
-  createSessionFromScenario,
-  generateReducerNativeArtifacts,
-} from "../services/testing/reducer-native-test-harness.js";
 import { resolveSetupProfileSelectionForSession } from "../services/workflows/resolve-setup-profile.js";
 import {
   collectLocalFiles,
@@ -308,7 +304,9 @@ function listenDevProgressHost(
   bindHost: string,
 ): Promise<DevProgressHost> {
   const server = createServer((request, response) => {
-    const pathname = request.url ? new URL(request.url, "http://localhost").pathname : "/";
+    const pathname = request.url
+      ? new URL(request.url, "http://localhost").pathname
+      : "/";
     if (pathname === "/healthz") {
       response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
       response.end("ok\n");
@@ -458,7 +456,7 @@ export default defineCommand({
     "from-scenario": {
       type: "string",
       description:
-        "Create a backend session by materializing a typed test scenario snapshot",
+        "Temporarily unavailable while scenario checkpoint materialization moves to the base-free replay runtime",
     },
     "new-session": {
       type: "boolean",
@@ -495,6 +493,11 @@ export default defineCommand({
       throw new Error("Unknown option: --timings-json");
     }
     const parsedArgs = parseDevCommandArgs(args);
+    if (parsedArgs["from-scenario"]?.trim()) {
+      throw new Error(
+        "dreamboard dev --from-scenario is temporarily unavailable while scenario checkpoint materialization is migrated in Phase 02. Use dreamboard test --scenario <path> to verify the scenario, then start dreamboard dev from normal setup.",
+      );
+    }
     const startupTimings = createDevStartupTimingCollector();
     let timingsWritten = false;
     let progressHost: DevProgressHost | null = null;
@@ -563,41 +566,22 @@ export default defineCommand({
       const sessionFilePath = path.join(devDir, "session.json");
 
       const requestedResumeSessionId = parsedArgs.resume?.trim() || null;
-      const requestedScenarioId = parsedArgs["from-scenario"]?.trim() || null;
       if (requestedResumeSessionId && parsedArgs["new-session"]) {
         throw new Error("Cannot combine --resume with --new-session.");
       }
-      if (requestedResumeSessionId && requestedScenarioId) {
-        throw new Error("Cannot combine --resume with --from-scenario.");
-      }
-      if (
-        requestedScenarioId &&
-        (parsedArgs.seed ||
-          parsedArgs["setup-profile"] ||
-          parsedArgs.players ||
-          parsedArgs["player-count"])
-      ) {
-        throw new Error(
-          "--from-scenario materializes the scenario's authored seed, setup profile, and player count. Remove --seed, --setup-profile, and player-count overrides.",
-        );
-      }
 
-      const requestedSeed = requestedScenarioId
-        ? null
-        : parseDevSeed(parsedArgs.seed);
-      const selectedSetupProfile = requestedScenarioId
-        ? null
-        : await resolveSetupProfileSelectionForSession({
-            projectRoot,
-            requestedSetupProfileId: parsedArgs["setup-profile"],
-          });
-      let selectedSetupProfileId = selectedSetupProfile?.id ?? null;
-      let resolvedPlayerCount = requestedScenarioId
-        ? 0
-        : await resolvePlayerCount(
-            projectRoot,
-            parsePlayerCountFlags(parsedArgs),
-          );
+      const requestedSeed = parseDevSeed(parsedArgs.seed);
+      const selectedSetupProfile = await resolveSetupProfileSelectionForSession(
+        {
+          projectRoot,
+          requestedSetupProfileId: parsedArgs["setup-profile"],
+        },
+      );
+      const selectedSetupProfileId = selectedSetupProfile?.id ?? null;
+      const resolvedPlayerCount = await resolvePlayerCount(
+        projectRoot,
+        parsePlayerCountFlags(parsedArgs),
+      );
       const resumeResult = requestedResumeSessionId
         ? await tryResumeSession(
             { sessionId: requestedResumeSessionId },
@@ -615,7 +599,6 @@ export default defineCommand({
       }
 
       let runSession = resumeResult.session;
-      let scenarioSeededSession = false;
       const resumedExistingSession = Boolean(
         requestedResumeSessionId &&
         runSession &&
@@ -625,38 +608,7 @@ export default defineCommand({
         startupTimings.record("createSession", 0, "reused");
       }
 
-      if (requestedScenarioId) {
-        const seededScenario = await startupTimings.timed(
-          "createSession",
-          async () => {
-            await generateReducerNativeArtifacts({
-              projectRoot,
-              compiledResultId: devCompile.id,
-              projectId: effectiveProjectConfig.projectId,
-              debug: parsedArgs.debug,
-            });
-            return createSessionFromScenario({
-              projectRoot,
-              scenarioId: requestedScenarioId,
-              compiledResultId: devCompile.id,
-              projectId: effectiveProjectConfig.projectId,
-              debug: parsedArgs.debug,
-              trustGeneratedFingerprint: true,
-            });
-          },
-        );
-        scenarioSeededSession = true;
-        selectedSetupProfileId = seededScenario.setupProfileId;
-        resolvedPlayerCount = seededScenario.playerCount;
-        runSession = {
-          sessionId: seededScenario.sessionId,
-          shortCode: seededScenario.shortCode,
-          projectId: seededScenario.projectId,
-          seed: seededScenario.seed,
-          setupProfileId: seededScenario.setupProfileId ?? undefined,
-          materialization: seededScenario.materialization,
-        };
-      } else if (!runSession) {
+      if (!runSession) {
         runSession = await startupTimings.timed("createSession", () =>
           createDevSession({
             projectRoot,
@@ -702,8 +654,7 @@ export default defineCommand({
                 playerCount: resolvedPlayerCount,
                 debug: parsedArgs.debug,
                 slug: effectiveProjectConfig.slug,
-                autoStartGame:
-                  !resumedExistingSession && !scenarioSeededSession,
+                autoStartGame: !resumedExistingSession,
                 initialSession: {
                   sessionId: activeRunSession.sessionId,
                   shortCode: activeRunSession.shortCode,
@@ -724,16 +675,11 @@ export default defineCommand({
           networkUrls: devServer.networkUrls,
           allowedHosts,
           apiBaseUrl: config.apiBaseUrl,
-          sessionStatus: scenarioSeededSession
-            ? "seeded"
-            : resumedExistingSession
-              ? "reused"
-              : "created",
+          sessionStatus: resumedExistingSession ? "reused" : "created",
           shortCode: activeRunSession.shortCode,
           sessionId: activeRunSession.sessionId,
           seed: activeRunSession.seed ?? "unknown",
           debug: parsedArgs.debug,
-          scenarioId: scenarioSeededSession ? requestedScenarioId : null,
           materialization: activeRunSession.materialization,
           setupProfile: selectedSetupProfileId
             ? {

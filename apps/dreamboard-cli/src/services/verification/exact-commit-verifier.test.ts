@@ -98,15 +98,18 @@ test("exact commit source policy rejects lfs configuration and pointers", async 
 });
 
 test("exact commit source policy rejects generated and credential-like files", async () => {
-  const message = await expectPolicyRejects([
-    blob("test/generated/scenario-manifest.generated.ts"),
-    blob(".dreamboard/state.json"),
-    blob(".env.local"),
-    blob("keys/private.pem"),
-    blob(".npmrc"),
-  ], {
-    ".npmrc": "//registry.npmjs.org/:_authToken=secret\n",
-  });
+  const message = await expectPolicyRejects(
+    [
+      blob("test/generated/scenario-manifest.generated.ts"),
+      blob(".dreamboard/state.json"),
+      blob(".env.local"),
+      blob("keys/private.pem"),
+      blob(".npmrc"),
+    ],
+    {
+      ".npmrc": "//registry.npmjs.org/:_authToken=secret\n",
+    },
+  );
 
   expect(message).toContain("generated paths must not be tracked");
   expect(message).toContain("only .dreamboard/project.json may be tracked");
@@ -225,7 +228,10 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
     {
       git,
       makeTempDir: async () => "/tmp/dreamboard-verify-success",
-      readGitTree: async () => [blob(".dreamboard/project.json"), blob("app/game.ts")],
+      readGitTree: async () => [
+        blob(".dreamboard/project.json"),
+        blob("app/game.ts"),
+      ],
       readPolicyFile: async () => Buffer.from("export {}\n", "utf8"),
       loadProjectConfig: async (root) => {
         calls.push(`config:${root}`);
@@ -254,27 +260,21 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
       assertReducerBundle: async ({ projectRoot }) => {
         calls.push(`bundle:${projectRoot}`);
       },
-      isTestingWorkspace: async (root) => {
-        calls.push(`is-testing:${root}`);
-        return true;
-      },
-      generateArtifacts: async ({ projectRoot, projectId, compiledResultId }) => {
-        calls.push(`generate:${projectRoot}:${projectId}:${compiledResultId}`);
-        return { bases: [{}], scenarios: [{}] };
-      },
-      runScenarios: async ({
-        projectRoot,
-        projectConfig: scenarioProjectConfig,
-        projectId,
-        compiledResultId,
-      }) => {
-        calls.push(
-          `scenarios:${projectRoot}:${scenarioProjectConfig.projectId}:${projectId}:${compiledResultId}`,
-        );
+      runScenarios: async ({ projectRoot }) => {
+        calls.push(`scenarios:${projectRoot}`);
         return {
+          sdkVersion: "9.8.7-fixture",
           passed: 1,
           failed: 0,
-          results: [{ id: "scenario-1", success: true }],
+          results: [
+            {
+              id: "scenario-1",
+              scenarioPath: "test/scenarios/scenario-1.scenario.ts",
+              sourceDigest: "sha256:scenario-1",
+              sdkVersion: "0.4.0-alpha.9",
+              success: true,
+            },
+          ],
         };
       },
     },
@@ -300,9 +300,7 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
     "contract:/tmp/dreamboard-verify-success/worktree",
     "typecheck:/tmp/dreamboard-verify-success/worktree",
     "bundle:/tmp/dreamboard-verify-success/worktree",
-    "is-testing:/tmp/dreamboard-verify-success/worktree",
-    "generate:/tmp/dreamboard-verify-success/worktree:project-1:compiled-1",
-    "scenarios:/tmp/dreamboard-verify-success/worktree:project-1:project-1:compiled-1",
+    "scenarios:/tmp/dreamboard-verify-success/worktree",
     "remove:/tmp/dreamboard-verify-success/worktree",
   ]);
 });

@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, symlink } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, stat, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "bun:test";
@@ -73,6 +73,22 @@ test("scaffolds static framework files locally", async () => {
     expect(
       await Bun.file(path.join(tempRoot, "ui", "style.css")).exists(),
     ).toBe(true);
+    expect(
+      await Bun.file(
+        path.join(
+          tempRoot,
+          "test",
+          "scenarios",
+          "smoke-initial-turn.scenario.ts",
+        ),
+      ).exists(),
+    ).toBe(true);
+    expect(
+      await stat(path.join(tempRoot, "test", "bases")).catch(() => null),
+    ).toBeNull();
+    expect(
+      await stat(path.join(tempRoot, "test", "generated")).catch(() => null),
+    ).toBeNull();
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -218,8 +234,8 @@ test("refreshes generated testing-types on update when the file is still framewo
     await scaffoldStaticWorkspace(tempRoot, "update");
 
     const refreshed = await Bun.file(testingTypesPath).text();
-    expect(refreshed).toContain("defineScenario");
-    expect(refreshed).toContain("createTestRuntime");
+    expect(refreshed).toContain('import game from "../app/game";');
+    expect(refreshed).toContain("createScenarioAuthoring(game)");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -244,8 +260,10 @@ test("refreshes the generated smoke scenario without assuming interactions are e
     await scaffoldStaticWorkspace(tempRoot, "update");
 
     const refreshed = await Bun.file(scenarioPath).text();
-    expect(refreshed).toContain('expect(state()).toBe("setup")');
-    expect(refreshed).not.toContain("interactions(playerId)");
+    expect(refreshed).toContain("setup: { players: 4, seed: 1337 }");
+    expect(refreshed).toContain("given: []");
+    expect(refreshed).toContain("when: []");
+    expect(refreshed).toContain("expect(state()).toBeDefined()");
     expect(refreshed).not.toContain("stale scenario");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

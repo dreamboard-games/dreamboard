@@ -18,6 +18,5 @@ export { materializeWorkspaceProject } from "./services/project/materialize-work
 export { shortHash } from "./services/project/local-maintainer-registry-shared.js";
 export { setLatestCompileAttempt } from "./services/project/project-state.js";
 export { applyWorkspaceCodegen } from "./services/project/workspace-codegen.js";
-export { ensureReducerNativeTestingFiles } from "./services/testing/reducer-native-test-harness.js";
 export { configurePlaywrightBrowsersPath } from "./ui/playwright-runner.js";
 export { readJsonFile, writeJsonFile } from "./utils/fs.js";
