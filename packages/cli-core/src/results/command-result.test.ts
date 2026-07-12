@@ -4,6 +4,7 @@ import {
   commandFailure,
   commandSuccess,
   isUnattendedAction,
+  type JsonValue,
   type NextAction,
 } from "./command-result.js";
 
@@ -44,5 +45,30 @@ describe("command results", () => {
     ];
 
     expect(actions.map(isUnattendedAction)).toEqual([true, false]);
+  });
+
+  test("carries recursive JSON failure data without widening context", () => {
+    const data = {
+      schemaVersion: 1,
+      scenarios: [
+        {
+          id: "example",
+          context: { path: ["given", 0], accepted: false },
+        },
+      ],
+    } as const satisfies JsonValue;
+
+    expect(
+      commandFailure(
+        "test",
+        {
+          title: "Scenarios failed",
+          code: "TEST_SCENARIOS_FAILED",
+          context: { failed: 1 },
+          data,
+        },
+        ExitCode.Validation,
+      ).problem.data,
+    ).toEqual(data);
   });
 });

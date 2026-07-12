@@ -1,5 +1,14 @@
 export const COMMAND_RESULT_SCHEMA_VERSION = 2;
 
+/** A dependency-free value that can be serialized losslessly as JSON. */
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
 export type CommandId =
   | "auth.login"
   | "auth.logout"
@@ -10,6 +19,8 @@ export type CommandId =
   | "project.status"
   | "verify"
   | "test"
+  | "test.inspect"
+  | "test.explore"
   | "dev"
   | "build"
   | "preview"
@@ -37,6 +48,7 @@ export type ProblemDetails = {
   readonly code?: string;
   readonly requestId?: string;
   readonly context?: Readonly<Record<string, string | number | boolean>>;
+  readonly data?: JsonValue;
   readonly errors?: Record<string, readonly string[]>;
 };
 

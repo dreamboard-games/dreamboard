@@ -8,6 +8,7 @@ export {
   type CommandId,
   type CommandResult,
   type CommandSuccess,
+  type JsonValue,
   type NextAction,
   type ProblemDetails,
 } from "./results/command-result.js";

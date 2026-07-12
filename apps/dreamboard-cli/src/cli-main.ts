@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { defineCommand, runMain, type CommandDef } from "citty";
+import { defineCommand, runCommand, runMain, type CommandDef } from "citty";
 import consola from "consola";
 import cmdAuth from "./commands/auth.js";
 import cmdBuild from "./commands/build.js";
@@ -10,6 +10,7 @@ import cmdProject from "./commands/project.js";
 import cmdRelease from "./commands/release.js";
 import cmdTest from "./commands/test.js";
 import cmdVerify from "./commands/verify.js";
+import { classifyTestFamilyFailure } from "./services/testing/test-command-result.js";
 import { formatCliError, getCliErrorExitCode } from "./utils/errors.js";
 import {
   commandPathToId,
@@ -45,6 +46,7 @@ function handleFatalError(error: unknown): never {
       machineOutputContext,
       commandPathToId(process.argv.slice(2)),
       error,
+      { classifySemanticFailure: classifyTestFamilyFailure },
     );
   }
   const message = formatCliError(error);
@@ -126,6 +128,11 @@ export function runDreamboardCli(
   internalSubCommands: Record<string, DreamboardSubCommand> = {},
 ): void {
   machineOutputContext = consumeMachineOutputMode(process.argv);
+  if (machineOutputContext?.semanticJson) {
+    void runSemanticTestFamily(machineOutputContext);
+    return;
+  }
+
   const subCommands = wrapCommandMapForCli(
     {
       ...publicSubCommands,
@@ -144,4 +151,21 @@ export function runDreamboardCli(
   });
 
   void runMain(main).catch(handleFatalError);
+}
+
+async function runSemanticTestFamily(
+  context: MachineOutputContext,
+): Promise<void> {
+  const command = commandPathToId(process.argv.slice(2));
+  await runWithMachineOutput(
+    context,
+    command,
+    async () => {
+      const execution = await runCommand(cmdTest, {
+        rawArgs: process.argv.slice(3),
+      });
+      return execution.result;
+    },
+    { classifySemanticFailure: classifyTestFamilyFailure },
+  );
 }
