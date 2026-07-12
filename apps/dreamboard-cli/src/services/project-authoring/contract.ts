@@ -30,7 +30,7 @@ export type AuthoringValidationResultV1 = {
 
 export type GeneratedArtifactV1 = {
   path: string;
-  ownership: "authoritative" | "seed" | "derived-test";
+  ownership: "authoritative" | "seed";
   content: string;
   contentSha256: string;
 };
@@ -65,9 +65,6 @@ export type ProjectAuthoringAdapterV1 = {
   validateManifest(manifest: unknown): AuthoringValidationResultV1;
   materializeManifest(manifest: unknown): unknown;
   generateWorkspaceArtifacts(manifest: unknown): readonly GeneratedArtifactV1[];
-  generateTestArtifacts(input: {
-    manifest: unknown;
-  }): readonly GeneratedArtifactV1[];
 };
 
 export type LoadedProjectAuthoringAdapterV1 = {

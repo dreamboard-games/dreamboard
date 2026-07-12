@@ -64,8 +64,7 @@ function assertGeneratedArtifact(value: unknown): GeneratedArtifactV1 {
   const artifactPath = assertGeneratedPath(value.path, "Generated artifact path");
   if (
     value.ownership !== "authoritative" &&
-    value.ownership !== "seed" &&
-    value.ownership !== "derived-test"
+    value.ownership !== "seed"
   ) {
     throw new ProjectAuthoringError(
       "GENERATED_PATH_CONTRACT_INVALID",
@@ -131,7 +130,6 @@ export function validateProjectAuthoringAdapter(
     "validateManifest",
     "materializeManifest",
     "generateWorkspaceArtifacts",
-    "generateTestArtifacts",
   ] as const) {
     if (typeof adapter[method] !== "function") {
       throw new ProjectAuthoringError(

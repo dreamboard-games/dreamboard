@@ -22,7 +22,6 @@ function adapter(
     validateManifest: () => ({ valid: true, errors: [], warnings: [] }),
     materializeManifest: (manifest) => manifest,
     generateWorkspaceArtifacts: () => [],
-    generateTestArtifacts: () => [],
     ...overrides,
   };
 }
