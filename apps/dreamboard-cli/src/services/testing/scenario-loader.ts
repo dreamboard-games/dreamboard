@@ -1,6 +1,7 @@
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   bundleTypeScriptSourceWithSourceClosure,
   importBundledTypeScriptModuleText,
@@ -10,6 +11,7 @@ const SCENARIO_SUFFIX = ".scenario.ts";
 const SCENARIO_ROOT = path.join("test", "scenarios");
 const SDK_TESTING_SPECIFIER = "@dreamboard-games/sdk/testing";
 const SDK_TESTING_RUNTIME_SPECIFIER = "@dreamboard-games/sdk/testing-runtime";
+const SDK_TESTING_COMPILER_SPECIFIER = "@dreamboard-games/sdk/testing-compiler";
 const SDK_PACKAGE_JSON_SPECIFIER = "@dreamboard-games/sdk/package.json";
 
 const cliRequire = createRequire(import.meta.url);
@@ -92,6 +94,22 @@ export type ScenarioDefinitionLike = {
   readonly given: readonly ScenarioCommandLike[];
   readonly when: readonly ScenarioCommandLike[];
   readonly then: (context: unknown) => void | Promise<void>;
+};
+
+export type ScenarioReplayDefinitionLike = Omit<ScenarioDefinitionLike, "then">;
+
+export type CompiledScenarioReplayLike = {
+  readonly schemaVersion: 1;
+  readonly scenario: {
+    readonly path: string;
+    readonly sourceDigest: `sha256:${string}`;
+  };
+  readonly definition: ScenarioReplayDefinitionLike;
+  readonly checkpoint: ScenarioCheckpointLike;
+  readonly expected: {
+    readonly checkpointDigest: `sha256:${string}`;
+    readonly publicProjectionDigest: `sha256:${string}`;
+  };
 };
 
 export type ScenarioCheckpointLike =
@@ -223,7 +241,7 @@ export type LoadedReducerNativeScenario = {
   readonly sdkVersion: string;
   readonly game: unknown;
   readonly definition: ScenarioDefinitionLike;
-  readonly replayDefinition: unknown;
+  readonly replayDefinition: ScenarioReplayDefinitionLike;
   readonly replayScenario: LoadedBundleModule["replayScenario"];
   readonly inspectScenario: LoadedBundleModule["inspectScenario"];
   readonly exploreScenario: LoadedBundleModule["exploreScenario"];
@@ -235,6 +253,60 @@ export type LoadedReducerNativeScenario = {
   readonly ScenarioReplayError: ScenarioReplayErrorConstructor;
   readonly ScenarioDefinitionValidationError: ScenarioReplayErrorConstructor;
 };
+
+type ScenarioCompilerModule = {
+  readonly compileScenarioReplay?: (options: {
+    readonly scenarioPath: string;
+    readonly at?: ScenarioCheckpointLike;
+  }) => Promise<unknown>;
+};
+
+export async function compileReducerNativeScenarioReplay(options: {
+  readonly projectRoot: string;
+  readonly scenarioPath: string;
+  readonly at?: ScenarioCheckpointLike;
+}): Promise<CompiledScenarioReplayLike> {
+  const projectRoot = path.resolve(options.projectRoot);
+  const scenarioFile = await resolveScenarioSelector({
+    projectRoot,
+    scenarioRoot: path.join(projectRoot, SCENARIO_ROOT),
+    selector: options.scenarioPath,
+  });
+  const sdkVersion = await resolveInstalledSdkVersion(projectRoot);
+  const projectRequire = createRequire(path.join(projectRoot, "package.json"));
+  let compilerPath: string;
+  try {
+    compilerPath = projectRequire.resolve(SDK_TESTING_COMPILER_SPECIFIER);
+  } catch (error) {
+    throw new ScenarioLoaderError({
+      code: "SDK_VERSION_UNAVAILABLE",
+      message:
+        `Installed @dreamboard-games/sdk ${sdkVersion} does not export ` +
+        `'${SDK_TESTING_COMPILER_SPECIFIER}'.`,
+      scenarioPath: options.scenarioPath,
+      sdkVersion,
+      cause: error,
+    });
+  }
+  const compiler = (await import(
+    pathToFileURL(compilerPath).href
+  )) as ScenarioCompilerModule;
+  if (typeof compiler.compileScenarioReplay !== "function") {
+    throw new ScenarioLoaderError({
+      code: "SDK_VERSION_UNAVAILABLE",
+      message:
+        `Installed @dreamboard-games/sdk ${sdkVersion} has no ` +
+        "compileScenarioReplay export.",
+      scenarioPath: options.scenarioPath,
+      sdkVersion,
+    });
+  }
+  const compiled = await compiler.compileScenarioReplay({
+    scenarioPath: scenarioFile,
+    ...(options.at === undefined ? {} : { at: options.at }),
+  });
+  return requireCompiledScenarioReplay(compiled, options.scenarioPath);
+}
 
 type EvaluatedReducerNativeScenario = {
   readonly id: string;
@@ -388,7 +460,9 @@ function materializeReducerNativeScenario(
       sdkVersion: evaluated.sdkVersion,
       game: loaded.game,
       definition: evaluated.definition,
-      replayDefinition: loaded.toScenarioReplayDefinition(evaluated.definition),
+      replayDefinition: loaded.toScenarioReplayDefinition(
+        evaluated.definition,
+      ) as ScenarioReplayDefinitionLike,
       replayScenario: loaded.replayScenario,
       inspectScenario: loaded.inspectScenario,
       exploreScenario: loaded.exploreScenario,
@@ -483,6 +557,56 @@ function requireScenarioDefinition(
     });
   }
   return value as ScenarioDefinitionLike;
+}
+
+function requireCompiledScenarioReplay(
+  value: unknown,
+  scenarioPath: string,
+): CompiledScenarioReplayLike {
+  const compiled = value as Partial<CompiledScenarioReplayLike> | null;
+  const definition = compiled?.definition as
+    | Partial<ScenarioReplayDefinitionLike>
+    | undefined;
+  const checkpoint = compiled?.checkpoint as
+    | Partial<ScenarioCheckpointLike>
+    | undefined;
+  if (
+    typeof compiled !== "object" ||
+    compiled === null ||
+    compiled.schemaVersion !== 1 ||
+    typeof compiled.scenario?.path !== "string" ||
+    !isSha256(compiled.scenario.sourceDigest) ||
+    typeof definition?.id !== "string" ||
+    typeof definition.setup?.players !== "number" ||
+    typeof definition.setup.seed !== "number" ||
+    !Array.isArray(definition.given) ||
+    !Array.isArray(definition.when) ||
+    !isScenarioCheckpoint(checkpoint) ||
+    !isSha256(compiled.expected?.checkpointDigest) ||
+    !isSha256(compiled.expected.publicProjectionDigest)
+  ) {
+    throw new ScenarioLoaderError({
+      code: "SCENARIO_LOAD_FAILED",
+      message: `Scenario compiler returned an invalid schema-v1 replay for '${scenarioPath}'.`,
+      scenarioPath,
+    });
+  }
+  return compiled as CompiledScenarioReplayLike;
+}
+
+function isScenarioCheckpoint(
+  value: Partial<ScenarioCheckpointLike> | undefined,
+): value is ScenarioCheckpointLike {
+  if (value?.segment === "setup") return value.completed === 0;
+  return (
+    (value?.segment === "given" || value?.segment === "when") &&
+    Number.isSafeInteger(value.completed) &&
+    (value.completed ?? -1) >= 0
+  );
+}
+
+function isSha256(value: unknown): value is `sha256:${string}` {
+  return typeof value === "string" && /^sha256:[a-f0-9]{64}$/u.test(value);
 }
 
 function requireBundleExports(

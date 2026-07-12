@@ -8,7 +8,9 @@ import { submitGameplayAuthorityAction } from "../gameplay-authority-submit.js";
 import { toDreamboardApiError } from "../../utils/errors.js";
 import { projectIdFromSessionGameSource } from "../../utils/session-game-source.js";
 import {
+  compileReducerNativeScenarioReplay,
   loadReducerNativeScenarios,
+  type CompiledScenarioReplayLike,
   type LoadedReducerNativeScenario,
   type ScenarioCheckpointLike,
   type ScenarioCommandLike,
@@ -17,6 +19,7 @@ import {
 
 export type ScenarioDevMaterializationErrorCode =
   | "SCENARIO_CHECKPOINT_INVALID"
+  | "SCENARIO_COMPILED_REPLAY_INVALID"
   | "SCENARIO_BACKEND_START_FAILED"
   | "SCENARIO_BACKEND_SNAPSHOT_UNAVAILABLE"
   | "SCENARIO_BACKEND_REPLAY_REJECTED"
@@ -77,7 +80,9 @@ export type ScenarioReplayMaterialization = {
   readonly totalMs: number;
   readonly commandsReplayed: number;
   readonly checkpoint: ScenarioCheckpointLike;
+  readonly scenarioSourceDigest: string;
   readonly localCheckpointDigest: string;
+  readonly publicProjectionDigest: string;
   readonly projections: readonly ScenarioProjectionDigestProof[];
 };
 
@@ -95,6 +100,7 @@ export type ScenarioDevSession = {
 
 type ScenarioMaterializerDependencies = {
   readonly loadScenarios: typeof loadReducerNativeScenarios;
+  readonly compileScenario: typeof compileReducerNativeScenarioReplay;
   readonly createSession: typeof createProjectSessionSdk;
   readonly startSession: (sessionId: string) => Promise<HostSessionSnapshot>;
   readonly readSession: (options: {
@@ -106,6 +112,7 @@ type ScenarioMaterializerDependencies = {
 
 const defaultDependencies: ScenarioMaterializerDependencies = {
   loadScenarios: loadReducerNativeScenarios,
+  compileScenario: compileReducerNativeScenarioReplay,
   createSession: createProjectSessionSdk,
   startSession: startBackendSession,
   readSession: readBackendSession,
@@ -163,30 +170,73 @@ export async function createSessionFromScenario(
     );
   }
   const checkpoint = parseScenarioCheckpoint(options.at, scenario.definition);
+  const compiledReplay = await deps.compileScenario({
+    projectRoot: options.projectRoot,
+    scenarioPath: scenario.scenarioPath,
+    at: checkpoint,
+  });
+  const authorityScenario = requireMatchingCompiledReplay({
+    scenario,
+    compiledReplay,
+    checkpoint,
+  });
 
   // Validate normal setup and every selected source command before creating a
   // disposable backend session. This replay is the local authority used for
   // the final checkpoint receipt; it never serializes reducer state.
   const targetInspection = await inspectLocalScenario({
-    scenario,
+    scenario: authorityScenario,
     checkpoint,
-    seat: 0,
+    perspective: { kind: "player", seat: 0 },
   });
+  if (
+    targetInspection.node.checkpointDigest !==
+    compiledReplay.expected.checkpointDigest
+  ) {
+    throw compiledReplayError({
+      scenario,
+      checkpoint,
+      message:
+        `Compiled checkpoint digest ${compiledReplay.expected.checkpointDigest} ` +
+        `does not match local replay ${targetInspection.node.checkpointDigest}.`,
+    });
+  }
+  const publicInspection = await inspectLocalScenario({
+    scenario: authorityScenario,
+    checkpoint,
+    perspective: { kind: "spectator" },
+  });
+  const publicProjectionDigest = authorityScenario.digestScenarioProjection(
+    authorityScenario.scenarioProjectionParityFromInspectNode(
+      publicInspection.node,
+    ),
+  );
+  if (
+    publicProjectionDigest !== compiledReplay.expected.publicProjectionDigest
+  ) {
+    throw compiledReplayError({
+      scenario,
+      checkpoint,
+      message:
+        `Compiled public projection digest ${compiledReplay.expected.publicProjectionDigest} ` +
+        `does not match local replay ${publicProjectionDigest}.`,
+    });
+  }
   const session = await deps.createSession({
     projectId: options.projectId,
     request: {
       compiledResultId: options.compiledResultId,
-      seed: scenario.definition.setup.seed,
-      playerCount: scenario.definition.setup.players,
+      seed: compiledReplay.definition.setup.seed,
+      playerCount: compiledReplay.definition.setup.players,
       autoAssignSeats: true,
-      ...(typeof scenario.definition.setup.setupProfileId === "string"
-        ? { setupProfileId: scenario.definition.setup.setupProfileId }
+      ...(typeof compiledReplay.definition.setup.setupProfileId === "string"
+        ? { setupProfileId: compiledReplay.definition.setup.setupProfileId }
         : {}),
     },
   });
   const startedSnapshot = await deps.startSession(session.sessionId);
   const expectedSetupProfileId =
-    scenario.definition.setup.setupProfileId ?? null;
+    compiledReplay.definition.setup.setupProfileId ?? null;
   const backendSetupProfileId = startedSnapshot.context.setupProfileId ?? null;
   if (backendSetupProfileId !== expectedSetupProfileId) {
     throw new ScenarioDevMaterializationError({
@@ -201,8 +251,8 @@ export async function createSessionFromScenario(
   }
   const backendPlayerIds = requireBackendPlayerIds({
     snapshot: startedSnapshot,
-    expectedCount: scenario.definition.setup.players,
-    scenario,
+    expectedCount: compiledReplay.definition.setup.players,
+    scenario: authorityScenario,
   });
   const localInspectionCache = new Map<
     string,
@@ -215,7 +265,7 @@ export async function createSessionFromScenario(
     completed: 0,
   };
   let parity = await assertCheckpointParity({
-    scenario,
+    scenario: authorityScenario,
     checkpoint: currentCheckpoint,
     sessionId: session.sessionId,
     backendPlayerIds,
@@ -225,14 +275,14 @@ export async function createSessionFromScenario(
   });
   let commandsReplayed = 0;
 
-  for (const step of selectedScenarioCommands(scenario, checkpoint)) {
+  for (const step of selectedScenarioCommands(authorityScenario, checkpoint)) {
     const actorPlayerId = backendPlayerIds[step.command.actor.seat];
     if (!actorPlayerId) {
       throw new ScenarioDevMaterializationError({
         code: "SCENARIO_BACKEND_REPLAY_REJECTED",
         message: `${formatSourceCommand(step.source)} references seat ${step.command.actor.seat}, but the backend created ${backendPlayerIds.length} seat(s).`,
-        scenarioId: scenario.id,
-        scenarioPath: scenario.scenarioPath,
+        scenarioId: authorityScenario.id,
+        scenarioPath: authorityScenario.scenarioPath,
         checkpoint: currentCheckpoint,
         sourceCommand: step.source,
       });
@@ -245,27 +295,27 @@ export async function createSessionFromScenario(
       }));
     const gameplay = requireGameplaySnapshot({
       snapshot: actorSnapshot,
-      scenario,
+      scenario: authorityScenario,
       checkpoint: currentCheckpoint,
       sourceCommand: step.source,
     });
     const actorSeatProjection = gameplay.seats[actorPlayerId];
     if (!actorSeatProjection) {
       throw backendSnapshotError({
-        scenario,
+        scenario: authorityScenario,
         checkpoint: currentCheckpoint,
         sourceCommand: step.source,
         message: `${formatSourceCommand(step.source)} cannot resolve backend projection for seat ${step.command.actor.seat}.`,
       });
     }
     const beforeInspection = await cachedLocalInspection({
-      scenario,
+      scenario: authorityScenario,
       checkpoint: currentCheckpoint,
       seat: step.command.actor.seat,
       cache: localInspectionCache,
     });
-    const inputs = scenario.resolveScenarioCommandParams({
-      game: scenario.game,
+    const inputs = authorityScenario.resolveScenarioCommandParams({
+      game: authorityScenario.game,
       phase: beforeInspection.node.flow.phase,
       interactionId: step.command.interactionId,
       params: step.command.params,
@@ -292,8 +342,8 @@ export async function createSessionFromScenario(
           `${formatSourceCommand(step.source)} interaction '${step.command.interactionId}' ` +
           `was accepted locally but rejected by the backend` +
           (backendErrorCode ? ` with ${backendErrorCode}.` : "."),
-        scenarioId: scenario.id,
-        scenarioPath: scenario.scenarioPath,
+        scenarioId: authorityScenario.id,
+        scenarioPath: authorityScenario.scenarioPath,
         checkpoint: currentCheckpoint,
         sourceCommand: step.source,
         backendErrorCode,
@@ -303,7 +353,7 @@ export async function createSessionFromScenario(
     currentCheckpoint = step.after;
     commandsReplayed += 1;
     parity = await assertCheckpointParity({
-      scenario,
+      scenario: authorityScenario,
       checkpoint: currentCheckpoint,
       sessionId: session.sessionId,
       backendPlayerIds,
@@ -317,20 +367,71 @@ export async function createSessionFromScenario(
     sessionId: session.sessionId,
     shortCode: session.shortCode,
     projectId: projectIdFromSessionGameSource(session.gameSource),
-    seed: scenario.definition.setup.seed,
-    playerCount: scenario.definition.setup.players,
-    setupProfileId: scenario.definition.setup.setupProfileId ?? null,
-    scenarioId: scenario.id,
-    scenarioPath: scenario.scenarioPath,
+    seed: compiledReplay.definition.setup.seed,
+    playerCount: compiledReplay.definition.setup.players,
+    setupProfileId: compiledReplay.definition.setup.setupProfileId ?? null,
+    scenarioId: authorityScenario.id,
+    scenarioPath: authorityScenario.scenarioPath,
     materialization: {
       mode: "replay",
       totalMs: Math.round((performance.now() - startedAt) * 10) / 10,
       commandsReplayed,
       checkpoint,
+      scenarioSourceDigest: compiledReplay.scenario.sourceDigest,
       localCheckpointDigest: targetInspection.node.checkpointDigest,
+      publicProjectionDigest,
       projections: parity.proofs,
     },
   };
+}
+
+function requireMatchingCompiledReplay(options: {
+  readonly scenario: LoadedReducerNativeScenario;
+  readonly compiledReplay: CompiledScenarioReplayLike;
+  readonly checkpoint: ScenarioCheckpointLike;
+}): LoadedReducerNativeScenario {
+  const compiled = options.compiledReplay;
+  const mismatches = [
+    compiled.scenario.path === options.scenario.scenarioPath
+      ? null
+      : `path '${compiled.scenario.path}'`,
+    compiled.definition.id === options.scenario.id
+      ? null
+      : `id '${compiled.definition.id}'`,
+    JSON.stringify(compiled.checkpoint) === JSON.stringify(options.checkpoint)
+      ? null
+      : `checkpoint ${JSON.stringify(compiled.checkpoint)}`,
+    JSON.stringify(compiled.definition) ===
+    JSON.stringify(options.scenario.replayDefinition)
+      ? null
+      : "serialized definition",
+  ].filter((value): value is string => value !== null);
+  if (mismatches.length > 0) {
+    throw compiledReplayError({
+      scenario: options.scenario,
+      checkpoint: options.checkpoint,
+      message: `Compiled replay disagrees with loaded source authority: ${mismatches.join(", ")}.`,
+    });
+  }
+  return {
+    ...options.scenario,
+    sourceDigest: compiled.scenario.sourceDigest,
+    replayDefinition: compiled.definition,
+  };
+}
+
+function compiledReplayError(options: {
+  readonly scenario: LoadedReducerNativeScenario;
+  readonly checkpoint: ScenarioCheckpointLike;
+  readonly message: string;
+}): ScenarioDevMaterializationError {
+  return new ScenarioDevMaterializationError({
+    code: "SCENARIO_COMPILED_REPLAY_INVALID",
+    message: options.message,
+    scenarioId: options.scenario.id,
+    scenarioPath: options.scenario.scenarioPath,
+    checkpoint: options.checkpoint,
+  });
 }
 
 type SelectedScenarioCommand = {
@@ -348,34 +449,40 @@ function selectedScenarioCommands(
       ? 0
       : target.segment === "given"
         ? target.completed
-        : scenario.definition.given.length;
+        : scenario.replayDefinition.given.length;
   const whenCount = target.segment === "when" ? target.completed : 0;
   return [
-    ...scenario.definition.given.slice(0, givenCount).map((command, index) => ({
-      source: {
-        segment: "given" as const,
-        index,
-        interactionId: command.interactionId,
-      },
-      command,
-      after: { segment: "given" as const, completed: index + 1 },
-    })),
-    ...scenario.definition.when.slice(0, whenCount).map((command, index) => ({
-      source: {
-        segment: "when" as const,
-        index,
-        interactionId: command.interactionId,
-      },
-      command,
-      after: { segment: "when" as const, completed: index + 1 },
-    })),
+    ...scenario.replayDefinition.given
+      .slice(0, givenCount)
+      .map((command, index) => ({
+        source: {
+          segment: "given" as const,
+          index,
+          interactionId: command.interactionId,
+        },
+        command,
+        after: { segment: "given" as const, completed: index + 1 },
+      })),
+    ...scenario.replayDefinition.when
+      .slice(0, whenCount)
+      .map((command, index) => ({
+        source: {
+          segment: "when" as const,
+          index,
+          interactionId: command.interactionId,
+        },
+        command,
+        after: { segment: "when" as const, completed: index + 1 },
+      })),
   ];
 }
 
 async function inspectLocalScenario(options: {
   readonly scenario: LoadedReducerNativeScenario;
   readonly checkpoint: ScenarioCheckpointLike;
-  readonly seat: number;
+  readonly perspective:
+    | { readonly kind: "player"; readonly seat: number }
+    | { readonly kind: "spectator" };
 }) {
   return options.scenario.inspectScenario({
     game: options.scenario.game,
@@ -385,7 +492,7 @@ async function inspectLocalScenario(options: {
       path: options.scenario.scenarioPath,
       sourceDigest: options.scenario.sourceDigest,
     },
-    perspective: { kind: "player", seat: options.seat },
+    perspective: options.perspective,
     at: options.checkpoint,
   });
 }
@@ -399,7 +506,11 @@ async function cachedLocalInspection(options: {
   const key = localInspectionKey(options.checkpoint, options.seat);
   const cached = options.cache.get(key);
   if (cached) return cached;
-  const inspected = await inspectLocalScenario(options);
+  const inspected = await inspectLocalScenario({
+    scenario: options.scenario,
+    checkpoint: options.checkpoint,
+    perspective: { kind: "player", seat: options.seat },
+  });
   options.cache.set(key, inspected);
   return inspected;
 }

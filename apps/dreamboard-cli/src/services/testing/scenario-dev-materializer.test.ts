@@ -102,7 +102,10 @@ describe("scenario dev backend replay", () => {
         mode: "replay",
         commandsReplayed: 3,
         checkpoint: { segment: "when", completed: 1 },
+        scenarioSourceDigest:
+          "sha256:1111111111111111111111111111111111111111111111111111111111111111",
         localCheckpointDigest: "sha256:checkpoint-3",
+        publicProjectionDigest: expect.any(String),
         projections: [{ seat: 0 }],
       },
     });
@@ -237,6 +240,37 @@ describe("scenario dev backend replay", () => {
       checkpoint: { segment: "setup", completed: 0 },
     });
   });
+
+  test("rejects a compiled replay that diverges from the loaded scenario", async () => {
+    const harness = createBackendHarness();
+    const compileScenario = harness.dependencies.compileScenario;
+
+    await expect(
+      createSessionFromScenario(
+        {
+          projectRoot: "/workspace",
+          scenarioPath: "test/scenarios/opening.scenario.ts",
+          at: "setup",
+          compiledResultId: "compile-1",
+          projectId: "project-1",
+        },
+        {
+          ...harness.dependencies,
+          compileScenario: async (options) => {
+            const compiled = await compileScenario(options);
+            return {
+              ...compiled,
+              definition: { ...compiled.definition, id: "different" },
+            };
+          },
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "SCENARIO_COMPILED_REPLAY_INVALID",
+      checkpoint: { segment: "setup", completed: 0 },
+    });
+    expect(harness.createRequests).toHaveLength(0);
+  });
 });
 
 function createBackendHarness(
@@ -274,6 +308,41 @@ function createBackendHarness(
     submissions,
     dependencies: {
       loadScenarios: async () => [scenario],
+      compileScenario: async ({ at }) => {
+        const checkpoint = at ?? {
+          segment: "given" as const,
+          completed: scenario.definition.given.length,
+        };
+        const inspected = await scenario.inspectScenario({
+          game: scenario.game,
+          scenario: scenario.replayDefinition,
+          identity: {
+            id: scenario.id,
+            path: scenario.scenarioPath,
+            sourceDigest: scenario.sourceDigest,
+          },
+          perspective: { kind: "spectator" },
+          at: checkpoint,
+        });
+        const publicProjection =
+          scenario.scenarioProjectionParityFromInspectNode(inspected.node);
+        return {
+          schemaVersion: 1 as const,
+          scenario: {
+            path: scenario.scenarioPath,
+            sourceDigest: scenario.sourceDigest as `sha256:${string}`,
+          },
+          definition: scenario.replayDefinition,
+          checkpoint,
+          expected: {
+            checkpointDigest: inspected.node
+              .checkpointDigest as `sha256:${string}`,
+            publicProjectionDigest: scenario.digestScenarioProjection(
+              publicProjection,
+            ) as `sha256:${string}`,
+          },
+        };
+      },
       createSession: async (request: unknown) => {
         createRequests.push(request);
         return {
@@ -382,7 +451,8 @@ function createLoadedScenario(
           checkpointDigest: `sha256:checkpoint-${value}`,
           flow: { phase: "main" },
           __value: value,
-          __seat: perspective.seat,
+          __seat:
+            perspective.kind === "player" ? perspective.seat : "spectator",
         },
       } as never;
     },
@@ -396,7 +466,7 @@ function createLoadedScenario(
     scenarioProjectionParityFromInspectNode: (node) => {
       const fixtureNode = node as typeof node & {
         readonly __value: number;
-        readonly __seat: number;
+        readonly __seat: number | "spectator";
       };
       return expectedProjection(
         fixtureNode.__value,
@@ -422,11 +492,11 @@ function completedCommands(
 
 function expectedProjection(
   value: number,
-  seat: number,
+  seat: number | "spectator",
   activeSeat = 0,
 ): ScenarioProjectionParityLike {
   return {
-    perspective: { seat },
+    perspective: seat === "spectator" ? "spectator" : { seat },
     flow: {
       phase: "main",
       step: null,
@@ -438,7 +508,7 @@ function expectedProjection(
     view: { value },
     interactions: [
       {
-        actorSeat: seat,
+        actorSeat: seat === "spectator" ? activeSeat : seat,
         interactionId: "increment",
         availability: { status: "available" },
         inputs: [],

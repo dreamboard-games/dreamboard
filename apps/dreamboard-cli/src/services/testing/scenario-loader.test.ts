@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   ScenarioLoaderError,
+  compileReducerNativeScenarioReplay,
   discoverReducerNativeScenarioPaths,
   loadReducerNativeScenarios,
 } from "./scenario-loader.js";
@@ -78,6 +79,24 @@ describe("scenario loader", () => {
     expect(
       loaded?.sourceInputs.some((input) => input.path.includes("node_modules")),
     ).toBe(false);
+  });
+
+  test("loads the installed SDK testing compiler and validates its replay DTO", async () => {
+    const root = await createScenarioProject();
+    await writeScenario(root, "passes.scenario.ts", { id: "passes" });
+
+    const compiled = await compileReducerNativeScenarioReplay({
+      projectRoot: root,
+      scenarioPath: "test/scenarios/passes.scenario.ts",
+      at: { segment: "given", completed: 0 },
+    });
+
+    expect(compiled).toMatchObject({
+      schemaVersion: 1,
+      scenario: { path: "test/scenarios/passes.scenario.ts" },
+      definition: { id: "passes" },
+      checkpoint: { segment: "given", completed: 0 },
+    });
   });
 
   test("returns exactly the selected workspace scenario", async () => {
@@ -410,10 +429,21 @@ async function createScenarioProject(): Promise<string> {
       type: "module",
       exports: {
         "./testing": "./testing.js",
+        "./testing-compiler": "./testing-compiler.js",
         "./testing-runtime": "./testing-runtime.js",
         "./package.json": "./package.json",
       },
     }),
+  );
+  await writeFile(
+    path.join(
+      root,
+      "node_modules",
+      "@dreamboard-games",
+      "sdk",
+      "testing-compiler.js",
+    ),
+    fakeSdkTestingCompilerSource,
   );
   await writeFile(
     path.join(root, "node_modules", "@dreamboard-games", "sdk", "testing.js"),
@@ -653,5 +683,28 @@ export function scenarioProjectionParityFromInspectNode(node) {
 
 export function digestScenarioProjection(projection) {
   return JSON.stringify(projection);
+}
+`;
+
+const fakeSdkTestingCompilerSource = `
+export async function compileScenarioReplay({ scenarioPath, at }) {
+  return {
+    schemaVersion: 1,
+    scenario: {
+      path: scenarioPath.split(/[\\\\/]/).slice(-3).join("/"),
+      sourceDigest: "sha256:${"1".repeat(64)}",
+    },
+    definition: {
+      id: "passes",
+      setup: { players: 2, seed: 0 },
+      given: [],
+      when: [{ actor: { seat: 0 }, interactionId: "pass", params: {} }],
+    },
+    checkpoint: at,
+    expected: {
+      checkpointDigest: "sha256:${"2".repeat(64)}",
+      publicProjectionDigest: "sha256:${"3".repeat(64)}",
+    },
+  };
 }
 `;

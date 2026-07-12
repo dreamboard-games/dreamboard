@@ -68,6 +68,11 @@ test("materializes revision-native authoring state without tracked authoring ids
   expect(projectJson).not.toContain("authoringStateId");
   expect(projectJson).not.toContain("ruleId");
   expect(projectJson).not.toContain("manifestId");
+  expect(
+    await Bun.file(
+      path.join(targetDir, "test", "generated", "testing-contract.ts"),
+    ).exists(),
+  ).toBe(false);
 
   const loaded = await loadProjectConfig(targetDir);
   expect(loaded.remoteHeadDigest).toBe("revision-digest-1");
