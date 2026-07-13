@@ -121,7 +121,10 @@ const defaultDependencies: ScenarioMaterializerDependencies = {
 
 export function parseScenarioCheckpoint(
   value: string | undefined,
-  scenario: Pick<LoadedReducerNativeScenario["definition"], "given" | "when">,
+  scenario: Pick<
+    LoadedReducerNativeScenario["definition"],
+    "checkpoints" | "given" | "when"
+  >,
 ): ScenarioCheckpointLike {
   const selector = value?.trim();
   if (!selector) {
@@ -130,10 +133,18 @@ export function parseScenarioCheckpoint(
   if (selector === "setup") {
     return { segment: "setup", completed: 0 };
   }
+  if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(selector)) {
+    const checkpoint = scenario.checkpoints?.[selector];
+    if (checkpoint !== undefined) return structuredClone(checkpoint);
+    const available = Object.keys(scenario.checkpoints ?? {}).sort();
+    throw checkpointError(
+      `Invalid scenario checkpoint '${selector}'. Available named checkpoints: ${available.join(", ") || "none"}.`,
+    );
+  }
   const match = /^(given|when):(0|[1-9]\d*)$/u.exec(selector);
   if (!match) {
     throw checkpointError(
-      `Invalid scenario checkpoint '${selector}'. Expected setup, given:<n>, or when:<n>.`,
+      `Invalid scenario checkpoint '${selector}'. Expected a named checkpoint, setup, given:<n>, or when:<n>.`,
     );
   }
   const segment = match[1] as "given" | "when";

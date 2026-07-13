@@ -492,8 +492,8 @@ export default defineCommand({
     at: {
       type: "string",
       description:
-        "Scenario checkpoint: setup, given:<n>, or when:<n> (defaults to the end of given)",
-      valueHint: "given:0",
+        "Scenario checkpoint: named id, setup, given:<n>, or when:<n> (defaults to the end of given)",
+      valueHint: "developed",
     },
     "new-session": {
       type: "boolean",

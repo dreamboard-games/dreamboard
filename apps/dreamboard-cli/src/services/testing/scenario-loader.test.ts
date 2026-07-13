@@ -306,7 +306,7 @@ describe("scenario inspection service", () => {
       projectRoot: root,
       scenarioPath: "test/scenarios/observe.scenario.ts",
       perspective: { kind: "player" as const, seat: 0 },
-      checkpoint: { segment: "given" as const, count: 0 },
+      checkpoint: { checkpointId: "given-start" },
     };
 
     await expect(inspectReducerNativeScenario(common)).resolves.toMatchObject({
@@ -314,6 +314,12 @@ describe("scenario inspection service", () => {
       node: {
         checkpoint: { segment: "given", completed: 0 },
         perspective: { kind: "player", seat: 0 },
+      },
+      scenario: {
+        checkpoints: [
+          { id: "game-over", at: { segment: "when", completed: 1 } },
+          { id: "given-start", at: { segment: "given", completed: 0 } },
+        ],
       },
     });
     await expect(
@@ -346,6 +352,25 @@ describe("scenario inspection service", () => {
       problem: {
         code: "TEST_CHECKPOINT_INVALID",
         context: { maximumCompleted: 0 },
+      },
+    });
+  });
+
+  test("lists available checkpoints when a named selector is unknown", async () => {
+    const root = await createScenarioProject();
+    await writeScenario(root, "named.scenario.ts", { id: "named" });
+
+    await expect(
+      inspectReducerNativeScenario({
+        projectRoot: root,
+        scenarioPath: "test/scenarios/named.scenario.ts",
+        perspective: { kind: "player", seat: 0 },
+        checkpoint: { checkpointId: "missing" },
+      }),
+    ).rejects.toMatchObject({
+      problem: {
+        code: "TEST_CHECKPOINT_INVALID",
+        context: { availableCheckpoints: "game-over,given-start" },
       },
     });
   });
@@ -523,6 +548,10 @@ async function writeScenario(
       `    interactionId: ${JSON.stringify(options.interactionId ?? "pass")},`,
       "    params: {},",
       "  }],",
+      "  checkpoints: {",
+      '    "given-start": { segment: "given", completed: 0 },',
+      '    "game-over": { segment: "when", completed: 1 },',
+      "  },",
       "  then: async () => {",
       ...(options.helperImport ? ["    void expected;"] : []),
       ...(options.assertionError
@@ -624,9 +653,10 @@ export async function assertScenario({ replay, assertion }) {
   await assertion({});
 }
 
-export async function inspectScenario({ scenario, perspective, at }) {
+export async function inspectScenario({ scenario, identity, perspective, at }) {
   return {
     schemaVersion: 1,
+    scenario: identity,
     node: {
       checkpoint: at,
       checkpointDigest: "sha256:fixture",
@@ -638,11 +668,11 @@ export async function inspectScenario({ scenario, perspective, at }) {
   };
 }
 
-export async function exploreScenario({ scenario, perspective, at }) {
+export async function exploreScenario({ scenario, identity, perspective, at }) {
   return {
     schemaVersion: 1,
     mode: "transitions",
-    scenario: { id: scenario.id },
+    scenario: identity,
     perspective,
     node: {
       checkpoint: at,

@@ -130,7 +130,7 @@ describe("inspect and explore argument contract", () => {
         "--perspective",
         "player:2",
         "--at",
-        "given:3",
+        "developed",
         "--seed",
         "17",
       ],
@@ -141,7 +141,7 @@ describe("inspect and explore argument contract", () => {
         projectRoot: "/workspace",
         scenarioPath: "test/scenarios/complete-game.scenario.ts",
         perspective: { kind: "player", seat: 2 },
-        checkpoint: { segment: "given", count: 3 },
+        checkpoint: { checkpointId: "developed" },
         seed: 17,
       },
     ]);

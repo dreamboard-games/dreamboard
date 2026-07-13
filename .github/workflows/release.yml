@@ -65,11 +65,8 @@ jobs:
       - name: Build API client
         run: pnpm --dir packages/api-client build
 
-      - name: Stage dev-host package
-        run: pnpm --dir packages/dev-host stage:publish
-
       - name: Stage CLI package
-        run: pnpm stage:publish
+        run: pnpm cli:stage:publish
 
       - name: Validate release metadata
         id: release_meta
@@ -81,17 +78,11 @@ jobs:
           fi
 
           package_version="$(node -p "require('./apps/dreamboard-cli/.publish/package/package.json').version")"
-          dev_host_version="$(node -p "require('./packages/dev-host/.publish/package/package.json').version")"
           expected_tag="v${package_version}"
           release_tag="${{ inputs.release_tag }}"
 
           if [ "${release_tag}" != "${expected_tag}" ]; then
             echo "Release tag ${release_tag} does not match expected tag ${expected_tag}." >&2
-            exit 1
-          fi
-
-          if [ "${dev_host_version}" != "${package_version}" ]; then
-            echo "Dev-host version ${dev_host_version} does not match CLI version ${package_version}." >&2
             exit 1
           fi
 
@@ -103,19 +94,8 @@ jobs:
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "npm_tag=$npm_tag" >> "$GITHUB_OUTPUT"
           echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
-          echo "dev_host_version=$dev_host_version" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Publish dev-host to npm
-        run: |
-          if npm view "@dreamboard-games/dev-host@${{ steps.release_meta.outputs.dev_host_version }}" version \
-            --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
-            echo "@dreamboard-games/dev-host@${{ steps.release_meta.outputs.dev_host_version }} already exists; skipping publish."
-          else
-            npm publish packages/dev-host/.publish/package \
-              --tag "${{ steps.release_meta.outputs.npm_tag }}"
-          fi
 
       - name: Publish CLI to npm
         run: |
@@ -124,7 +104,8 @@ jobs:
             echo "@dreamboard-games/cli@${{ steps.release_meta.outputs.package_version }} already exists; skipping publish."
           else
             npm publish apps/dreamboard-cli/.publish/package \
-              --tag "${{ steps.release_meta.outputs.npm_tag }}"
+              --tag "${{ steps.release_meta.outputs.npm_tag }}" \
+              --provenance
           fi
 
       - name: Create GitHub Release
@@ -149,8 +130,6 @@ jobs:
         run: |
           {
             echo "Published \`dreamboard@${{ steps.release_meta.outputs.package_version }}\`"
-            echo "Published \`@dreamboard-games/dev-host@${{ steps.release_meta.outputs.dev_host_version }}\`"
-            echo
             echo "- release tag: \`${{ steps.release_meta.outputs.release_tag }}\`"
             echo "- npm tag: \`${{ steps.release_meta.outputs.npm_tag }}\`"
             echo "- branch: \`${GITHUB_REF_NAME}\`"

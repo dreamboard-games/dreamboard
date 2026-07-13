@@ -93,10 +93,14 @@ export type ScenarioDefinitionLike = {
   };
   readonly given: readonly ScenarioCommandLike[];
   readonly when: readonly ScenarioCommandLike[];
+  readonly checkpoints?: Readonly<Record<string, ScenarioCheckpointLike>>;
   readonly then: (context: unknown) => void | Promise<void>;
 };
 
-export type ScenarioReplayDefinitionLike = Omit<ScenarioDefinitionLike, "then">;
+export type ScenarioReplayDefinitionLike = Omit<
+  ScenarioDefinitionLike,
+  "checkpoints" | "then"
+>;
 
 export type CompiledScenarioReplayLike = {
   readonly schemaVersion: 1;
@@ -257,14 +261,14 @@ export type LoadedReducerNativeScenario = {
 type ScenarioCompilerModule = {
   readonly compileScenarioReplay?: (options: {
     readonly scenarioPath: string;
-    readonly at?: ScenarioCheckpointLike;
+    readonly at?: ScenarioCheckpointLike | string;
   }) => Promise<unknown>;
 };
 
 export async function compileReducerNativeScenarioReplay(options: {
   readonly projectRoot: string;
   readonly scenarioPath: string;
-  readonly at?: ScenarioCheckpointLike;
+  readonly at?: ScenarioCheckpointLike | string;
 }): Promise<CompiledScenarioReplayLike> {
   const projectRoot = path.resolve(options.projectRoot);
   const scenarioFile = await resolveScenarioSelector({

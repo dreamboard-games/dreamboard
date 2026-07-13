@@ -45,7 +45,8 @@ export type TestPerspectiveSelector =
 
 export type TestCheckpointSelector =
   | { readonly segment: "setup" }
-  | { readonly segment: "given" | "when"; readonly count: number };
+  | { readonly segment: "given" | "when"; readonly count: number }
+  | { readonly checkpointId: string };
 
 export type TestInspectServiceRequest = {
   readonly projectRoot: string;
@@ -365,12 +366,16 @@ function parseCheckpoint(
       count,
     };
   }
+  if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value)) {
+    return { checkpointId: value };
+  }
   throw testValidationError(command, {
     title: "The requested checkpoint is invalid",
     code: "TEST_CHECKPOINT_INVALID",
     context: {
       requestedNode: value,
-      validBounds: "setup|given:<completed-count>|when:<completed-count>",
+      validBounds:
+        "<checkpoint-id>|setup|given:<completed-count>|when:<completed-count>",
     },
   });
 }
@@ -514,7 +519,7 @@ export function createTestCommand(deps: TestCommandDeps = {}): CommandDef<any> {
       at: {
         type: "string",
         description:
-          "setup, given:<completed-count>, or when:<completed-count>",
+          "Named scenario checkpoint, setup, given:<completed-count>, or when:<completed-count>",
       },
       seed: {
         type: "string",

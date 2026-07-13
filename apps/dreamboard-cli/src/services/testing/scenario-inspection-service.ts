@@ -22,14 +22,15 @@ export async function inspectReducerNativeScenario(
   const scenario = await loadSelectedScenario(request);
   const at = resolveCheckpoint(scenario, request.checkpoint, "test.inspect");
   try {
-    return (await scenario.inspectScenario({
+    const result = await scenario.inspectScenario({
       game: scenario.game,
       scenario: scenario.replayDefinition,
       identity: scenarioIdentity(scenario),
       perspective: request.perspective,
       ...(at ? { at } : {}),
       ...(request.seed === undefined ? {} : { seed: request.seed }),
-    })) as JsonValue;
+    });
+    return attachCheckpointCatalog(result, scenario);
   } catch (error) {
     throwStableSdkFailure(error, "test.inspect", scenario);
   }
@@ -41,7 +42,7 @@ export async function exploreReducerNativeScenario(
   const scenario = await loadSelectedScenario(request);
   const at = resolveCheckpoint(scenario, request.checkpoint, "test.explore");
   try {
-    return (await scenario.exploreScenario({
+    const result = await scenario.exploreScenario({
       game: scenario.game,
       scenario: scenario.replayDefinition,
       identity: scenarioIdentity(scenario),
@@ -54,7 +55,8 @@ export async function exploreReducerNativeScenario(
       ...(request.limit === undefined ? {} : { limit: request.limit }),
       maxEvaluations: request.maxEvaluations,
       ...(request.cursor === undefined ? {} : { cursor: request.cursor }),
-    })) as JsonValue;
+    });
+    return attachCheckpointCatalog(result, scenario);
   } catch (error) {
     throwStableSdkFailure(error, "test.explore", scenario);
   }
@@ -96,6 +98,26 @@ function resolveCheckpoint(
   command: "test.inspect" | "test.explore",
 ): ScenarioCheckpointLike | undefined {
   if (!checkpoint) return undefined;
+  if ("checkpointId" in checkpoint) {
+    const resolved = scenario.definition.checkpoints?.[checkpoint.checkpointId];
+    if (resolved === undefined) {
+      const available = Object.keys(
+        scenario.definition.checkpoints ?? {},
+      ).sort();
+      throw new TestFamilyCommandError({
+        command,
+        problem: {
+          title: "The requested named checkpoint is not declared",
+          code: "TEST_CHECKPOINT_INVALID",
+          context: {
+            requestedNode: checkpoint.checkpointId,
+            availableCheckpoints: available.join(",") || "none",
+          },
+        },
+      });
+    }
+    return structuredClone(resolved);
+  }
   if (checkpoint.segment === "setup") {
     return { segment: "setup", completed: 0 };
   }
@@ -116,6 +138,23 @@ function resolveCheckpoint(
     });
   }
   return { segment: checkpoint.segment, completed: checkpoint.count };
+}
+
+function attachCheckpointCatalog(
+  result: unknown,
+  scenario: LoadedReducerNativeScenario,
+): JsonValue {
+  const envelope = result as Record<string, unknown>;
+  const identity = envelope.scenario as Record<string, unknown>;
+  return {
+    ...envelope,
+    scenario: {
+      ...identity,
+      checkpoints: Object.entries(scenario.definition.checkpoints ?? {})
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+        .map(([id, at]) => ({ id, at })),
+    },
+  } as JsonValue;
 }
 
 function throwStableSdkFailure(

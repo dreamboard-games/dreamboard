@@ -15,7 +15,14 @@ describe("scenario dev checkpoint parsing", () => {
   const definition = {
     given: [{}, {}],
     when: [{}],
-  } as Pick<LoadedReducerNativeScenario["definition"], "given" | "when">;
+    checkpoints: {
+      developed: { segment: "given", completed: 2 },
+      "game-over": { segment: "when", completed: 1 },
+    },
+  } as Pick<
+    LoadedReducerNativeScenario["definition"],
+    "checkpoints" | "given" | "when"
+  >;
 
   test("defaults to the end of given and accepts the exact checkpoint grammar", () => {
     expect(parseScenarioCheckpoint(undefined, definition)).toEqual({
@@ -34,16 +41,29 @@ describe("scenario dev checkpoint parsing", () => {
       segment: "when",
       completed: 1,
     });
+    expect(parseScenarioCheckpoint("developed", definition)).toEqual({
+      segment: "given",
+      completed: 2,
+    });
   });
 
   test("rejects malformed and out-of-range checkpoints", () => {
-    for (const value of ["given", "setup:0", "given:-1", "given:03"]) {
+    for (const value of [
+      "given",
+      "setup:0",
+      "given:-1",
+      "given:03",
+      "invalid-",
+    ]) {
       expect(() => parseScenarioCheckpoint(value, definition)).toThrow(
         ScenarioDevMaterializationError,
       );
     }
     expect(() => parseScenarioCheckpoint("when:2", definition)).toThrow(
       "when accepts 0 through 1",
+    );
+    expect(() => parseScenarioCheckpoint("missing", definition)).toThrow(
+      "Available named checkpoints: developed, game-over",
     );
   });
 });
