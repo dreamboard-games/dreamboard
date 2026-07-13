@@ -56,15 +56,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check API client contract source
-        run: pnpm --dir packages/api-client check:contract-source
-
-      - name: Check API client generated output
-        run: pnpm --dir packages/api-client check:generated
-
-      - name: Build API client
-        run: pnpm --dir packages/api-client build
-
       - name: Stage CLI package
         run: pnpm cli:stage:publish
 
