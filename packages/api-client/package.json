@@ -124,7 +124,8 @@
   },
   "devDependencies": {
     "@dreamboard/typescript-config": "workspace:*",
-    "@hey-api/openapi-ts": "^0.90.10"
+    "@hey-api/openapi-ts": "^0.90.10",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "zod": "4.4.3"
