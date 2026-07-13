@@ -15,8 +15,8 @@ const CLI_NODE_MODULES = path.join(
   path.resolve(import.meta.dir, "../../.."),
   "node_modules",
 );
-const UI_SDK_NODE_MODULES = path.join(
-  path.resolve(import.meta.dir, "../../../../../packages/ui-sdk"),
+const DEV_HOST_NODE_MODULES = path.join(
+  path.resolve(import.meta.dir, "../../../../../packages/dev-host"),
   "node_modules",
 );
 const TSC_BIN = path.join(CLI_NODE_MODULES, ".bin", "tsc");
@@ -37,7 +37,10 @@ async function seedDynamicFilesForTypecheck(tempRoot: string): Promise<void> {
   }
 
   await symlink(CLI_NODE_MODULES, path.join(tempRoot, "node_modules"));
-  await symlink(UI_SDK_NODE_MODULES, path.join(tempRoot, "ui", "node_modules"));
+  await symlink(
+    DEV_HOST_NODE_MODULES,
+    path.join(tempRoot, "ui", "node_modules"),
+  );
 }
 
 function runTypecheck(tempRoot: string, projectPath: string): void {

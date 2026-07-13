@@ -271,7 +271,7 @@ test("exact commit verifier runs the successful pipeline inside the detached wor
               id: "scenario-1",
               scenarioPath: "test/scenarios/scenario-1.scenario.ts",
               sourceDigest: "sha256:scenario-1",
-              sdkVersion: "0.4.0-alpha.9",
+              sdkVersion: "9.8.7-fixture",
               success: true,
             },
           ],
