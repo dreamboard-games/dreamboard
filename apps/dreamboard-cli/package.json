@@ -1,6 +1,6 @@
 {
   "name": "dreamboard-cli",
-  "version": "0.1.30-alpha.45",
+  "version": "0.1.30-alpha.46",
   "description": "Design board games with AI and turn ideas into playable digital prototypes.",
   "repository": {
     "type": "git",
@@ -27,18 +27,18 @@
   "scripts": {
     "dev": "$HOME/.bun/bin/bun run scripts/dev.ts",
     "test": "bun run scripts/test.ts",
-    "test:unit": "bun run scripts/test.ts",
+    "test:unit": "bun run scripts/test.ts --exclude-package",
+    "test:package": "DREAMBOARD_REUSE_STAGED_PACKAGE=1 bun test src/published-package-smoke.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "release-set:generate": "tsx scripts/generate-authoring-release-set.ts",
     "check:authoring-version-authority": "tsx scripts/check-authoring-version-authority.ts",
-    "check:authoring-release-set-npm-freshness": "tsx scripts/check-authoring-release-set-npm-freshness.ts",
+    "check": "pnpm run release-set:generate && pnpm run check:authoring-version-authority && pnpm run typecheck && pnpm run test:unit && tsup",
     "build": "pnpm run release-set:generate && pnpm run typecheck && tsup",
     "build:published": "pnpm run release-set:generate && DREAMBOARD_BUILD_CHANNEL=published tsup",
     "build:agent-verifier": "tsup --config tsup.agent-verifier.config.ts",
-    "stage:publish": "pnpm run build:published && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts && pnpm run check:authoring-release-set-npm-freshness && pnpm run check:authoring-version-authority",
+    "stage:publish": "pnpm run build:published && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts && pnpm run check:authoring-version-authority",
     "stage:publish:development": "pnpm run build && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts",
-    "stage:install-smoke-package": "tsx scripts/stage-install-smoke-package.ts",
-    "pack:publish": "pnpm run stage:publish && npm pack --dry-run .publish/package",
+    "pack:publish": "pnpm run stage:publish && npm pack --pack-destination .publish .publish/package",
     "sync:skill-docs": "tsx scripts/sync-skill-docs.ts"
   },
   "dependencies": {

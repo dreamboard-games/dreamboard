@@ -160,12 +160,6 @@ async function main(): Promise<void> {
     "--dir",
     "apps/dreamboard-cli",
     "run",
-    "check:authoring-release-set-npm-freshness",
-  ]);
-  await run("pnpm", [
-    "--dir",
-    "apps/dreamboard-cli",
-    "run",
     "check:authoring-version-authority",
   ]);
 }

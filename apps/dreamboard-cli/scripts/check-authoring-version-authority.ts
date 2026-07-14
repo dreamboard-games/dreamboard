@@ -2,6 +2,10 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AUTHORING_RELEASE_SET } from "../src/release/authoring-release-set.ts";
+import {
+  inspectAuthoringSourceVersionAuthority,
+  type AuthoringSourcePackageJson,
+} from "./authoring-version-authority.ts";
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -54,6 +58,20 @@ const files = [
 ].filter((filePath) => /\.(ts|tsx|js|mjs|json)$/.test(filePath));
 
 const failures: string[] = [];
+
+const [cliSourcePackage, apiClientSourcePackage, devHostSourcePackage] =
+  await Promise.all([
+    readSourcePackage(path.join(packageRoot, "package.json")),
+    readSourcePackage(path.join(repoRoot, "packages/api-client/package.json")),
+    readSourcePackage(path.join(repoRoot, "packages/dev-host/package.json")),
+  ]);
+failures.push(
+  ...inspectAuthoringSourceVersionAuthority(AUTHORING_RELEASE_SET, {
+    cli: cliSourcePackage,
+    apiClient: apiClientSourcePackage,
+    devHost: devHostSourcePackage,
+  }),
+);
 for (const filePath of files) {
   const content = await readFile(filePath, "utf8");
   if (filePath !== selfPath) {
@@ -108,7 +126,9 @@ function assertNoPortableDependencyLeaks(
       range.startsWith("file:") ||
       range.startsWith("link:")
     ) {
-      failures.push(`${label} ${name} uses non-portable dependency range ${range}`);
+      failures.push(
+        `${label} ${name} uses non-portable dependency range ${range}`,
+      );
     }
     if (range.includes("-local.")) {
       failures.push(`${label} ${name} uses local snapshot range ${range}`);
@@ -194,3 +214,11 @@ if (failures.length > 0) {
 }
 
 console.log("authoring version authority check passed");
+
+async function readSourcePackage(
+  filePath: string,
+): Promise<AuthoringSourcePackageJson> {
+  return JSON.parse(
+    await readFile(filePath, "utf8"),
+  ) as AuthoringSourcePackageJson;
+}

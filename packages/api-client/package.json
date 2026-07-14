@@ -109,6 +109,7 @@
   },
   "scripts": {
     "authoring:candidate": "node scripts/build-authoring-candidate.mjs",
+    "check": "pnpm run check:contract-source && pnpm run check:generated && pnpm run build",
     "build": "tsc -b",
     "generate": "bun run scripts/generate.ts --write",
     "check:generated": "bun run scripts/generate.ts --check",

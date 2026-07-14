@@ -29,6 +29,25 @@ if (
 ) {
   throw new Error("Dev-host package version does not match release set.");
 }
+const releaseSdkVersion = AUTHORING_RELEASE_SET.packages.sdk.version;
+if (
+  sourcePackage.peerDependencies?.["@dreamboard-games/sdk"] !==
+  releaseSdkVersion
+) {
+  throw new Error(
+    `Dev-host source SDK peer ${sourcePackage.peerDependencies?.["@dreamboard-games/sdk"] ?? "missing"} does not match release set ${releaseSdkVersion}.`,
+  );
+}
+const sourceSdkDependency =
+  sourcePackage.dependencies?.["@dreamboard-games/sdk"];
+if (
+  sourceSdkDependency !== undefined &&
+  sourceSdkDependency !== releaseSdkVersion
+) {
+  throw new Error(
+    `Dev-host source SDK dependency ${sourceSdkDependency} does not match release set ${releaseSdkVersion}.`,
+  );
+}
 
 const dependencies: Record<string, string> = {
   ...(sourcePackage.dependencies ?? {}),
@@ -60,7 +79,7 @@ const packageJson = {
   },
   dependencies,
   peerDependencies: {
-    "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
+    "@dreamboard-games/sdk": releaseSdkVersion,
   },
   repository: sourcePackage.repository,
   homepage: sourcePackage.homepage,
@@ -82,11 +101,9 @@ for (const asset of [
   "shared-styles.css",
 ]) {
   const sourcePath = path.join(packageRoot, "src", "dev-host", asset);
-  await cp(
-    sourcePath,
-    path.join(stageRoot, "src", "dev-host", asset),
-    { force: true },
-  );
+  await cp(sourcePath, path.join(stageRoot, "src", "dev-host", asset), {
+    force: true,
+  });
   const content = await readFile(sourcePath, "utf8");
   const publishedContent = content
     .replace('/host-main.tsx"', '/host-main.js"')

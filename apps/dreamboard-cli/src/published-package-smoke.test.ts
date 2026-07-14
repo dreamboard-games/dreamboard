@@ -60,7 +60,9 @@ function runPublishedCli(
 }
 
 beforeAll(async () => {
-  runPackageScript("stage:publish");
+  if (process.env.DREAMBOARD_REUSE_STAGED_PACKAGE !== "1") {
+    runPackageScript("stage:publish");
+  }
   reducerFixture = await materializeReducerNativeProcessFixture();
 }, 30_000);
 

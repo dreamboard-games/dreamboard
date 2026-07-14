@@ -127,23 +127,30 @@ npx skills add https://github.com/dreamboard-games/dreamboard --skill dreamboard
 
 ## Publish Prep
 
-Build staged public packages:
+Run the offline source gate across every active workspace:
 
 ```bash
-pnpm cli:stage:publish
-pnpm cli:pack:publish
-pnpm dev-host:pack:publish
-pnpm agent-skills:pack:publish
+pnpm check
 ```
 
-`cli:stage:publish` creates `apps/dreamboard-cli/.publish/package` as the public npm artifact for package name `@dreamboard-games/cli`, including the public `skills/dreamboard` tree and embedded authoring release set. `dev-host:stage:publish` and `agent-skills:stage:publish` create matching `.publish/package` directories under their package roots.
+Build the CLI and dev-host tarballs once, install those exact files in a clean
+consumer, and retain their integrity receipt under `build/release-candidate/`:
 
-CLI publish staging fails when the embedded authoring release set points at a
-stale public `@dreamboard-games/*` package for the target npm tag. The target
-tag is inferred from the CLI version (`alpha` for `-alpha.*`, otherwise
-`latest`), or can be set explicitly with `AUTHORING_RELEASE_NPM_TAG=alpha|latest`.
-Set `AUTHORING_RELEASE_SET_ALLOW_STALE_NPM=1` only for intentional recovery
-publishes where stale package pins are expected.
+```bash
+pnpm verify:package
+```
+
+`pnpm verify:release` adds an exact npm preflight: SDK and API-client versions
+must exist, while the planned CLI and dev-host versions must not. It never uses
+mutable npm dist-tags as a correctness input. The release workflow uploads the
+verified candidate and publishes the same tarballs in dev-host-then-CLI order.
+An explicit partial-release resume is accepted only when an already-published
+package has the receipt's exact integrity.
+
+The lower-level `cli:stage:publish`, `dev-host:stage:publish`, and
+`agent-skills:stage:publish` commands remain available for inspecting staged
+package contents. Their `pack:publish` counterparts now create real tarballs,
+not dry-run listings.
 
 Package-local authoring proof and version checks:
 
@@ -151,6 +158,10 @@ Package-local authoring proof and version checks:
 pnpm --dir packages/api-client authoring:candidate
 pnpm --dir apps/dreamboard-cli check:authoring-version-authority
 ```
+
+The authority check always reads the source CLI, API-client, and dev-host
+manifests. It therefore rejects an SDK/dev-host peer mismatch even when no
+staged package exists.
 
 Optional public metadata env vars for staging:
 

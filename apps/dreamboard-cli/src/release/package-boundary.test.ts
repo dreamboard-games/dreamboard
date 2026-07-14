@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const packageRoot = path.resolve(import.meta.dir, "../..");
 
-test("stage publish checks npm freshness before version authority", async () => {
+test("stage publish validates source version authority without npm metadata", async () => {
   const packageJson = JSON.parse(
     await readFile(path.join(packageRoot, "package.json"), "utf8"),
   ) as {
@@ -12,12 +12,5 @@ test("stage publish checks npm freshness before version authority", async () => 
   };
 
   const stagePublish = packageJson.scripts["stage:publish"];
-  expect(stagePublish).toContain(
-    "pnpm run check:authoring-release-set-npm-freshness",
-  );
-  expect(
-    stagePublish.indexOf("pnpm run check:authoring-release-set-npm-freshness"),
-  ).toBeLessThan(
-    stagePublish.indexOf("pnpm run check:authoring-version-authority"),
-  );
+  expect(stagePublish).toContain("pnpm run check:authoring-version-authority");
 });

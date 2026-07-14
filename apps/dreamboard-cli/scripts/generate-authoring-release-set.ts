@@ -55,7 +55,9 @@ function requireExactPackageManager(value: unknown): string {
 
 function requirePublicVersion(name: string, version: string): void {
   if (version.includes("-local.")) {
-    throw new Error(`${name} must not use a local snapshot on the public channel.`);
+    throw new Error(
+      `${name} must not use a local snapshot on the public channel.`,
+    );
   }
 }
 
@@ -63,11 +65,13 @@ async function readCandidateReceipt(
   packageKey: PackageKey,
   expectedName: string,
   receiptPath: string | undefined,
-): Promise<AuthoringReleaseSetV1["candidates"] extends infer Candidates
-  ? Candidates extends Partial<Record<PackageKey, infer Candidate>>
-    ? Candidate | undefined
+): Promise<
+  AuthoringReleaseSetV1["candidates"] extends infer Candidates
+    ? Candidates extends Partial<Record<PackageKey, infer Candidate>>
+      ? Candidate | undefined
+      : never
     : never
-  : never> {
+> {
   if (!receiptPath) {
     return undefined as never;
   }
@@ -91,7 +95,9 @@ async function readCandidateReceipt(
     stringValue(packageObject.packageVersion) ??
     (packageKey === "sdk" ? stringValue(receipt.sdkVersion) : undefined);
   if (name !== expectedName) {
-    throw new Error(`${receiptPath} describes ${name}, expected ${expectedName}.`);
+    throw new Error(
+      `${receiptPath} describes ${name}, expected ${expectedName}.`,
+    );
   }
   const packageIntegrity =
     stringValue(packageObject.packageIntegrity) ??
@@ -148,14 +154,39 @@ const [rootPackage, cliPackage, apiClientPackage, devHostPackage] =
     readPackageJson(
       path.join(repoRoot, "packages", "api-client", "package.json"),
     ),
-    readPackageJson(path.join(repoRoot, "packages", "dev-host", "package.json")),
+    readPackageJson(
+      path.join(repoRoot, "packages", "dev-host", "package.json"),
+    ),
   ]);
 
-const sdkVersion = requireExactVersion(
-  "@dreamboard-games/sdk",
-  cliPackage.devDependencies?.["@dreamboard-games/sdk"] ??
-    devHostPackage.peerDependencies?.["@dreamboard-games/sdk"],
+const cliSdkVersion = requireExactVersion(
+  "@dreamboard-games/sdk CLI development dependency",
+  cliPackage.devDependencies?.["@dreamboard-games/sdk"],
 );
+const devHostSdkPeerVersion = requireExactVersion(
+  "@dreamboard-games/sdk dev-host peer",
+  devHostPackage.peerDependencies?.["@dreamboard-games/sdk"],
+);
+if (cliSdkVersion !== devHostSdkPeerVersion) {
+  throw new Error(
+    `Authoring SDK authority mismatch: CLI uses ${cliSdkVersion}, dev-host peers on ${devHostSdkPeerVersion}.`,
+  );
+}
+const devHostSdkDependency =
+  devHostPackage.dependencies?.["@dreamboard-games/sdk"];
+if (
+  devHostSdkDependency !== undefined &&
+  requireExactVersion(
+    "@dreamboard-games/sdk dev-host source dependency",
+    devHostSdkDependency,
+  ) !== cliSdkVersion
+) {
+  throw new Error(
+    `Authoring SDK authority mismatch: CLI uses ${cliSdkVersion}, dev-host source depends on ${devHostSdkDependency}.`,
+  );
+}
+
+const sdkVersion = requireExactVersion("@dreamboard-games/sdk", cliSdkVersion);
 const channel =
   process.env.AUTHORING_RELEASE_CHANNEL === "maintainer-local"
     ? "maintainer-local"
@@ -190,8 +221,9 @@ const candidates = Object.fromEntries(
       const key = ["sdk", "apiClient", "devHost"][index] as PackageKey;
       return candidate ? ([key, candidate] as const) : null;
     })
-    .filter((entry): entry is readonly [PackageKey, NonNullable<typeof entry>[1]] =>
-      entry !== null,
+    .filter(
+      (entry): entry is readonly [PackageKey, NonNullable<typeof entry>[1]] =>
+        entry !== null,
     ),
 );
 const packageVersions = {
@@ -203,7 +235,10 @@ const packageVersions = {
   sdk: candidates.sdk?.version ?? sdkVersion,
   apiClient:
     candidates.apiClient?.version ??
-    requireExactVersion("@dreamboard-games/api-client", apiClientPackage.version),
+    requireExactVersion(
+      "@dreamboard-games/api-client",
+      apiClientPackage.version,
+    ),
   devHost:
     candidates.devHost?.version ??
     requireExactVersion(

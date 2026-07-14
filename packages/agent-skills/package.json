@@ -8,8 +8,9 @@
     "skills"
   ],
   "scripts": {
+    "check": "node --check scripts/stage-publish.mjs",
     "stage:publish": "node scripts/stage-publish.mjs",
-    "pack:publish": "pnpm run stage:publish && npm pack --dry-run .publish/package"
+    "pack:publish": "pnpm run stage:publish && npm pack --pack-destination .publish .publish/package"
   },
   "keywords": [
     "dreamboard",

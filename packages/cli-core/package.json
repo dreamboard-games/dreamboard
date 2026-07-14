@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "check": "pnpm run typecheck && pnpm run test",
     "test": "bun test src/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
