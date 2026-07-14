@@ -127,8 +127,14 @@ try {
       const zodEntry = fileURLToPath(
         import.meta.resolve("@dreamboard-games/api-client/zod.gen"),
       );
+      const sdkAuthoringEntry = fileURLToPath(
+        import.meta.resolve("@dreamboard-games/sdk/authoring"),
+      );
       const apiManifest = JSON.parse(
         await readFile(path.resolve(path.dirname(zodEntry), "..", "package.json"), "utf8"),
+      );
+      const sdkManifest = JSON.parse(
+        await readFile(path.resolve(path.dirname(sdkAuthoringEntry), "../..", "package.json"), "utf8"),
       );
       for (const [name, version] of Object.entries(apiManifest.dependencies ?? {})) {
         if (version.startsWith("workspace:") || version.startsWith("file:")) {
@@ -153,6 +159,8 @@ try {
       console.log(JSON.stringify({
         packageName: apiManifest.name,
         packageVersion: apiManifest.version,
+        sdkName: sdkManifest.name,
+        sdkVersion: sdkManifest.version,
         fixtureCount: projectAuthoringAdapter.manifestConformanceCases.length,
         fixtureDigest: createHash("sha256")
           .update(stableJson(projectAuthoringAdapter.manifestConformanceCases))
@@ -250,6 +258,7 @@ try {
     await readFile(path.join(packageRoot, "package.json"), "utf8"),
   );
   const tarballBytes = await readFile(apiClientTarball);
+  const sdkTarballBytes = await readFile(path.resolve(sdkTarball));
   const gitDir = await gitDirArg();
   const receipt = {
     schemaVersion: 1,
@@ -258,6 +267,11 @@ try {
       version: packageManifest.version,
       tarball: path.basename(apiClientTarball),
       ...sha512(tarballBytes),
+    },
+    sdkInput: {
+      name: runtimeProof.sdkName,
+      version: runtimeProof.sdkVersion,
+      ...sha512(sdkTarballBytes),
     },
     packedRuntime: runtimeProof,
     packedTypeDeclarations: {

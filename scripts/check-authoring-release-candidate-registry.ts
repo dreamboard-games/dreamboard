@@ -1,6 +1,7 @@
 import path from "node:path";
 import {
   assertCandidateFileIntegrity,
+  assertReceiptFileIntegrity,
   DEFAULT_CANDIDATE_ROOT,
   optionValue,
   readCandidateReceipt,
@@ -8,7 +9,7 @@ import {
 
 type ExpectedState = "unpublished" | "resume" | "published";
 type NpmVersionMetadata = {
-  dist?: { integrity?: string };
+  dist?: { integrity?: string; tarball?: string };
 };
 
 const args = process.argv.slice(2);
@@ -28,13 +29,27 @@ const receipt = await readCandidateReceipt(receiptPath);
 for (const entry of receipt.packages) {
   await assertCandidateFileIntegrity(receiptPath, entry);
 }
+await assertReceiptFileIntegrity(receiptPath, receipt.sdkInput, "SDK input");
+await assertReceiptFileIntegrity(
+  receiptPath,
+  receipt.apiClientProof,
+  "API-client proof",
+);
 
-for (const key of ["sdk", "apiClient"] as const) {
-  const entry = receipt.releaseSet.packages[key];
-  const metadata = await fetchVersion(entry.name, entry.version);
-  if (!metadata) {
-    throw new Error(`${entry.name}@${entry.version} is not published.`);
-  }
+const sdk = receipt.releaseSet.packages.sdk;
+const sdkMetadata = await fetchVersion(sdk.name, sdk.version);
+if (!sdkMetadata) {
+  throw new Error(`${sdk.name}@${sdk.version} is not published.`);
+}
+if (sdkMetadata.dist?.integrity !== receipt.sdkInput.integrity) {
+  throw new Error(
+    `${sdk.name}@${sdk.version} registry integrity does not match the immutable SDK input.`,
+  );
+}
+if (sdkMetadata.dist?.tarball !== receipt.sdkInput.registryTarball) {
+  throw new Error(
+    `${sdk.name}@${sdk.version} registry tarball URL does not match the immutable SDK input.`,
+  );
 }
 
 for (const entry of receipt.packages) {

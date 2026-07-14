@@ -73,6 +73,17 @@ function fixtureReceipt(
       packageManager: "pnpm@10.4.1",
       releaseSetId: `sha256:${"0".repeat(64)}`,
     },
+    sdkInput: {
+      name: "@dreamboard-games/sdk",
+      version: "2.0.0",
+      file: "inputs/sdk.tgz",
+      registryTarball: "https://registry.npmjs.org/sdk/-/sdk-2.0.0.tgz",
+      integrity: `sha512-${"b".repeat(32)}`,
+    },
+    apiClientProof: {
+      file: "api-client-proof.json",
+      integrity: `sha512-${"c".repeat(32)}`,
+    },
     packages: [
       {
         key: "cli",
@@ -88,6 +99,14 @@ function fixtureReceipt(
         version: "4.0.0",
         file: "dev-host.tgz",
         integrity: `sha512-${"a".repeat(32)}`,
+        shasum: "0".repeat(40),
+      },
+      {
+        key: "apiClient",
+        name: "@dreamboard-games/api-client",
+        version: "3.0.0",
+        file: "api-client.tgz",
+        integrity: `sha512-${"d".repeat(32)}`,
         shasum: "0".repeat(40),
       },
     ],

@@ -142,7 +142,7 @@ jobs:
             --candidate build/release-candidate/receipt.json \
             --expect "$expectation"
 
-      - name: Publish dev-host then CLI
+      - name: Publish API client, dev-host, then CLI
         run: |
           set -euo pipefail
 
@@ -171,6 +171,7 @@ jobs:
               --provenance
           }
 
+          publish_candidate apiClient
           publish_candidate devHost
           publish_candidate cli
 
@@ -202,6 +203,7 @@ jobs:
           fi
           gh release create "${release_args[@]}" \
             build/release-candidate/*.tgz \
+            build/release-candidate/api-client-authoring-candidate-receipt.json \
             build/release-candidate/receipt.json
         env:
           GH_TOKEN: ${{ github.token }}
@@ -210,6 +212,8 @@ jobs:
         run: |
           {
             echo "Published verified authoring candidate"
+            echo "- API client: \`$(jq -r '.releaseSet.packages.apiClient.name + \"@\" + .releaseSet.packages.apiClient.version' build/release-candidate/receipt.json)\`"
+            echo "- dev-host: \`$(jq -r '.releaseSet.packages.devHost.name + \"@\" + .releaseSet.packages.devHost.version' build/release-candidate/receipt.json)\`"
             echo "- CLI: \`@dreamboard-games/cli@${{ needs.verify.outputs.package_version }}\`"
             echo "- release tag: \`${{ needs.verify.outputs.release_tag }}\`"
             echo "- npm tag: \`${{ needs.verify.outputs.npm_tag }}\`"
