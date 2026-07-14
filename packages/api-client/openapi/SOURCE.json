@@ -6,7 +6,7 @@
   "privateBundleSha256": "sha256:16e32eaeda1bb616feb3e89724250f03bd0b971b74018f40596ab564c3060857",
   "routePolicySha256": "sha256:d66c1e653493f867eeff7cde0d2dace4a439e0551b6b6dc0348020048c8f0cb6",
   "clientAllowlistSha256": "sha256:83660026ba8ebd91435a8c5ad0e1559e5799a3b0eb91fd2a165d34f8c9b45e18",
-  "publicOpenApiSha256": "sha256:335a38c1c1ae165f3f3f578d3eb2c0d78b6106a6929f8c87b6deb02d5d0f50f3",
+  "publicOpenApiSha256": "sha256:6ed8978b6530dd188b9f308450ee0b958c0864090bbfa1329c3ea76df9000125",
   "operationCount": 68,
   "publicClientRoutes": [
     {

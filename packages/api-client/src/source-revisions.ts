@@ -204,7 +204,7 @@ type SourceBlobUploadSessionRequester = (
 ) => Promise<{
   data: unknown;
   error: unknown;
-  response?: Response;
+  response: Response | undefined;
 }>;
 
 async function confirmSourceBlobAlreadyExists(options: {
