@@ -17,7 +17,7 @@ const requireAuth = mock(() => undefined);
 const consoleLog = mock(() => undefined);
 const actualFlags = await import("../flags.js");
 
-mock.module("@dreamboard/api-client", () => ({
+mock.module("@dreamboard-games/api-client", () => ({
   queryWorkshopRulebook,
   getLatestCompiledResult: mock(async () => ({
     data: null,

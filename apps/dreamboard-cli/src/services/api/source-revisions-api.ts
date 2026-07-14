@@ -1,62 +1,42 @@
-import { gzipSync } from "node:zlib";
 import {
-  createSourceRevision,
-  createSourceRevisionBundle,
-  type CreateSourceRevisionRequest,
-  queueCompiledResultJob,
-  type QueueCompiledResultJobResponse,
-  type SourceRevision,
-} from "@dreamboard/api-client";
-import { planSourceRevisionTransport } from "@dreamboard/api-client/source-revisions";
-import { formatApiError } from "../../utils/errors.js";
+  SourceBlobSessionRequestError,
+  uploadProjectSourceBlobs,
+  type SourceBlobUploadInput,
+} from "@dreamboard-games/api-client/source-revisions";
+import { toDreamboardApiError } from "../../utils/errors.js";
 
-export async function createSourceRevisionSdk(
-  gameId: string,
-  request: CreateSourceRevisionRequest,
-): Promise<SourceRevision> {
-  const transport = planSourceRevisionTransport(request);
-  const response = transport.useBundle
-    ? await createSourceRevisionBundle({
-        path: { gameId },
-        body: new Blob([gzipSync(transport.serializedJson)], {
-          type: "application/gzip",
-        }),
-      })
-    : await createSourceRevision({
-        path: { gameId },
-        body: transport.request,
-      });
+const SOURCE_BLOB_UPLOAD_BATCH_SIZE = 20;
 
-  if (response.error || !response.data) {
-    throw new Error(
-      formatApiError(
-        response.error,
-        response.response,
-        "Failed to create source revision",
-      ),
-    );
+export async function uploadProjectSourceBlobsSdk(
+  projectId: string,
+  blobs: SourceBlobUploadInput[],
+): Promise<void> {
+  try {
+    for (const batch of chunkSourceBlobs(blobs)) {
+      await uploadProjectSourceBlobs({ projectId, blobs: batch });
+    }
+  } catch (error) {
+    if (error instanceof SourceBlobSessionRequestError) {
+      throw toDreamboardApiError(
+        error.apiError as Parameters<typeof toDreamboardApiError>[0],
+        error.response,
+        error.message,
+      );
+    }
+    throw error;
   }
-
-  return response.data;
 }
 
-export async function queueCompiledResultJobSdk(options: {
-  gameId: string;
-  authoringStateId: string;
-}): Promise<QueueCompiledResultJobResponse> {
-  const { gameId, authoringStateId } = options;
-  const { data, error, response } = await queueCompiledResultJob({
-    path: { gameId },
-    body: {
-      authoringStateId,
-    },
-  });
-
-  if (error || !data) {
-    throw new Error(
-      formatApiError(error, response, "Failed to create compile job"),
-    );
+function chunkSourceBlobs(
+  blobs: SourceBlobUploadInput[],
+): SourceBlobUploadInput[][] {
+  const chunks: SourceBlobUploadInput[][] = [];
+  for (
+    let index = 0;
+    index < blobs.length;
+    index += SOURCE_BLOB_UPLOAD_BATCH_SIZE
+  ) {
+    chunks.push(blobs.slice(index, index + SOURCE_BLOB_UPLOAD_BATCH_SIZE));
   }
-
-  return data;
+  return chunks;
 }

@@ -1,0 +1,12 @@
+export const FRAMEWORK_REACT_VERSION = "19.2.6";
+export const FRAMEWORK_ZOD_VERSION = "4.4.3";
+
+export const FRAMEWORK_REACT_DEPENDENCIES = {
+  react: FRAMEWORK_REACT_VERSION,
+  "react-dom": FRAMEWORK_REACT_VERSION,
+} as const;
+
+export const FRAMEWORK_PNPM_OVERRIDES = {
+  ...FRAMEWORK_REACT_DEPENDENCIES,
+  zod: FRAMEWORK_ZOD_VERSION,
+} as const;

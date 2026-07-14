@@ -26,7 +26,7 @@ async function seedDynamicFilesForTypecheck(tempRoot: string): Promise<void> {
   }
 }
 
-test("runLocalTypecheck does not require Bun on PATH", async () => {
+test("runLocalTypecheck skips when workspace dependencies are not installed", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-local-typecheck-"));
   const originalPath = process.env.PATH;
 
@@ -36,10 +36,12 @@ test("runLocalTypecheck does not require Bun on PATH", async () => {
 
     process.env.PATH = "";
 
-    await expect(runLocalTypecheck(tempRoot)).resolves.toEqual({
-      success: true,
-      output: "",
-    });
+    const result = await runLocalTypecheck(tempRoot);
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.output).toContain(
+      "Skipping local typecheck: workspace dependencies are not installed",
+    );
   } finally {
     process.env.PATH = originalPath;
     await rm(tempRoot, { recursive: true, force: true });

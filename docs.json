@@ -86,7 +86,7 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/dreamboard-games/dreamboard-cli"
+        "href": "https://github.com/dreamboard-games/dreamboard"
       },
       {
         "label": "npm",
@@ -104,7 +104,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/dreamboard-games/dreamboard-cli"
+      "github": "https://github.com/dreamboard-games/dreamboard"
     }
   }
 }

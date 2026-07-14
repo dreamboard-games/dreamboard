@@ -1,0 +1,24 @@
+{
+  "name": "@dreamboard-games/agent-skills",
+  "version": "0.1.0-alpha.1",
+  "description": "Dreamboard agent skills for game development workflows.",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "files": [
+    "skills"
+  ],
+  "scripts": {
+    "check": "node --check scripts/stage-publish.mjs",
+    "stage:publish": "node scripts/stage-publish.mjs",
+    "pack:publish": "pnpm run stage:publish && npm pack --pack-destination .publish .publish/package"
+  },
+  "keywords": [
+    "dreamboard",
+    "agent-skills",
+    "game-dev",
+    "board-game"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

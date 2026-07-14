@@ -9,7 +9,7 @@ const packageRoot = path.resolve(
 const repoRoot = path.resolve(packageRoot, "..", "..");
 const packageSkillRoot = path.join(packageRoot, "skills", "dreamboard");
 const repoSkillRoot = path.join(repoRoot, "skills", "dreamboard");
-const ALLOWED_PUBLIC_SKILL_SCRIPT_ENTRY_NAMES = new Set(["events-extract.mjs"]);
+const ALLOWED_PUBLIC_SKILL_SCRIPT_ENTRY_NAMES = new Set<string>();
 
 export const IGNORED_PUBLIC_SKILL_ENTRY_NAMES = new Set([
   ".DS_Store",
@@ -27,7 +27,15 @@ export async function resolvePublicSkillRoot(): Promise<string> {
 
 export async function assertPublicSkillScriptsArePublishable(rootDir: string) {
   const scriptsDir = path.join(rootDir, "scripts");
-  const entries = await readdir(scriptsDir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(scriptsDir, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
 
   for (const entry of entries) {
     if (IGNORED_PUBLIC_SKILL_ENTRY_NAMES.has(entry.name)) {

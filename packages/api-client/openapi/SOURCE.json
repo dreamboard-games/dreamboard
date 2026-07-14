@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "internal",
+  "sourceRevision": "15cc8888a50eca5baabb5ad23290fe68dc5d41b6",
+  "sourceWorktreeStatus": "clean",
+  "privateBundleSha256": "sha256:16e32eaeda1bb616feb3e89724250f03bd0b971b74018f40596ab564c3060857",
+  "routePolicySha256": "sha256:d66c1e653493f867eeff7cde0d2dace4a439e0551b6b6dc0348020048c8f0cb6",
+  "clientAllowlistSha256": "sha256:83660026ba8ebd91435a8c5ad0e1559e5799a3b0eb91fd2a165d34f8c9b45e18",
+  "publicOpenApiSha256": "sha256:6ed8978b6530dd188b9f308450ee0b958c0864090bbfa1329c3ea76df9000125",
+  "operationCount": 68,
+  "publicClientRoutes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "operationId": "healthCheck"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/jwks",
+      "operationId": "getAuthJwks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "operationId": "getCurrentAuthUser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/token-exchange",
+      "operationId": "exchangeAuthToken"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/checkout-sessions",
+      "operationId": "createBillingCheckoutSession"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/entitlements",
+      "operationId": "getCurrentBillingEntitlements"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/portal-sessions",
+      "operationId": "createBillingPortalSession"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo-games",
+      "operationId": "listDemoGames"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo-games/{slug}",
+      "operationId": "getDemoGame"
+    },
+    {
+      "method": "POST",
+      "path": "/api/demo-games/{slug}/sessions",
+      "operationId": "createDemoGameSession"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo-games/{slug}/thumbnail",
+      "operationId": "getDemoGameThumbnail"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo/sessions/{sessionId}/event-batches",
+      "operationId": "getDemoSessionLobbyEventBatch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability",
+      "operationId": "createDemoGameplayCapability"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo/sessions/{sessionId}/snapshot",
+      "operationId": "getDemoSessionSnapshot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/demo/sessions/{sessionId}/start",
+      "operationId": "startDemoGame"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo/sessions/code/{shortCode}",
+      "operationId": "getDemoSessionByShortCode"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo/ui-bundles/fetch",
+      "operationId": "fetchDemoUiBundle"
+    },
+    {
+      "method": "POST",
+      "path": "/api/game-specs/extract",
+      "operationId": "extractGameSpec"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/{jobId}",
+      "operationId": "getJob"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs/{jobId}/event-batches",
+      "operationId": "getJobEventBatch"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects",
+      "operationId": "listProjects"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/projects/{projectId}",
+      "operationId": "deleteProject"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}",
+      "operationId": "getProject"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/projects/{projectId}",
+      "operationId": "updateProject"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/projects/{projectId}",
+      "operationId": "ensureProject"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/builds",
+      "operationId": "ensureProjectBuild"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/builds/{buildRecipeDigest}",
+      "operationId": "getProjectBuild"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/compiled-results",
+      "operationId": "listProjectCompiledResults"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/compiled-results/{compiledResultId}",
+      "operationId": "getProjectCompiledResult"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/compiled-results/latest",
+      "operationId": "getLatestProjectCompiledResult"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/dev-compiles/ensure",
+      "operationId": "ensureProjectDevCompile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/download",
+      "operationId": "downloadProjectSources"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/jobs/active",
+      "operationId": "getProjectActiveJob"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/preview/image",
+      "operationId": "fetchProjectPreviewImage"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/projects/{projectId}/preview/initial-projection",
+      "operationId": "uploadProjectInitialProjection"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/preview/screenshot",
+      "operationId": "queueProjectPreviewScreenshot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/previews",
+      "operationId": "createProjectPreview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/releases",
+      "operationId": "publishProjectRelease"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/releases/current",
+      "operationId": "getCurrentProjectRelease"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/repository",
+      "operationId": "getProjectRepository"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/projects/{projectId}/repository",
+      "operationId": "ensureProjectRepository"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/repository/reconcile",
+      "operationId": "retryProjectRepositoryReconciliation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/revisions",
+      "operationId": "createGameRevision"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/revisions/{revisionDigest}/compile",
+      "operationId": "queueProjectRevisionCompile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/revisions/{revisionDigest}/sources",
+      "operationId": "getProjectRevisionSources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/sessions",
+      "operationId": "createProjectSession"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/sessions/from-reducer-snapshot",
+      "operationId": "createProjectSessionFromReducerSnapshot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/{projectId}/source-blobs/upload-sessions",
+      "operationId": "createProjectSourceBlobUploadSession"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/sources",
+      "operationId": "getProjectSources"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/status/{commitOid}",
+      "operationId": "getProjectCommitStatus"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/ui-bundle",
+      "operationId": "getProjectUiBundle"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/slug/{slug}",
+      "operationId": "getProjectBySlug"
+    },
+    {
+      "method": "POST",
+      "path": "/api/runs",
+      "operationId": "createGameRun"
+    },
+    {
+      "method": "POST",
+      "path": "/api/runs/{jobId}/accept",
+      "operationId": "acceptGameRun"
+    },
+    {
+      "method": "POST",
+      "path": "/api/runs/{jobId}/cancel",
+      "operationId": "cancelGameRun"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/{sessionId}/event-batches",
+      "operationId": "getSessionLobbyEventBatch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/players/{playerId}/gameplay-capability",
+      "operationId": "createGameplayCapability"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/seats",
+      "operationId": "addSeat"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sessions/{sessionId}/seats/{playerId}",
+      "operationId": "removeSeat"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sessions/{sessionId}/seats/{playerId}",
+      "operationId": "updateSeat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/seats/{playerId}/assign",
+      "operationId": "assignSeat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/seats/{playerId}/unassign",
+      "operationId": "unassignSeat"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/{sessionId}/snapshot",
+      "operationId": "getSessionSnapshot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/start",
+      "operationId": "startGame"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/{sessionId}/ui-bundle",
+      "operationId": "getSessionUiBundle"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/code/{shortCode}",
+      "operationId": "getSessionByShortCode"
+    },
+    {
+      "method": "GET",
+      "path": "/api/version",
+      "operationId": "getApiVersion"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workshop/query",
+      "operationId": "queryWorkshopRulebook"
+    }
+  ]
+}

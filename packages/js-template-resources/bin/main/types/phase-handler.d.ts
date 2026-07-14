@@ -292,7 +292,7 @@ export function createAutoPhase<S extends StateName>(
     // AUTO phases don't have getUIArgs - they execute immediately
     getUIArgs: undefined,
 
-    // These are not used for AUTO phases but included for interface compatibility
+    // AUTO phases never call the event-style handlers below.
     onEnter: noopVoid,
     validateAction: noopValidation,
     onPlayerAction: noopVoid,

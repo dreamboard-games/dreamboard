@@ -1,16 +1,16 @@
 {
   "name": "dreamboard-cli",
-  "version": "0.1.7",
+  "version": "0.1.30-alpha.46",
   "description": "Design board games with AI and turn ideas into playable digital prototypes.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dreamboard-games/dreamboard-cli.git"
+    "url": "git+https://github.com/dreamboard-games/dreamboard.git"
   },
   "homepage": "http://dreamboard.games/",
   "bugs": {
-    "url": "https://github.com/dreamboard-games/dreamboard-cli/issues"
+    "url": "https://github.com/dreamboard-games/dreamboard/issues"
   },
-  "license": "Apache-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "keywords": [
     "dreamboard",
     "cli",
@@ -25,36 +25,44 @@
     "dreamboard": "dist/index.js"
   },
   "scripts": {
-    "check:embedded-harness": "bun run scripts/check-embedded-harness.ts",
     "dev": "$HOME/.bun/bin/bun run scripts/dev.ts",
     "test": "bun run scripts/test.ts",
-    "sync:skill-docs": "tsx scripts/sync-skill-docs.ts",
-    "sync:skill-content": "tsx scripts/sync-skill-content.ts",
-    "sync:scaffold-ownership": "tsx scripts/sync-scaffold-ownership.ts",
-    "sync:static-scaffold": "tsx scripts/sync-static-scaffold.ts",
-    "prebuild": "pnpm run sync:skill-docs && pnpm run sync:skill-content && pnpm run sync:scaffold-ownership && pnpm run sync:static-scaffold",
-    "build": "pnpm run prebuild && tsup",
-    "build:published": "pnpm run prebuild && DREAMBOARD_BUILD_CHANNEL=published tsup",
-    "stage:publish": "pnpm run build:published && tsx scripts/stage-publish.ts",
-    "pack:publish": "pnpm run stage:publish && npm pack --dry-run .publish/package"
+    "test:unit": "bun run scripts/test.ts --exclude-package",
+    "test:package": "DREAMBOARD_REUSE_STAGED_PACKAGE=1 bun test src/published-package-smoke.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "release-set:generate": "tsx scripts/generate-authoring-release-set.ts",
+    "check:authoring-version-authority": "tsx scripts/check-authoring-version-authority.ts",
+    "check": "pnpm run release-set:generate && pnpm run check:authoring-version-authority && pnpm run typecheck && pnpm run test:unit && tsup",
+    "build": "pnpm run release-set:generate && pnpm run typecheck && tsup",
+    "build:published": "pnpm run release-set:generate && DREAMBOARD_BUILD_CHANNEL=published tsup",
+    "build:agent-verifier": "tsup --config tsup.agent-verifier.config.ts",
+    "stage:publish": "pnpm run build:published && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts && pnpm run check:authoring-version-authority",
+    "stage:publish:development": "pnpm run build && pnpm run build:agent-verifier && tsx scripts/stage-publish.ts",
+    "pack:publish": "pnpm run stage:publish && npm pack --pack-destination .publish .publish/package",
+    "sync:skill-docs": "tsx scripts/sync-skill-docs.ts"
   },
   "dependencies": {
-    "@dreamboard/api-client": "workspace:*",
-    "@dreamboard/sdk-types": "workspace:*",
-    "@supabase/supabase-js": "^2.94.1",
-    "citty": "^0.2.0",
+    "@dreamboard-games/api-client": "workspace:*",
+    "@dreamboard-games/cli-core": "workspace:*",
+    "@dreamboard-games/gameplay-authority-client": "0.1.0-alpha.1",
+    "citty": "^0.2.2",
     "consola": "^3.4.2",
-    "esbuild": "^0.25.1",
+    "esbuild": "^0.25.12",
     "picocolors": "^1.1.1",
-    "playwright": "^1.50.1",
-    "zod": "^4.3.6"
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@dreamboard-games/sdk": "0.4.0-alpha.10",
     "@types/bun": "latest",
-    "@types/node": "^24.5.2",
-    "prettier": "^3.5.1",
+    "@types/node": "^24.12.4",
+    "playwright": "^1.60.0",
+    "prettier": "^3.8.3",
     "prettier-plugin-sql": "^0.18.1",
-    "tsup": "^8.5.0",
-    "tsx": "^4.20.5"
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "^1.3.0"
   }
 }

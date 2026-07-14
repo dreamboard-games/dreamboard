@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen.js';
-import { abortSandboxSession, addSeat, assignSeat, cancelConversationJob, createAuthoringState, createGame, createGameRule, createSession, createSourceRevision, createSourceRevisionBundle, deleteConversation, deleteGame, downloadGameSources, fetchUiBundle, findManifests, getActiveJob, getAgentChatContext, getAuthoringHead, getCompiledResult, getGame, getGameBySlug, getGameRule, getGameScripts, getGameSources, getJob, getLatestCompiledResult, getLatestGameRule, getManifest, getSessionByShortCode, getSessionStatus, healthCheck, listCompiledResults, listConversations, listGameRules, listGames, type Options, queryWorkshopRulebook, queueCompiledResultJob, receiveSandboxWebhookComplete, receiveSandboxWebhookEvent, removeSeat, restoreHistory, sandboxAbort, sandboxChat, saveManifest, scaffoldGameSourcesV3, sendSandboxMessage, startGame, submitAction, unassignSeat, updateGame, updateSeat, validateAction } from '../sdk.gen.js';
-import type { AbortSandboxSessionData, AbortSandboxSessionError, AbortSandboxSessionResponse, AddSeatData, AddSeatError, AddSeatResponse, AssignSeatData, AssignSeatError, AssignSeatResponse, CancelConversationJobData, CancelConversationJobError, CancelConversationJobResponse, CreateAuthoringStateData, CreateAuthoringStateError, CreateAuthoringStateResponse, CreateGameData, CreateGameError, CreateGameResponse, CreateGameRuleData, CreateGameRuleError, CreateGameRuleResponse2, CreateSessionData, CreateSessionError, CreateSessionResponse2, CreateSourceRevisionBundleData, CreateSourceRevisionBundleError, CreateSourceRevisionBundleResponse, CreateSourceRevisionData, CreateSourceRevisionError, CreateSourceRevisionResponse, DeleteConversationData, DeleteConversationError, DeleteConversationResponse, DeleteGameData, DeleteGameError, DeleteGameResponse2, DownloadGameSourcesData, DownloadGameSourcesError, DownloadGameSourcesResponse, FetchUiBundleData, FetchUiBundleError, FetchUiBundleResponse, FindManifestsData, FindManifestsError, FindManifestsResponse2, GetActiveJobData, GetActiveJobError, GetActiveJobResponse, GetAgentChatContextData, GetAgentChatContextError, GetAgentChatContextResponse, GetAuthoringHeadData, GetAuthoringHeadError, GetAuthoringHeadResponse, GetCompiledResultData, GetCompiledResultError, GetCompiledResultResponse, GetGameBySlugData, GetGameBySlugError, GetGameBySlugResponse, GetGameData, GetGameError, GetGameResponse, GetGameRuleData, GetGameRuleError, GetGameRuleResponse, GetGameScriptsData, GetGameScriptsError, GetGameScriptsResponse, GetGameSourcesData, GetGameSourcesError, GetGameSourcesResponse, GetJobData, GetJobError, GetJobResponse, GetLatestCompiledResultData, GetLatestCompiledResultError, GetLatestCompiledResultResponse, GetLatestGameRuleData, GetLatestGameRuleError, GetLatestGameRuleResponse, GetManifestData, GetManifestError, GetManifestResponse, GetSessionByShortCodeData, GetSessionByShortCodeError, GetSessionByShortCodeResponse, GetSessionStatusData, GetSessionStatusError, GetSessionStatusResponse, HealthCheckData, HealthCheckResponse, ListCompiledResultsData, ListCompiledResultsError, ListCompiledResultsResponse2, ListConversationsData, ListConversationsError, ListConversationsResponse, ListGameRulesData, ListGameRulesError, ListGameRulesResponse2, ListGamesData, ListGamesError, ListGamesResponse, QueryWorkshopRulebookData, QueryWorkshopRulebookError, QueryWorkshopRulebookResponse, QueueCompiledResultJobData, QueueCompiledResultJobError, QueueCompiledResultJobResponse2, ReceiveSandboxWebhookCompleteData, ReceiveSandboxWebhookCompleteError, ReceiveSandboxWebhookCompleteResponse, ReceiveSandboxWebhookEventData, ReceiveSandboxWebhookEventError, ReceiveSandboxWebhookEventResponse, RemoveSeatData, RemoveSeatError, RemoveSeatResponse, RestoreHistoryData, RestoreHistoryError, RestoreHistoryResponse2, SandboxAbortData, SandboxAbortError, SandboxAbortResponse, SandboxChatData, SandboxChatError, SandboxChatResponse2, SaveManifestData, SaveManifestError, SaveManifestResponse2, ScaffoldGameSourcesV3Data, ScaffoldGameSourcesV3Error, ScaffoldGameSourcesV3Response, SendSandboxMessageData, SendSandboxMessageError, SendSandboxMessageResponse2, StartGameData, StartGameError, StartGameResponse2, SubmitActionData, SubmitActionError, SubmitActionResponse2, UnassignSeatData, UnassignSeatError, UnassignSeatResponse, UpdateGameData, UpdateGameError, UpdateGameResponse, UpdateSeatData, UpdateSeatError, UpdateSeatResponse, ValidateActionData, ValidateActionError, ValidateActionResponse2 } from '../types.gen.js';
+import { acceptGameRun, addSeat, assignSeat, cancelGameRun, createBillingCheckoutSession, createBillingPortalSession, createDemoGameplayCapability, createDemoGameSession, createGameplayCapability, createGameRevision, createGameRun, createProjectPreview, createProjectSession, createProjectSessionFromReducerSnapshot, createProjectSourceBlobUploadSession, deleteProject, downloadProjectSources, ensureProject, ensureProjectBuild, ensureProjectDevCompile, ensureProjectRepository, exchangeAuthToken, extractGameSpec, fetchDemoUiBundle, fetchProjectPreviewImage, getApiVersion, getAuthJwks, getCurrentAuthUser, getCurrentBillingEntitlements, getCurrentProjectRelease, getDemoGame, getDemoGameThumbnail, getDemoSessionByShortCode, getDemoSessionLobbyEventBatch, getDemoSessionSnapshot, getJob, getJobEventBatch, getLatestProjectCompiledResult, getProject, getProjectActiveJob, getProjectBuild, getProjectBySlug, getProjectCommitStatus, getProjectCompiledResult, getProjectRepository, getProjectRevisionSources, getProjectSources, getProjectUiBundle, getSessionByShortCode, getSessionLobbyEventBatch, getSessionSnapshot, getSessionUiBundle, healthCheck, listDemoGames, listProjectCompiledResults, listProjects, type Options, publishProjectRelease, queryWorkshopRulebook, queueProjectPreviewScreenshot, queueProjectRevisionCompile, removeSeat, retryProjectRepositoryReconciliation, startDemoGame, startGame, unassignSeat, updateProject, updateSeat, uploadProjectInitialProjection } from '../sdk.gen.js';
+import type { AcceptGameRunData, AcceptGameRunError, AcceptGameRunResponse2, AddSeatData, AddSeatError, AddSeatResponse, AssignSeatData, AssignSeatError, AssignSeatResponse, CancelGameRunData, CancelGameRunError, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionError, CreateBillingCheckoutSessionResponse, CreateBillingPortalSessionData, CreateBillingPortalSessionError, CreateBillingPortalSessionResponse, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityError, CreateDemoGameplayCapabilityResponse, CreateDemoGameSessionData, CreateDemoGameSessionError, CreateDemoGameSessionResponse, CreateGameplayCapabilityData, CreateGameplayCapabilityError, CreateGameplayCapabilityResponse, CreateGameRevisionData, CreateGameRevisionError, CreateGameRevisionResponse, CreateGameRunData, CreateGameRunError, CreateGameRunResponse2, CreateProjectPreviewData, CreateProjectPreviewError, CreateProjectPreviewResponse, CreateProjectSessionData, CreateProjectSessionError, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotError, CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionResponse, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionError, CreateProjectSourceBlobUploadSessionResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse2, DownloadProjectSourcesData, DownloadProjectSourcesError, DownloadProjectSourcesResponse, EnsureProjectBuildData, EnsureProjectBuildError, EnsureProjectBuildResponse, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileError, EnsureProjectDevCompileResponse, EnsureProjectError, EnsureProjectRepositoryData, EnsureProjectRepositoryError, EnsureProjectRepositoryResponse, EnsureProjectResponse, ExchangeAuthTokenData, ExchangeAuthTokenError, ExchangeAuthTokenResponse, ExtractGameSpecData, ExtractGameSpecError, ExtractGameSpecResponse2, FetchDemoUiBundleData, FetchDemoUiBundleError, FetchDemoUiBundleResponse, FetchProjectPreviewImageData, FetchProjectPreviewImageError, FetchProjectPreviewImageResponse, GetApiVersionData, GetApiVersionResponse, GetAuthJwksData, GetCurrentAuthUserData, GetCurrentAuthUserError, GetCurrentAuthUserResponse, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsError, GetCurrentBillingEntitlementsResponse, GetCurrentProjectReleaseData, GetCurrentProjectReleaseError, GetCurrentProjectReleaseResponse, GetDemoGameData, GetDemoGameError, GetDemoGameResponse, GetDemoGameThumbnailData, GetDemoGameThumbnailError, GetDemoGameThumbnailResponse, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeError, GetDemoSessionByShortCodeResponse, GetDemoSessionLobbyEventBatchData, GetDemoSessionLobbyEventBatchError, GetDemoSessionLobbyEventBatchResponse, GetDemoSessionSnapshotData, GetDemoSessionSnapshotError, GetDemoSessionSnapshotResponse, GetJobData, GetJobError, GetJobEventBatchData, GetJobEventBatchError, GetJobEventBatchResponse, GetJobResponse, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultError, GetLatestProjectCompiledResultResponse, GetProjectActiveJobData, GetProjectActiveJobError, GetProjectActiveJobResponse, GetProjectBuildData, GetProjectBuildError, GetProjectBuildResponse, GetProjectBySlugData, GetProjectBySlugError, GetProjectBySlugResponse, GetProjectCommitStatusData, GetProjectCommitStatusError, GetProjectCommitStatusResponse, GetProjectCompiledResultData, GetProjectCompiledResultError, GetProjectCompiledResultResponse, GetProjectData, GetProjectError, GetProjectRepositoryData, GetProjectRepositoryError, GetProjectRepositoryResponse, GetProjectResponse, GetProjectRevisionSourcesData, GetProjectRevisionSourcesError, GetProjectRevisionSourcesResponse, GetProjectSourcesData, GetProjectSourcesError, GetProjectSourcesResponse, GetProjectUiBundleData, GetProjectUiBundleError, GetProjectUiBundleResponse, GetSessionByShortCodeData, GetSessionByShortCodeError, GetSessionByShortCodeResponse, GetSessionLobbyEventBatchData, GetSessionLobbyEventBatchError, GetSessionLobbyEventBatchResponse, GetSessionSnapshotData, GetSessionSnapshotError, GetSessionSnapshotResponse, GetSessionUiBundleData, GetSessionUiBundleError, GetSessionUiBundleResponse, HealthCheckData, HealthCheckResponse, ListDemoGamesData, ListDemoGamesError, ListDemoGamesResponse, ListProjectCompiledResultsData, ListProjectCompiledResultsError, ListProjectCompiledResultsResponse, ListProjectsData, ListProjectsError, ListProjectsResponse, PublishProjectReleaseData, PublishProjectReleaseError, PublishProjectReleaseResponse, QueryWorkshopRulebookData, QueryWorkshopRulebookError, QueryWorkshopRulebookResponse, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotError, QueueProjectPreviewScreenshotResponse, QueueProjectRevisionCompileData, QueueProjectRevisionCompileError, QueueProjectRevisionCompileResponse, RemoveSeatData, RemoveSeatError, RemoveSeatResponse, RetryProjectRepositoryReconciliationData, RetryProjectRepositoryReconciliationError, RetryProjectRepositoryReconciliationResponse, StartDemoGameData, StartDemoGameError, StartDemoGameResponse, StartGameData, StartGameError, StartGameResponse, UnassignSeatData, UnassignSeatError, UnassignSeatResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateSeatData, UpdateSeatError, UpdateSeatResponse, UploadProjectInitialProjectionData, UploadProjectInitialProjectionError, UploadProjectInitialProjectionResponse } from '../types.gen.js';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -59,16 +59,16 @@ export const healthCheckOptions = (options?: Options<HealthCheckData>) => queryO
     queryKey: healthCheckQueryKey(options)
 });
 
-export const listGamesQueryKey = (options?: Options<ListGamesData>) => createQueryKey('listGames', options);
+export const getApiVersionQueryKey = (options?: Options<GetApiVersionData>) => createQueryKey('getApiVersion', options);
 
 /**
- * List user's games
+ * Get backend version metadata
  *
- * Retrieve a list of all games owned by the authenticated user
+ * Returns backend revision metadata and the UI SDK version expected by the backend runtime.
  */
-export const listGamesOptions = (options?: Options<ListGamesData>) => queryOptions<ListGamesResponse, ListGamesError, ListGamesResponse, ReturnType<typeof listGamesQueryKey>>({
+export const getApiVersionOptions = (options?: Options<GetApiVersionData>) => queryOptions<GetApiVersionResponse, DefaultError, GetApiVersionResponse, ReturnType<typeof getApiVersionQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await listGames({
+        const { data } = await getApiVersion({
             ...options,
             ...queryKey[0],
             signal,
@@ -76,18 +76,45 @@ export const listGamesOptions = (options?: Options<ListGamesData>) => queryOptio
         });
         return data;
     },
-    queryKey: listGamesQueryKey(options)
+    queryKey: getApiVersionQueryKey(options)
+});
+
+export const getCurrentAuthUserQueryKey = (options?: Options<GetCurrentAuthUserData>) => createQueryKey('getCurrentAuthUser', options);
+
+/**
+ * Get the authenticated Dreamboard user identity
+ *
+ * Returns the backend-resolved Dreamboard internal user identity for the
+ * current bearer token. Provider-specific subjects such as Clerk user IDs
+ * are exposed only as metadata; clients should use `id` for Dreamboard
+ * ownership and session control.
+ *
+ */
+export const getCurrentAuthUserOptions = (options?: Options<GetCurrentAuthUserData>) => queryOptions<GetCurrentAuthUserResponse, GetCurrentAuthUserError, GetCurrentAuthUserResponse, ReturnType<typeof getCurrentAuthUserQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getCurrentAuthUser({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getCurrentAuthUserQueryKey(options)
 });
 
 /**
- * Create a new game
+ * Exchange a Clerk OAuth token for a Dreamboard user token
  *
- * Create a new game definition
+ * Accepts a Clerk OAuth access token only as a bootstrap credential and
+ * returns a short-lived Dreamboard JWT for the requested audience. The
+ * response never includes a refresh token.
+ *
  */
-export const createGameMutation = (options?: Partial<Options<CreateGameData>>): UseMutationOptions<CreateGameResponse, CreateGameError, Options<CreateGameData>> => {
-    const mutationOptions: UseMutationOptions<CreateGameResponse, CreateGameError, Options<CreateGameData>> = {
+export const exchangeAuthTokenMutation = (options?: Partial<Options<ExchangeAuthTokenData>>): UseMutationOptions<ExchangeAuthTokenResponse, ExchangeAuthTokenError, Options<ExchangeAuthTokenData>> => {
+    const mutationOptions: UseMutationOptions<ExchangeAuthTokenResponse, ExchangeAuthTokenError, Options<ExchangeAuthTokenData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await createGame({
+            const { data } = await exchangeAuthToken({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -98,35 +125,16 @@ export const createGameMutation = (options?: Partial<Options<CreateGameData>>): 
     return mutationOptions;
 };
 
-/**
- * Delete game
- *
- * Delete a game definition permanently
- */
-export const deleteGameMutation = (options?: Partial<Options<DeleteGameData>>): UseMutationOptions<DeleteGameResponse2, DeleteGameError, Options<DeleteGameData>> => {
-    const mutationOptions: UseMutationOptions<DeleteGameResponse2, DeleteGameError, Options<DeleteGameData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await deleteGame({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const getGameQueryKey = (options: Options<GetGameData>) => createQueryKey('getGame', options);
+export const getAuthJwksQueryKey = (options?: Options<GetAuthJwksData>) => createQueryKey('getAuthJwks', options);
 
 /**
- * Get game by ID
+ * Get Dreamboard user-token public keys
  *
- * Retrieve a specific game definition by its ID
+ * Returns active Dreamboard user-token verification keys.
  */
-export const getGameOptions = (options: Options<GetGameData>) => queryOptions<GetGameResponse, GetGameError, GetGameResponse, ReturnType<typeof getGameQueryKey>>({
+export const getAuthJwksOptions = (options?: Options<GetAuthJwksData>) => queryOptions<unknown, DefaultError, unknown, ReturnType<typeof getAuthJwksQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getGame({
+        const { data } = await getAuthJwks({
             ...options,
             ...queryKey[0],
             signal,
@@ -134,18 +142,21 @@ export const getGameOptions = (options: Options<GetGameData>) => queryOptions<Ge
         });
         return data;
     },
-    queryKey: getGameQueryKey(options)
+    queryKey: getAuthJwksQueryKey(options)
 });
 
 /**
- * Update game
+ * Create a Stripe Checkout Session
  *
- * Update an existing game definition
+ * Creates a Stripe-hosted subscription checkout session for the current
+ * authenticated Dreamboard user. Dreamboard resolves billing ownership
+ * through the internal user id, not through Clerk or Stripe ids.
+ *
  */
-export const updateGameMutation = (options?: Partial<Options<UpdateGameData>>): UseMutationOptions<UpdateGameResponse, UpdateGameError, Options<UpdateGameData>> => {
-    const mutationOptions: UseMutationOptions<UpdateGameResponse, UpdateGameError, Options<UpdateGameData>> = {
+export const createBillingCheckoutSessionMutation = (options?: Partial<Options<CreateBillingCheckoutSessionData>>): UseMutationOptions<CreateBillingCheckoutSessionResponse, CreateBillingCheckoutSessionError, Options<CreateBillingCheckoutSessionData>> => {
+    const mutationOptions: UseMutationOptions<CreateBillingCheckoutSessionResponse, CreateBillingCheckoutSessionError, Options<CreateBillingCheckoutSessionData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await updateGame({
+            const { data } = await createBillingCheckoutSession({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -156,16 +167,37 @@ export const updateGameMutation = (options?: Partial<Options<UpdateGameData>>): 
     return mutationOptions;
 };
 
-export const getGameBySlugQueryKey = (options: Options<GetGameBySlugData>) => createQueryKey('getGameBySlug', options);
+/**
+ * Create a Stripe Customer Portal Session
+ *
+ * Creates a Stripe-hosted billing portal session for the current
+ * authenticated Dreamboard user.
+ *
+ */
+export const createBillingPortalSessionMutation = (options?: Partial<Options<CreateBillingPortalSessionData>>): UseMutationOptions<CreateBillingPortalSessionResponse, CreateBillingPortalSessionError, Options<CreateBillingPortalSessionData>> => {
+    const mutationOptions: UseMutationOptions<CreateBillingPortalSessionResponse, CreateBillingPortalSessionError, Options<CreateBillingPortalSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createBillingPortalSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getCurrentBillingEntitlementsQueryKey = (options?: Options<GetCurrentBillingEntitlementsData>) => createQueryKey('getCurrentBillingEntitlements', options);
 
 /**
- * Get game by slug
+ * Get current user entitlements
  *
- * Retrieve a specific game definition by its slug
+ * Returns backend-owned entitlement state for the current authenticated user.
  */
-export const getGameBySlugOptions = (options: Options<GetGameBySlugData>) => queryOptions<GetGameBySlugResponse, GetGameBySlugError, GetGameBySlugResponse, ReturnType<typeof getGameBySlugQueryKey>>({
+export const getCurrentBillingEntitlementsOptions = (options?: Options<GetCurrentBillingEntitlementsData>) => queryOptions<GetCurrentBillingEntitlementsResponse, GetCurrentBillingEntitlementsError, GetCurrentBillingEntitlementsResponse, ReturnType<typeof getCurrentBillingEntitlementsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getGameBySlug({
+        const { data } = await getCurrentBillingEntitlements({
             ...options,
             ...queryKey[0],
             signal,
@@ -173,7 +205,611 @@ export const getGameBySlugOptions = (options: Options<GetGameBySlugData>) => que
         });
         return data;
     },
-    queryKey: getGameBySlugQueryKey(options)
+    queryKey: getCurrentBillingEntitlementsQueryKey(options)
+});
+
+export const listProjectsQueryKey = (options?: Options<ListProjectsData>) => createQueryKey('listProjects', options);
+
+/**
+ * List user's projects
+ *
+ * Retrieve all projects installed in the authenticated user's active owner scope.
+ */
+export const listProjectsOptions = (options?: Options<ListProjectsData>) => queryOptions<ListProjectsResponse, ListProjectsError, ListProjectsResponse, ReturnType<typeof listProjectsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listProjects({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listProjectsQueryKey(options)
+});
+
+/**
+ * Extract a structured game spec
+ *
+ * Extract a normalized structured game spec from pasted rule text.
+ */
+export const extractGameSpecMutation = (options?: Partial<Options<ExtractGameSpecData>>): UseMutationOptions<ExtractGameSpecResponse2, ExtractGameSpecError, Options<ExtractGameSpecData>> => {
+    const mutationOptions: UseMutationOptions<ExtractGameSpecResponse2, ExtractGameSpecError, Options<ExtractGameSpecData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await extractGameSpec({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete project
+ *
+ * Soft delete a project installation in the active owner scope.
+ */
+export const deleteProjectMutation = (options?: Partial<Options<DeleteProjectData>>): UseMutationOptions<DeleteProjectResponse2, DeleteProjectError, Options<DeleteProjectData>> => {
+    const mutationOptions: UseMutationOptions<DeleteProjectResponse2, DeleteProjectError, Options<DeleteProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getProjectQueryKey = (options: Options<GetProjectData>) => createQueryKey('getProject', options);
+
+/**
+ * Get project by ID
+ *
+ * Retrieve a project installed in the authenticated user's active owner scope.
+ */
+export const getProjectOptions = (options: Options<GetProjectData>) => queryOptions<GetProjectResponse, GetProjectError, GetProjectResponse, ReturnType<typeof getProjectQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProject({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectQueryKey(options)
+});
+
+/**
+ * Update project metadata
+ *
+ * Update project slug, name, description, visibility, or metadata in the active owner scope.
+ */
+export const updateProjectMutation = (options?: Partial<Options<UpdateProjectData>>): UseMutationOptions<UpdateProjectResponse, UpdateProjectError, Options<UpdateProjectData>> => {
+    const mutationOptions: UseMutationOptions<UpdateProjectResponse, UpdateProjectError, Options<UpdateProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Ensure project
+ *
+ * Ensure a portable project is installed in the authenticated user's active owner scope.
+ */
+export const ensureProjectMutation = (options?: Partial<Options<EnsureProjectData>>): UseMutationOptions<EnsureProjectResponse, EnsureProjectError, Options<EnsureProjectData>> => {
+    const mutationOptions: UseMutationOptions<EnsureProjectResponse, EnsureProjectError, Options<EnsureProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await ensureProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getProjectRepositoryQueryKey = (options: Options<GetProjectRepositoryData>) => createQueryKey('getProjectRepository', options);
+
+/**
+ * Get project repository
+ *
+ * Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope.
+ */
+export const getProjectRepositoryOptions = (options: Options<GetProjectRepositoryData>) => queryOptions<GetProjectRepositoryResponse, GetProjectRepositoryError, GetProjectRepositoryResponse, ReturnType<typeof getProjectRepositoryQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectRepository({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectRepositoryQueryKey(options)
+});
+
+/**
+ * Ensure project repository
+ *
+ * Ensure the project installation in the authenticated user's active owner scope has one opaque Git repository binding.
+ */
+export const ensureProjectRepositoryMutation = (options?: Partial<Options<EnsureProjectRepositoryData>>): UseMutationOptions<EnsureProjectRepositoryResponse, EnsureProjectRepositoryError, Options<EnsureProjectRepositoryData>> => {
+    const mutationOptions: UseMutationOptions<EnsureProjectRepositoryResponse, EnsureProjectRepositoryError, Options<EnsureProjectRepositoryData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await ensureProjectRepository({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Retry project repository reconciliation
+ *
+ * Request a new reconciliation generation for the project's opaque Git repository binding.
+ */
+export const retryProjectRepositoryReconciliationMutation = (options?: Partial<Options<RetryProjectRepositoryReconciliationData>>): UseMutationOptions<RetryProjectRepositoryReconciliationResponse, RetryProjectRepositoryReconciliationError, Options<RetryProjectRepositoryReconciliationData>> => {
+    const mutationOptions: UseMutationOptions<RetryProjectRepositoryReconciliationResponse, RetryProjectRepositoryReconciliationError, Options<RetryProjectRepositoryReconciliationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await retryProjectRepositoryReconciliation({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Ensure project build
+ *
+ * Ensure a server-derived build recipe and compile job exist for one exact observed Git commit.
+ */
+export const ensureProjectBuildMutation = (options?: Partial<Options<EnsureProjectBuildData>>): UseMutationOptions<EnsureProjectBuildResponse, EnsureProjectBuildError, Options<EnsureProjectBuildData>> => {
+    const mutationOptions: UseMutationOptions<EnsureProjectBuildResponse, EnsureProjectBuildError, Options<EnsureProjectBuildData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await ensureProjectBuild({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getProjectCommitStatusQueryKey = (options: Options<GetProjectCommitStatusData>) => createQueryKey('getProjectCommitStatus', options);
+
+/**
+ * Get project commit status
+ *
+ * Return server-owned source, build, preview, and release state for one exact Git commit.
+ */
+export const getProjectCommitStatusOptions = (options: Options<GetProjectCommitStatusData>) => queryOptions<GetProjectCommitStatusResponse, GetProjectCommitStatusError, GetProjectCommitStatusResponse, ReturnType<typeof getProjectCommitStatusQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectCommitStatus({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectCommitStatusQueryKey(options)
+});
+
+export const getProjectBuildQueryKey = (options: Options<GetProjectBuildData>) => createQueryKey('getProjectBuild', options);
+
+/**
+ * Get project build
+ *
+ * Get a server-derived build recipe and compiled artifact state for this project.
+ */
+export const getProjectBuildOptions = (options: Options<GetProjectBuildData>) => queryOptions<GetProjectBuildResponse, GetProjectBuildError, GetProjectBuildResponse, ReturnType<typeof getProjectBuildQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectBuild({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectBuildQueryKey(options)
+});
+
+/**
+ * Create project preview
+ *
+ * Create a preview aggregate for one exact observed Git commit after its build has succeeded.
+ */
+export const createProjectPreviewMutation = (options?: Partial<Options<CreateProjectPreviewData>>): UseMutationOptions<CreateProjectPreviewResponse, CreateProjectPreviewError, Options<CreateProjectPreviewData>> => {
+    const mutationOptions: UseMutationOptions<CreateProjectPreviewResponse, CreateProjectPreviewError, Options<CreateProjectPreviewData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createProjectPreview({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Publish project release
+ *
+ * Create a pending release aggregate for one exact observed Git commit after its release build has succeeded.
+ */
+export const publishProjectReleaseMutation = (options?: Partial<Options<PublishProjectReleaseData>>): UseMutationOptions<PublishProjectReleaseResponse, PublishProjectReleaseError, Options<PublishProjectReleaseData>> => {
+    const mutationOptions: UseMutationOptions<PublishProjectReleaseResponse, PublishProjectReleaseError, Options<PublishProjectReleaseData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await publishProjectRelease({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getCurrentProjectReleaseQueryKey = (options: Options<GetCurrentProjectReleaseData>) => createQueryKey('getCurrentProjectRelease', options);
+
+/**
+ * Get current project release
+ *
+ * Read the active release currently selected for a project.
+ */
+export const getCurrentProjectReleaseOptions = (options: Options<GetCurrentProjectReleaseData>) => queryOptions<GetCurrentProjectReleaseResponse, GetCurrentProjectReleaseError, GetCurrentProjectReleaseResponse, ReturnType<typeof getCurrentProjectReleaseQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getCurrentProjectRelease({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getCurrentProjectReleaseQueryKey(options)
+});
+
+export const getProjectBySlugQueryKey = (options: Options<GetProjectBySlugData>) => createQueryKey('getProjectBySlug', options);
+
+/**
+ * Get project by slug
+ *
+ * Resolve a portable project installed in the authenticated user's active owner scope by slug.
+ */
+export const getProjectBySlugOptions = (options: Options<GetProjectBySlugData>) => queryOptions<GetProjectBySlugResponse, GetProjectBySlugError, GetProjectBySlugResponse, ReturnType<typeof getProjectBySlugQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectBySlug({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectBySlugQueryKey(options)
+});
+
+/**
+ * Create game revision
+ *
+ * Atomically finalize source, rule text, and manifest into one immutable project revision.
+ */
+export const createGameRevisionMutation = (options?: Partial<Options<CreateGameRevisionData>>): UseMutationOptions<CreateGameRevisionResponse, CreateGameRevisionError, Options<CreateGameRevisionData>> => {
+    const mutationOptions: UseMutationOptions<CreateGameRevisionResponse, CreateGameRevisionError, Options<CreateGameRevisionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createGameRevision({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getProjectRevisionSourcesQueryKey = (options: Options<GetProjectRevisionSourcesData>) => createQueryKey('getProjectRevisionSources', options);
+
+/**
+ * Get project revision source files
+ *
+ * Retrieve source files and authored metadata for an immutable project revision digest.
+ */
+export const getProjectRevisionSourcesOptions = (options: Options<GetProjectRevisionSourcesData>) => queryOptions<GetProjectRevisionSourcesResponse, GetProjectRevisionSourcesError, GetProjectRevisionSourcesResponse, ReturnType<typeof getProjectRevisionSourcesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectRevisionSources({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectRevisionSourcesQueryKey(options)
+});
+
+/**
+ * Create project source blob direct-upload targets
+ *
+ * Create a direct-upload session for source blobs referenced by a forthcoming project revision.
+ */
+export const createProjectSourceBlobUploadSessionMutation = (options?: Partial<Options<CreateProjectSourceBlobUploadSessionData>>): UseMutationOptions<CreateProjectSourceBlobUploadSessionResponse, CreateProjectSourceBlobUploadSessionError, Options<CreateProjectSourceBlobUploadSessionData>> => {
+    const mutationOptions: UseMutationOptions<CreateProjectSourceBlobUploadSessionResponse, CreateProjectSourceBlobUploadSessionError, Options<CreateProjectSourceBlobUploadSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createProjectSourceBlobUploadSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Queue compile for project revision
+ *
+ * Queue an asynchronous compile for one immutable project revision. Poll `/api/jobs/{jobId}` and fetch the final compiled result by ID when the job completes.
+ */
+export const queueProjectRevisionCompileMutation = (options?: Partial<Options<QueueProjectRevisionCompileData>>): UseMutationOptions<QueueProjectRevisionCompileResponse, QueueProjectRevisionCompileError, Options<QueueProjectRevisionCompileData>> => {
+    const mutationOptions: UseMutationOptions<QueueProjectRevisionCompileResponse, QueueProjectRevisionCompileError, Options<QueueProjectRevisionCompileData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await queueProjectRevisionCompile({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getLatestProjectCompiledResultQueryKey = (options: Options<GetLatestProjectCompiledResultData>) => createQueryKey('getLatestProjectCompiledResult', options);
+
+/**
+ * Get latest compiled result for a project
+ *
+ * Return the most recent compiled result for the project installation in the active owner scope.
+ */
+export const getLatestProjectCompiledResultOptions = (options: Options<GetLatestProjectCompiledResultData>) => queryOptions<GetLatestProjectCompiledResultResponse, GetLatestProjectCompiledResultError, GetLatestProjectCompiledResultResponse, ReturnType<typeof getLatestProjectCompiledResultQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getLatestProjectCompiledResult({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getLatestProjectCompiledResultQueryKey(options)
+});
+
+export const listProjectCompiledResultsQueryKey = (options: Options<ListProjectCompiledResultsData>) => createQueryKey('listProjectCompiledResults', options);
+
+/**
+ * List compiled results for a project
+ *
+ * Retrieve compiled results for the project installation in the active owner scope, ordered by creation date descending.
+ */
+export const listProjectCompiledResultsOptions = (options: Options<ListProjectCompiledResultsData>) => queryOptions<ListProjectCompiledResultsResponse, ListProjectCompiledResultsError, ListProjectCompiledResultsResponse, ReturnType<typeof listProjectCompiledResultsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listProjectCompiledResults({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listProjectCompiledResultsQueryKey(options)
+});
+
+export const getProjectCompiledResultQueryKey = (options: Options<GetProjectCompiledResultData>) => createQueryKey('getProjectCompiledResult', options);
+
+/**
+ * Get project compiled result by ID
+ *
+ * Fetch a specific compiled result for the project installation in the active owner scope.
+ */
+export const getProjectCompiledResultOptions = (options: Options<GetProjectCompiledResultData>) => queryOptions<GetProjectCompiledResultResponse, GetProjectCompiledResultError, GetProjectCompiledResultResponse, ReturnType<typeof getProjectCompiledResultQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectCompiledResult({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectCompiledResultQueryKey(options)
+});
+
+/**
+ * Upload initial projection for project preview rendering
+ *
+ * Store the reducer-native projection JSON used by the compiler service to render a dashboard preview screenshot for a project.
+ */
+export const uploadProjectInitialProjectionMutation = (options?: Partial<Options<UploadProjectInitialProjectionData>>): UseMutationOptions<UploadProjectInitialProjectionResponse, UploadProjectInitialProjectionError, Options<UploadProjectInitialProjectionData>> => {
+    const mutationOptions: UseMutationOptions<UploadProjectInitialProjectionResponse, UploadProjectInitialProjectionError, Options<UploadProjectInitialProjectionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await uploadProjectInitialProjection({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Queue project preview screenshot generation
+ *
+ * Queue an async job that renders the latest successful UI bundle for a project and stores a PNG preview.
+ */
+export const queueProjectPreviewScreenshotMutation = (options?: Partial<Options<QueueProjectPreviewScreenshotData>>): UseMutationOptions<QueueProjectPreviewScreenshotResponse, QueueProjectPreviewScreenshotError, Options<QueueProjectPreviewScreenshotData>> => {
+    const mutationOptions: UseMutationOptions<QueueProjectPreviewScreenshotResponse, QueueProjectPreviewScreenshotError, Options<QueueProjectPreviewScreenshotData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await queueProjectPreviewScreenshot({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const fetchProjectPreviewImageQueryKey = (options: Options<FetchProjectPreviewImageData>) => createQueryKey('fetchProjectPreviewImage', options);
+
+/**
+ * Fetch generated project preview image
+ *
+ * Return the latest generated project preview PNG from artifact storage.
+ */
+export const fetchProjectPreviewImageOptions = (options: Options<FetchProjectPreviewImageData>) => queryOptions<FetchProjectPreviewImageResponse, FetchProjectPreviewImageError, FetchProjectPreviewImageResponse, ReturnType<typeof fetchProjectPreviewImageQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await fetchProjectPreviewImage({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: fetchProjectPreviewImageQueryKey(options)
+});
+
+/**
+ * Ensure a private project dev compile exists
+ *
+ * Reuse or create a session-scoped dev compilation for the provided workspace fingerprint without advancing the canonical authored head.
+ */
+export const ensureProjectDevCompileMutation = (options?: Partial<Options<EnsureProjectDevCompileData>>): UseMutationOptions<EnsureProjectDevCompileResponse, EnsureProjectDevCompileError, Options<EnsureProjectDevCompileData>> => {
+    const mutationOptions: UseMutationOptions<EnsureProjectDevCompileResponse, EnsureProjectDevCompileError, Options<EnsureProjectDevCompileData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await ensureProjectDevCompile({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Create a gameplay session for a project
+ *
+ * Create a gameplay session pinned to a compiled result from the project installation in the active owner scope.
+ */
+export const createProjectSessionMutation = (options?: Partial<Options<CreateProjectSessionData>>): UseMutationOptions<CreateProjectSessionResponse, CreateProjectSessionError, Options<CreateProjectSessionData>> => {
+    const mutationOptions: UseMutationOptions<CreateProjectSessionResponse, CreateProjectSessionError, Options<CreateProjectSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createProjectSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const downloadProjectSourcesQueryKey = (options: Options<DownloadProjectSourcesData>) => createQueryKey('downloadProjectSources', options);
+
+/**
+ * Download authored project source files
+ *
+ * Download the authored source files for the current project head as a ZIP archive.
+ */
+export const downloadProjectSourcesOptions = (options: Options<DownloadProjectSourcesData>) => queryOptions<DownloadProjectSourcesResponse, DownloadProjectSourcesError, DownloadProjectSourcesResponse, ReturnType<typeof downloadProjectSourcesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await downloadProjectSources({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: downloadProjectSourcesQueryKey(options)
+});
+
+export const getProjectSourcesQueryKey = (options: Options<GetProjectSourcesData>) => createQueryKey('getProjectSources', options);
+
+/**
+ * Get authored project source files
+ *
+ * Retrieve authored source files as JSON for the current project head.
+ */
+export const getProjectSourcesOptions = (options: Options<GetProjectSourcesData>) => queryOptions<GetProjectSourcesResponse, GetProjectSourcesError, GetProjectSourcesResponse, ReturnType<typeof getProjectSourcesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectSources({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectSourcesQueryKey(options)
+});
+
+export const getProjectActiveJobQueryKey = (options: Options<GetProjectActiveJobData>) => createQueryKey('getProjectActiveJob', options);
+
+/**
+ * Get active job for a project
+ *
+ * Returns the currently active project job, if any. Jobs older than 15 minutes are considered stale and ignored.
+ */
+export const getProjectActiveJobOptions = (options: Options<GetProjectActiveJobData>) => queryOptions<GetProjectActiveJobResponse, GetProjectActiveJobError, GetProjectActiveJobResponse, ReturnType<typeof getProjectActiveJobQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getProjectActiveJob({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getProjectActiveJobQueryKey(options)
 });
 
 export const queryWorkshopRulebookQueryKey = (options: Options<QueryWorkshopRulebookData>) => createQueryKey('queryWorkshopRulebook', options);
@@ -196,16 +832,16 @@ export const queryWorkshopRulebookOptions = (options: Options<QueryWorkshopRuleb
     queryKey: queryWorkshopRulebookQueryKey(options)
 });
 
-export const findManifestsQueryKey = (options: Options<FindManifestsData>) => createQueryKey('findManifests', options);
+export const getJobQueryKey = (options: Options<GetJobData>) => createQueryKey('getJob', options);
 
 /**
- * Find manifests for game
+ * Get job details
  *
- * Retrieve a list of manifest versions for a game, ordered by version descending (newest first)
+ * Fetch details for a specific async job, including ordered user-facing tasks.
  */
-export const findManifestsOptions = (options: Options<FindManifestsData>) => queryOptions<FindManifestsResponse2, FindManifestsError, FindManifestsResponse2, ReturnType<typeof findManifestsQueryKey>>({
+export const getJobOptions = (options: Options<GetJobData>) => queryOptions<GetJobResponse, GetJobError, GetJobResponse, ReturnType<typeof getJobQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await findManifests({
+        const { data } = await getJob({
             ...options,
             ...queryKey[0],
             signal,
@@ -213,176 +849,38 @@ export const findManifestsOptions = (options: Options<FindManifestsData>) => que
         });
         return data;
     },
-    queryKey: findManifestsQueryKey(options)
+    queryKey: getJobQueryKey(options)
+});
+
+export const getJobEventBatchQueryKey = (options: Options<GetJobEventBatchData>) => createQueryKey('getJobEventBatch', options);
+
+/**
+ * Long-poll job details
+ *
+ * Return the current job snapshot immediately when it differs from afterCursor, otherwise wait briefly for a job update.
+ */
+export const getJobEventBatchOptions = (options: Options<GetJobEventBatchData>) => queryOptions<GetJobEventBatchResponse, GetJobEventBatchError, GetJobEventBatchResponse, ReturnType<typeof getJobEventBatchQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getJobEventBatch({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getJobEventBatchQueryKey(options)
 });
 
 /**
- * Save game manifest
+ * Create a game build run
  *
- * Create a new versioned manifest for a game. Each save creates a new version with automatic version numbering.
+ * Create a new game draft build job from a structured game spec.
  */
-export const saveManifestMutation = (options?: Partial<Options<SaveManifestData>>): UseMutationOptions<SaveManifestResponse2, SaveManifestError, Options<SaveManifestData>> => {
-    const mutationOptions: UseMutationOptions<SaveManifestResponse2, SaveManifestError, Options<SaveManifestData>> = {
+export const createGameRunMutation = (options?: Partial<Options<CreateGameRunData>>): UseMutationOptions<CreateGameRunResponse2, CreateGameRunError, Options<CreateGameRunData>> => {
+    const mutationOptions: UseMutationOptions<CreateGameRunResponse2, CreateGameRunError, Options<CreateGameRunData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await saveManifest({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const getManifestQueryKey = (options: Options<GetManifestData>) => createQueryKey('getManifest', options);
-
-/**
- * Get manifest by ID
- *
- * Retrieve a specific manifest version by its ID with full board manifest details
- */
-export const getManifestOptions = (options: Options<GetManifestData>) => queryOptions<GetManifestResponse, GetManifestError, GetManifestResponse, ReturnType<typeof getManifestQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getManifest({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getManifestQueryKey(options)
-});
-
-export const getLatestCompiledResultQueryKey = (options: Options<GetLatestCompiledResultData>) => createQueryKey('getLatestCompiledResult', options);
-
-/**
- * Get latest compiled result for a game
- *
- * Return the most recent compiled result for the specified game.
- */
-export const getLatestCompiledResultOptions = (options: Options<GetLatestCompiledResultData>) => queryOptions<GetLatestCompiledResultResponse, GetLatestCompiledResultError, GetLatestCompiledResultResponse, ReturnType<typeof getLatestCompiledResultQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getLatestCompiledResult({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getLatestCompiledResultQueryKey(options)
-});
-
-export const listCompiledResultsQueryKey = (options: Options<ListCompiledResultsData>) => createQueryKey('listCompiledResults', options);
-
-/**
- * List compiled results for a game
- *
- * Retrieve a list of compiled results for a game, ordered by creation date descending (newest first). Includes both successful and failed compilations.
- */
-export const listCompiledResultsOptions = (options: Options<ListCompiledResultsData>) => queryOptions<ListCompiledResultsResponse2, ListCompiledResultsError, ListCompiledResultsResponse2, ReturnType<typeof listCompiledResultsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await listCompiledResults({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listCompiledResultsQueryKey(options)
-});
-
-/**
- * Queue a compile job for an authoring state
- *
- * Queue an asynchronous compile for a specific authoring state. Poll `/api/jobs/{jobId}` and fetch the final compiled result by ID when the job completes.
- */
-export const queueCompiledResultJobMutation = (options?: Partial<Options<QueueCompiledResultJobData>>): UseMutationOptions<QueueCompiledResultJobResponse2, QueueCompiledResultJobError, Options<QueueCompiledResultJobData>> => {
-    const mutationOptions: UseMutationOptions<QueueCompiledResultJobResponse2, QueueCompiledResultJobError, Options<QueueCompiledResultJobData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await queueCompiledResultJob({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const getCompiledResultQueryKey = (options: Options<GetCompiledResultData>) => createQueryKey('getCompiledResult', options);
-
-/**
- * Get compiled result by ID
- *
- * Fetch a specific compiled result for a game, including failed results and diagnostics.
- */
-export const getCompiledResultOptions = (options: Options<GetCompiledResultData>) => queryOptions<GetCompiledResultResponse, GetCompiledResultError, GetCompiledResultResponse, ReturnType<typeof getCompiledResultQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getCompiledResult({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getCompiledResultQueryKey(options)
-});
-
-export const downloadGameSourcesQueryKey = (options: Options<DownloadGameSourcesData>) => createQueryKey('downloadGameSources', options);
-
-/**
- * Download authored game source files
- *
- * Download the authored source files for the current authoring head as a ZIP archive.
- */
-export const downloadGameSourcesOptions = (options: Options<DownloadGameSourcesData>) => queryOptions<DownloadGameSourcesResponse, DownloadGameSourcesError, DownloadGameSourcesResponse, ReturnType<typeof downloadGameSourcesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await downloadGameSources({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: downloadGameSourcesQueryKey(options)
-});
-
-export const getGameSourcesQueryKey = (options: Options<GetGameSourcesData>) => createQueryKey('getGameSources', options);
-
-/**
- * Get authored game source files
- *
- * Retrieve authored source files as JSON for the selected authoring state. If no authoring state is provided, the current authoring head is used.
- */
-export const getGameSourcesOptions = (options: Options<GetGameSourcesData>) => queryOptions<GetGameSourcesResponse, GetGameSourcesError, GetGameSourcesResponse, ReturnType<typeof getGameSourcesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getGameSources({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getGameSourcesQueryKey(options)
-});
-
-/**
- * Generate dynamic scaffold files from manifest
- *
- * Returns manifest-derived scaffold files split by ownership semantics: generated files (always replaceable) and seed files (generated then user-owned).
- */
-export const scaffoldGameSourcesV3Mutation = (options?: Partial<Options<ScaffoldGameSourcesV3Data>>): UseMutationOptions<ScaffoldGameSourcesV3Response, ScaffoldGameSourcesV3Error, Options<ScaffoldGameSourcesV3Data>> => {
-    const mutationOptions: UseMutationOptions<ScaffoldGameSourcesV3Response, ScaffoldGameSourcesV3Error, Options<ScaffoldGameSourcesV3Data>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await scaffoldGameSourcesV3({
+            const { data } = await createGameRun({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -394,53 +892,14 @@ export const scaffoldGameSourcesV3Mutation = (options?: Partial<Options<Scaffold
 };
 
 /**
- * Create a source revision for a game
+ * Cancel a game build run
  *
- * Create a new authored source revision from an inline change set. The request must be based on the current head revision for the game.
+ * Request cancellation of an active game draft build job.
  */
-export const createSourceRevisionMutation = (options?: Partial<Options<CreateSourceRevisionData>>): UseMutationOptions<CreateSourceRevisionResponse, CreateSourceRevisionError, Options<CreateSourceRevisionData>> => {
-    const mutationOptions: UseMutationOptions<CreateSourceRevisionResponse, CreateSourceRevisionError, Options<CreateSourceRevisionData>> = {
+export const cancelGameRunMutation = (options?: Partial<Options<CancelGameRunData>>): UseMutationOptions<unknown, CancelGameRunError, Options<CancelGameRunData>> => {
+    const mutationOptions: UseMutationOptions<unknown, CancelGameRunError, Options<CancelGameRunData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await createSourceRevision({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const getAuthoringHeadQueryKey = (options: Options<GetAuthoringHeadData>) => createQueryKey('getAuthoringHead', options);
-
-/**
- * Get current authoring head for a game
- *
- * Retrieve the current remote authoring head for the specified game.
- */
-export const getAuthoringHeadOptions = (options: Options<GetAuthoringHeadData>) => queryOptions<GetAuthoringHeadResponse, GetAuthoringHeadError, GetAuthoringHeadResponse, ReturnType<typeof getAuthoringHeadQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getAuthoringHead({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getAuthoringHeadQueryKey(options)
-});
-
-/**
- * Advance the authoring head for a game
- *
- * Create a new immutable authoring state and make it the current authoring head for the specified game.
- */
-export const createAuthoringStateMutation = (options?: Partial<Options<CreateAuthoringStateData>>): UseMutationOptions<CreateAuthoringStateResponse, CreateAuthoringStateError, Options<CreateAuthoringStateData>> => {
-    const mutationOptions: UseMutationOptions<CreateAuthoringStateResponse, CreateAuthoringStateError, Options<CreateAuthoringStateData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await createAuthoringState({
+            const { data } = await cancelGameRun({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -452,14 +911,14 @@ export const createAuthoringStateMutation = (options?: Partial<Options<CreateAut
 };
 
 /**
- * Create a source revision for a game from a gzip bundle
+ * Accept an agent build result
  *
- * Create a new authored source revision from a gzip-compressed JSON payload matching CreateSourceRevisionRequest.
+ * Accept a ready-for-review agent branch after its reported head has a succeeded preview.
  */
-export const createSourceRevisionBundleMutation = (options?: Partial<Options<CreateSourceRevisionBundleData>>): UseMutationOptions<CreateSourceRevisionBundleResponse, CreateSourceRevisionBundleError, Options<CreateSourceRevisionBundleData>> => {
-    const mutationOptions: UseMutationOptions<CreateSourceRevisionBundleResponse, CreateSourceRevisionBundleError, Options<CreateSourceRevisionBundleData>> = {
+export const acceptGameRunMutation = (options?: Partial<Options<AcceptGameRunData>>): UseMutationOptions<AcceptGameRunResponse2, AcceptGameRunError, Options<AcceptGameRunData>> => {
+    const mutationOptions: UseMutationOptions<AcceptGameRunResponse2, AcceptGameRunError, Options<AcceptGameRunData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await createSourceRevisionBundle({
+            const { data } = await acceptGameRun({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -470,157 +929,15 @@ export const createSourceRevisionBundleMutation = (options?: Partial<Options<Cre
     return mutationOptions;
 };
 
-export const getGameScriptsQueryKey = (options: Options<GetGameScriptsData>) => createQueryKey('getGameScripts', options);
-
 /**
- * Get game scripts
+ * Create a project session from a reducer snapshot
  *
- * Retrieve all compiled app and UI scripts for a specific manifest
+ * Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness, resolved through a portable project.
  */
-export const getGameScriptsOptions = (options: Options<GetGameScriptsData>) => queryOptions<GetGameScriptsResponse, GetGameScriptsError, GetGameScriptsResponse, ReturnType<typeof getGameScriptsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getGameScripts({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getGameScriptsQueryKey(options)
-});
-
-export const getAgentChatContextQueryKey = (options: Options<GetAgentChatContextData>) => createQueryKey('getAgentChatContext', options);
-
-/**
- * Get agent chat context
- *
- * Retrieve all initial data needed for the agent chat page in a single request.
- * Returns rules, manifests for the latest rule, and scripts for the latest manifest,
- * with pre-selected defaults to eliminate client-side auto-selection logic.
- *
- */
-export const getAgentChatContextOptions = (options: Options<GetAgentChatContextData>) => queryOptions<GetAgentChatContextResponse, GetAgentChatContextError, GetAgentChatContextResponse, ReturnType<typeof getAgentChatContextQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getAgentChatContext({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getAgentChatContextQueryKey(options)
-});
-
-export const getActiveJobQueryKey = (options: Options<GetActiveJobData>) => createQueryKey('getActiveJob', options);
-
-/**
- * Get active job for a game
- *
- * Returns the currently active (PENDING or RUNNING) job for a game, if any. Jobs older than 15 minutes are considered stale and ignored.
- */
-export const getActiveJobOptions = (options: Options<GetActiveJobData>) => queryOptions<GetActiveJobResponse, GetActiveJobError, GetActiveJobResponse, ReturnType<typeof getActiveJobQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getActiveJob({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getActiveJobQueryKey(options)
-});
-
-export const listGameRulesQueryKey = (options: Options<ListGameRulesData>) => createQueryKey('listGameRules', options);
-
-/**
- * List game rules for a game
- *
- * Retrieve a list of rule versions for a game, ordered by version descending (newest first)
- */
-export const listGameRulesOptions = (options: Options<ListGameRulesData>) => queryOptions<ListGameRulesResponse2, ListGameRulesError, ListGameRulesResponse2, ReturnType<typeof listGameRulesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await listGameRules({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listGameRulesQueryKey(options)
-});
-
-/**
- * Create a new game rule
- *
- * Create a new versioned rule for a game. Each save creates a new version with automatic version numbering.
- */
-export const createGameRuleMutation = (options?: Partial<Options<CreateGameRuleData>>): UseMutationOptions<CreateGameRuleResponse2, CreateGameRuleError, Options<CreateGameRuleData>> => {
-    const mutationOptions: UseMutationOptions<CreateGameRuleResponse2, CreateGameRuleError, Options<CreateGameRuleData>> = {
+export const createProjectSessionFromReducerSnapshotMutation = (options?: Partial<Options<CreateProjectSessionFromReducerSnapshotData>>): UseMutationOptions<CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionFromReducerSnapshotError, Options<CreateProjectSessionFromReducerSnapshotData>> => {
+    const mutationOptions: UseMutationOptions<CreateProjectSessionFromReducerSnapshotResponse, CreateProjectSessionFromReducerSnapshotError, Options<CreateProjectSessionFromReducerSnapshotData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await createGameRule({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const getLatestGameRuleQueryKey = (options: Options<GetLatestGameRuleData>) => createQueryKey('getLatestGameRule', options);
-
-/**
- * Get the latest game rule
- *
- * Retrieve the most recent rule version for a game with full details including the complete rule text
- */
-export const getLatestGameRuleOptions = (options: Options<GetLatestGameRuleData>) => queryOptions<GetLatestGameRuleResponse, GetLatestGameRuleError, GetLatestGameRuleResponse, ReturnType<typeof getLatestGameRuleQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getLatestGameRule({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getLatestGameRuleQueryKey(options)
-});
-
-export const getGameRuleQueryKey = (options: Options<GetGameRuleData>) => createQueryKey('getGameRule', options);
-
-/**
- * Get game rule by ID
- *
- * Retrieve a specific game rule version by its ID with full details
- */
-export const getGameRuleOptions = (options: Options<GetGameRuleData>) => queryOptions<GetGameRuleResponse, GetGameRuleError, GetGameRuleResponse, ReturnType<typeof getGameRuleQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getGameRule({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getGameRuleQueryKey(options)
-});
-
-/**
- * Create a new game session
- *
- * Create a new game session in lobby phase with initial seat configuration
- */
-export const createSessionMutation = (options?: Partial<Options<CreateSessionData>>): UseMutationOptions<CreateSessionResponse2, CreateSessionError, Options<CreateSessionData>> => {
-    const mutationOptions: UseMutationOptions<CreateSessionResponse2, CreateSessionError, Options<CreateSessionData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await createSession({
+            const { data } = await createProjectSessionFromReducerSnapshot({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -636,7 +953,7 @@ export const getSessionByShortCodeQueryKey = (options: Options<GetSessionByShort
 /**
  * Get session by short code
  *
- * Look up a session using its memorable short code
+ * Look up and hydrate a session using its memorable short code.
  */
 export const getSessionByShortCodeOptions = (options: Options<GetSessionByShortCodeData>) => queryOptions<GetSessionByShortCodeResponse, GetSessionByShortCodeError, GetSessionByShortCodeResponse, ReturnType<typeof getSessionByShortCodeQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -651,16 +968,16 @@ export const getSessionByShortCodeOptions = (options: Options<GetSessionByShortC
     queryKey: getSessionByShortCodeQueryKey(options)
 });
 
-export const getSessionStatusQueryKey = (options: Options<GetSessionStatusData>) => createQueryKey('getSessionStatus', options);
+export const getSessionSnapshotQueryKey = (options: Options<GetSessionSnapshotData>) => createQueryKey('getSessionSnapshot', options);
 
 /**
- * Get session status
+ * Get a session snapshot
  *
- * Get current status and phase of a game session
+ * Return the canonical selected-perspective session snapshot for first render or explicit resync.
  */
-export const getSessionStatusOptions = (options: Options<GetSessionStatusData>) => queryOptions<GetSessionStatusResponse, GetSessionStatusError, GetSessionStatusResponse, ReturnType<typeof getSessionStatusQueryKey>>({
+export const getSessionSnapshotOptions = (options: Options<GetSessionSnapshotData>) => queryOptions<GetSessionSnapshotResponse, GetSessionSnapshotError, GetSessionSnapshotResponse, ReturnType<typeof getSessionSnapshotQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getSessionStatus({
+        const { data } = await getSessionSnapshot({
             ...options,
             ...queryKey[0],
             signal,
@@ -668,7 +985,27 @@ export const getSessionStatusOptions = (options: Options<GetSessionStatusData>) 
         });
         return data;
     },
-    queryKey: getSessionStatusQueryKey(options)
+    queryKey: getSessionSnapshotQueryKey(options)
+});
+
+export const getSessionLobbyEventBatchQueryKey = (options: Options<GetSessionLobbyEventBatchData>) => createQueryKey('getSessionLobbyEventBatch', options);
+
+/**
+ * Long-poll lobby session events
+ *
+ * Return a lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket.
+ */
+export const getSessionLobbyEventBatchOptions = (options: Options<GetSessionLobbyEventBatchData>) => queryOptions<GetSessionLobbyEventBatchResponse, GetSessionLobbyEventBatchError, GetSessionLobbyEventBatchResponse, ReturnType<typeof getSessionLobbyEventBatchQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSessionLobbyEventBatch({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSessionLobbyEventBatchQueryKey(options)
 });
 
 /**
@@ -676,8 +1013,8 @@ export const getSessionStatusOptions = (options: Options<GetSessionStatusData>) 
  *
  * Transition session from lobby to gameplay phase (host only)
  */
-export const startGameMutation = (options?: Partial<Options<StartGameData>>): UseMutationOptions<StartGameResponse2, StartGameError, Options<StartGameData>> => {
-    const mutationOptions: UseMutationOptions<StartGameResponse2, StartGameError, Options<StartGameData>> = {
+export const startGameMutation = (options?: Partial<Options<StartGameData>>): UseMutationOptions<StartGameResponse, StartGameError, Options<StartGameData>> => {
+    const mutationOptions: UseMutationOptions<StartGameResponse, StartGameError, Options<StartGameData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await startGame({
                 ...options,
@@ -691,33 +1028,14 @@ export const startGameMutation = (options?: Partial<Options<StartGameData>>): Us
 };
 
 /**
- * Submit a player action
+ * Issue a gameplay authority capability
  *
- * Submit an action during gameplay phase
+ * Returns a short-lived, session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
  */
-export const submitActionMutation = (options?: Partial<Options<SubmitActionData>>): UseMutationOptions<SubmitActionResponse2, SubmitActionError, Options<SubmitActionData>> => {
-    const mutationOptions: UseMutationOptions<SubmitActionResponse2, SubmitActionError, Options<SubmitActionData>> = {
+export const createGameplayCapabilityMutation = (options?: Partial<Options<CreateGameplayCapabilityData>>): UseMutationOptions<CreateGameplayCapabilityResponse, CreateGameplayCapabilityError, Options<CreateGameplayCapabilityData>> => {
+    const mutationOptions: UseMutationOptions<CreateGameplayCapabilityResponse, CreateGameplayCapabilityError, Options<CreateGameplayCapabilityData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await submitAction({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Validate a player action
- *
- * Validate an action before submitting it. Returns validation result with error code if invalid.
- */
-export const validateActionMutation = (options?: Partial<Options<ValidateActionData>>): UseMutationOptions<ValidateActionResponse2, ValidateActionError, Options<ValidateActionData>> => {
-    const mutationOptions: UseMutationOptions<ValidateActionResponse2, ValidateActionError, Options<ValidateActionData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await validateAction({
+            const { data } = await createGameplayCapability({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -805,25 +1123,6 @@ export const assignSeatMutation = (options?: Partial<Options<AssignSeatData>>): 
 };
 
 /**
- * Restore game state from history
- *
- * Restore the game to a previous state from history (host only)
- */
-export const restoreHistoryMutation = (options?: Partial<Options<RestoreHistoryData>>): UseMutationOptions<RestoreHistoryResponse2, RestoreHistoryError, Options<RestoreHistoryData>> => {
-    const mutationOptions: UseMutationOptions<RestoreHistoryResponse2, RestoreHistoryError, Options<RestoreHistoryData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await restoreHistory({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
  * Unassign a seat
  *
  * Unassign the current user from a specific seat
@@ -842,39 +1141,16 @@ export const unassignSeatMutation = (options?: Partial<Options<UnassignSeatData>
     return mutationOptions;
 };
 
-/**
- * Cancel job for conversation
- *
- * Cancel the active job for a conversation. This is the unified cancellation endpoint
- * that works for all job types. The backend will find the active job for the conversation
- * and cancel it. Only the job owner can cancel it. Returns 204 regardless of whether
- * a job was found (idempotent).
- *
- */
-export const cancelConversationJobMutation = (options?: Partial<Options<CancelConversationJobData>>): UseMutationOptions<CancelConversationJobResponse, CancelConversationJobError, Options<CancelConversationJobData>> => {
-    const mutationOptions: UseMutationOptions<CancelConversationJobResponse, CancelConversationJobError, Options<CancelConversationJobData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await cancelConversationJob({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const listConversationsQueryKey = (options: Options<ListConversationsData>) => createQueryKey('listConversations', options);
+export const getProjectUiBundleQueryKey = (options: Options<GetProjectUiBundleData>) => createQueryKey('getProjectUiBundle', options);
 
 /**
- * List conversations
+ * Fetch project UI bundle
  *
- * List all conversations for the current user, optionally filtered by gameId
+ * Fetch and return the HTML content for the current compiled UI bundle of a project in the active owner scope.
  */
-export const listConversationsOptions = (options: Options<ListConversationsData>) => queryOptions<ListConversationsResponse, ListConversationsError, ListConversationsResponse, ReturnType<typeof listConversationsQueryKey>>({
+export const getProjectUiBundleOptions = (options: Options<GetProjectUiBundleData>) => queryOptions<GetProjectUiBundleResponse, GetProjectUiBundleError, GetProjectUiBundleResponse, ReturnType<typeof getProjectUiBundleQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await listConversations({
+        const { data } = await getProjectUiBundle({
             ...options,
             ...queryKey[0],
             signal,
@@ -882,18 +1158,98 @@ export const listConversationsOptions = (options: Options<ListConversationsData>
         });
         return data;
     },
-    queryKey: listConversationsQueryKey(options)
+    queryKey: getProjectUiBundleQueryKey(options)
+});
+
+export const getSessionUiBundleQueryKey = (options: Options<GetSessionUiBundleData>) => createQueryKey('getSessionUiBundle', options);
+
+/**
+ * Fetch session UI bundle
+ *
+ * Fetch and return the HTML content for the compiled UI bundle pinned to a gameplay session.
+ */
+export const getSessionUiBundleOptions = (options: Options<GetSessionUiBundleData>) => queryOptions<GetSessionUiBundleResponse, GetSessionUiBundleError, GetSessionUiBundleResponse, ReturnType<typeof getSessionUiBundleQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSessionUiBundle({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSessionUiBundleQueryKey(options)
+});
+
+export const listDemoGamesQueryKey = (options?: Options<ListDemoGamesData>) => createQueryKey('listDemoGames', options);
+
+/**
+ * List demo games
+ *
+ * List bundled demo games that can be opened without a normal user account.
+ */
+export const listDemoGamesOptions = (options?: Options<ListDemoGamesData>) => queryOptions<ListDemoGamesResponse, ListDemoGamesError, ListDemoGamesResponse, ReturnType<typeof listDemoGamesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listDemoGames({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listDemoGamesQueryKey(options)
+});
+
+export const getDemoGameQueryKey = (options: Options<GetDemoGameData>) => createQueryKey('getDemoGame', options);
+
+/**
+ * Get demo game
+ *
+ * Return registration and playability metadata for a bundled demo game.
+ */
+export const getDemoGameOptions = (options: Options<GetDemoGameData>) => queryOptions<GetDemoGameResponse, GetDemoGameError, GetDemoGameResponse, ReturnType<typeof getDemoGameQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getDemoGame({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getDemoGameQueryKey(options)
+});
+
+export const getDemoGameThumbnailQueryKey = (options: Options<GetDemoGameThumbnailData>) => createQueryKey('getDemoGameThumbnail', options);
+
+/**
+ * Get demo game thumbnail
+ *
+ * Return the static thumbnail image for an active bundled demo game.
+ */
+export const getDemoGameThumbnailOptions = (options: Options<GetDemoGameThumbnailData>) => queryOptions<GetDemoGameThumbnailResponse, GetDemoGameThumbnailError, GetDemoGameThumbnailResponse, ReturnType<typeof getDemoGameThumbnailQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getDemoGameThumbnail({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getDemoGameThumbnailQueryKey(options)
 });
 
 /**
- * Delete conversation
+ * Create demo session
  *
- * Delete a conversation and all its messages
+ * Create a fresh guest-play session for a bundled demo game.
  */
-export const deleteConversationMutation = (options?: Partial<Options<DeleteConversationData>>): UseMutationOptions<DeleteConversationResponse, DeleteConversationError, Options<DeleteConversationData>> => {
-    const mutationOptions: UseMutationOptions<DeleteConversationResponse, DeleteConversationError, Options<DeleteConversationData>> = {
+export const createDemoGameSessionMutation = (options?: Partial<Options<CreateDemoGameSessionData>>): UseMutationOptions<CreateDemoGameSessionResponse, CreateDemoGameSessionError, Options<CreateDemoGameSessionData>> => {
+    const mutationOptions: UseMutationOptions<CreateDemoGameSessionResponse, CreateDemoGameSessionError, Options<CreateDemoGameSessionData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await deleteConversation({
+            const { data } = await createDemoGameSession({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -904,16 +1260,16 @@ export const deleteConversationMutation = (options?: Partial<Options<DeleteConve
     return mutationOptions;
 };
 
-export const getJobQueryKey = (options: Options<GetJobData>) => createQueryKey('getJob', options);
+export const getDemoSessionByShortCodeQueryKey = (options: Options<GetDemoSessionByShortCodeData>) => createQueryKey('getDemoSessionByShortCode', options);
 
 /**
- * Get job details
+ * Get demo session by short code
  *
- * Fetch details for a specific agent job, including created artifact IDs.
+ * Look up and hydrate a demo session using its memorable short code.
  */
-export const getJobOptions = (options: Options<GetJobData>) => queryOptions<GetJobResponse, GetJobError, GetJobResponse, ReturnType<typeof getJobQueryKey>>({
+export const getDemoSessionByShortCodeOptions = (options: Options<GetDemoSessionByShortCodeData>) => queryOptions<GetDemoSessionByShortCodeResponse, GetDemoSessionByShortCodeError, GetDemoSessionByShortCodeResponse, ReturnType<typeof getDemoSessionByShortCodeQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getJob({
+        const { data } = await getDemoSessionByShortCode({
             ...options,
             ...queryKey[0],
             signal,
@@ -921,22 +1277,58 @@ export const getJobOptions = (options: Options<GetJobData>) => queryOptions<GetJ
         });
         return data;
     },
-    queryKey: getJobQueryKey(options)
+    queryKey: getDemoSessionByShortCodeQueryKey(options)
+});
+
+export const getDemoSessionSnapshotQueryKey = (options: Options<GetDemoSessionSnapshotData>) => createQueryKey('getDemoSessionSnapshot', options);
+
+/**
+ * Get a demo session snapshot
+ *
+ * Return the canonical selected-perspective demo session snapshot.
+ */
+export const getDemoSessionSnapshotOptions = (options: Options<GetDemoSessionSnapshotData>) => queryOptions<GetDemoSessionSnapshotResponse, GetDemoSessionSnapshotError, GetDemoSessionSnapshotResponse, ReturnType<typeof getDemoSessionSnapshotQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getDemoSessionSnapshot({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getDemoSessionSnapshotQueryKey(options)
+});
+
+export const getDemoSessionLobbyEventBatchQueryKey = (options: Options<GetDemoSessionLobbyEventBatchData>) => createQueryKey('getDemoSessionLobbyEventBatch', options);
+
+/**
+ * Long-poll demo lobby session events
+ *
+ * Return a demo lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket.
+ */
+export const getDemoSessionLobbyEventBatchOptions = (options: Options<GetDemoSessionLobbyEventBatchData>) => queryOptions<GetDemoSessionLobbyEventBatchResponse, GetDemoSessionLobbyEventBatchError, GetDemoSessionLobbyEventBatchResponse, ReturnType<typeof getDemoSessionLobbyEventBatchQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getDemoSessionLobbyEventBatch({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getDemoSessionLobbyEventBatchQueryKey(options)
 });
 
 /**
- * Send message to sandbox
+ * Start the demo game
  *
- * Send a prompt/message to the active OpenCode sandbox session for this conversation.
- * The backend finds the active sandbox job for the conversation and forwards the
- * message to the OpenCode server. Progress events are streamed via the existing
- * conversation stream SSE endpoint.
- *
+ * Transition a demo session from lobby to gameplay phase.
  */
-export const sendSandboxMessageMutation = (options?: Partial<Options<SendSandboxMessageData>>): UseMutationOptions<SendSandboxMessageResponse2, SendSandboxMessageError, Options<SendSandboxMessageData>> => {
-    const mutationOptions: UseMutationOptions<SendSandboxMessageResponse2, SendSandboxMessageError, Options<SendSandboxMessageData>> = {
+export const startDemoGameMutation = (options?: Partial<Options<StartDemoGameData>>): UseMutationOptions<StartDemoGameResponse, StartDemoGameError, Options<StartDemoGameData>> => {
+    const mutationOptions: UseMutationOptions<StartDemoGameResponse, StartDemoGameError, Options<StartDemoGameData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await sendSandboxMessage({
+            const { data } = await startDemoGame({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -948,17 +1340,14 @@ export const sendSandboxMessageMutation = (options?: Partial<Options<SendSandbox
 };
 
 /**
- * Abort sandbox session
+ * Issue a demo gameplay authority capability
  *
- * Abort the OpenCode session running in the sandbox for this conversation.
- * The backend finds the active sandbox job and sends an abort signal to the
- * OpenCode server. Only the conversation owner can abort the session.
- *
+ * Returns a short-lived demo session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
  */
-export const abortSandboxSessionMutation = (options?: Partial<Options<AbortSandboxSessionData>>): UseMutationOptions<AbortSandboxSessionResponse, AbortSandboxSessionError, Options<AbortSandboxSessionData>> => {
-    const mutationOptions: UseMutationOptions<AbortSandboxSessionResponse, AbortSandboxSessionError, Options<AbortSandboxSessionData>> = {
+export const createDemoGameplayCapabilityMutation = (options?: Partial<Options<CreateDemoGameplayCapabilityData>>): UseMutationOptions<CreateDemoGameplayCapabilityResponse, CreateDemoGameplayCapabilityError, Options<CreateDemoGameplayCapabilityData>> => {
+    const mutationOptions: UseMutationOptions<CreateDemoGameplayCapabilityResponse, CreateDemoGameplayCapabilityError, Options<CreateDemoGameplayCapabilityData>> = {
         mutationFn: async (fnOptions) => {
-            const { data } = await abortSandboxSession({
+            const { data } = await createDemoGameplayCapability({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -969,101 +1358,16 @@ export const abortSandboxSessionMutation = (options?: Partial<Options<AbortSandb
     return mutationOptions;
 };
 
-/**
- * Send a chat message to sandbox
- *
- * Send a message to the sandbox. If no sandbox session exists for this conversation,
- * one is created automatically (provisions Modal sandbox, creates OpenCode session,
- * starts background event persister). If no conversationId is provided, a new
- * conversation is created. Clients should continue the task in
- * /sandbox/{gameId}/{conversationId} while streaming events from
- * GET /api/conversations/{conversationId}/stream.
- *
- */
-export const sandboxChatMutation = (options?: Partial<Options<SandboxChatData>>): UseMutationOptions<SandboxChatResponse2, SandboxChatError, Options<SandboxChatData>> => {
-    const mutationOptions: UseMutationOptions<SandboxChatResponse2, SandboxChatError, Options<SandboxChatData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await sandboxChat({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
+export const fetchDemoUiBundleQueryKey = (options: Options<FetchDemoUiBundleData>) => createQueryKey('fetchDemoUiBundle', options);
 
 /**
- * Abort a sandbox session
+ * Fetch demo UI bundle
  *
- * Abort the sandbox session for a conversation. This stops the current OpenCode
- * operation, cancels the background event persister, marks the AgentJob as cancelled,
- * and emits a JobCancelledProgress event so the frontend SSE terminates cleanly.
- *
+ * Fetch and return the HTML content of a demo session UI bundle from object storage.
  */
-export const sandboxAbortMutation = (options?: Partial<Options<SandboxAbortData>>): UseMutationOptions<SandboxAbortResponse, SandboxAbortError, Options<SandboxAbortData>> => {
-    const mutationOptions: UseMutationOptions<SandboxAbortResponse, SandboxAbortError, Options<SandboxAbortData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await sandboxAbort({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Receive sandbox webhook event
- *
- * Receive a progress event from the Modal sandbox. Called by the Modal Bridge service.
- */
-export const receiveSandboxWebhookEventMutation = (options?: Partial<Options<ReceiveSandboxWebhookEventData>>): UseMutationOptions<ReceiveSandboxWebhookEventResponse, ReceiveSandboxWebhookEventError, Options<ReceiveSandboxWebhookEventData>> => {
-    const mutationOptions: UseMutationOptions<ReceiveSandboxWebhookEventResponse, ReceiveSandboxWebhookEventError, Options<ReceiveSandboxWebhookEventData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await receiveSandboxWebhookEvent({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Receive sandbox webhook completion
- *
- * Receive a completion notification from the Modal sandbox. Called by the Modal Bridge service.
- */
-export const receiveSandboxWebhookCompleteMutation = (options?: Partial<Options<ReceiveSandboxWebhookCompleteData>>): UseMutationOptions<ReceiveSandboxWebhookCompleteResponse, ReceiveSandboxWebhookCompleteError, Options<ReceiveSandboxWebhookCompleteData>> => {
-    const mutationOptions: UseMutationOptions<ReceiveSandboxWebhookCompleteResponse, ReceiveSandboxWebhookCompleteError, Options<ReceiveSandboxWebhookCompleteData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await receiveSandboxWebhookComplete({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const fetchUiBundleQueryKey = (options: Options<FetchUiBundleData>) => createQueryKey('fetchUiBundle', options);
-
-/**
- * Fetch UI bundle
- *
- * Fetch and return the HTML content of a UI bundle from Supabase storage based on the last compiled UI result
- */
-export const fetchUiBundleOptions = (options: Options<FetchUiBundleData>) => queryOptions<FetchUiBundleResponse, FetchUiBundleError, FetchUiBundleResponse, ReturnType<typeof fetchUiBundleQueryKey>>({
+export const fetchDemoUiBundleOptions = (options: Options<FetchDemoUiBundleData>) => queryOptions<FetchDemoUiBundleResponse, FetchDemoUiBundleError, FetchDemoUiBundleResponse, ReturnType<typeof fetchDemoUiBundleQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
-        const { data } = await fetchUiBundle({
+        const { data } = await fetchDemoUiBundle({
             ...options,
             ...queryKey[0],
             signal,
@@ -1071,5 +1375,5 @@ export const fetchUiBundleOptions = (options: Options<FetchUiBundleData>) => que
         });
         return data;
     },
-    queryKey: fetchUiBundleQueryKey(options)
+    queryKey: fetchDemoUiBundleQueryKey(options)
 });

@@ -1,8 +1,17 @@
-import { client } from "@dreamboard/api-client/client.gen";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import type { GlobalConfig, ProjectConfig, ResolvedConfig } from "../types.js";
+import { client } from "@dreamboard-games/api-client/client.gen";
+import type {
+  Environment,
+  EnvironmentConfig,
+  GlobalConfig,
+  ProjectConfig,
+  ResolvedConfig,
+} from "../types.js";
 import type { ConfigFlags } from "../flags.js";
-import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
+import {
+  CAN_SELECT_ENVIRONMENT,
+  IS_PUBLISHED_BUILD,
+  PUBLISHED_ENVIRONMENT,
+} from "../build-target.js";
 import {
   DEFAULT_API_BASE_URL,
   DEFAULT_WEB_BASE_URL,
@@ -10,56 +19,277 @@ import {
 } from "../constants.js";
 import { loadGlobalConfig } from "./global-config.js";
 import { findProjectRoot, loadProjectConfig } from "./project-config.js";
+import {
+  type StoredSessionSnapshot,
+  getStoredSession,
+} from "./credential-store.js";
+import { classifyRefreshError } from "../auth/refresh-error.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
+import { resolveLocalHarnessAccessToken } from "./local-harness-auth.js";
 
+const LOGIN_HINT = "Run `dreamboard auth login` to authenticate again.";
+const TRANSIENT_READ_RETRY_DELAYS_MS = [100, 300];
+
+export type CredentialSnapshot = {
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: string;
+  dreamboardApiToken?: string;
+  dreamboardApiExpiresAt?: string;
+  clerkOAuthIssuer?: string;
+  clerkOAuthClientId?: string;
+  clerkOAuthTokenUrl?: string;
+  environment?: string;
+  authTokenSource: ResolvedConfig["authTokenSource"];
+  refreshTokenSource: ResolvedConfig["refreshTokenSource"];
+};
+
+/**
+ * Resolve the effective CLI config for this invocation.
+ *
+ * `resolveConfig` is pure and synchronous: it takes pre-loaded inputs
+ * (global config, flags, optional project config, optional credential
+ * snapshot) and assembles a read-only `ResolvedConfig`. It intentionally
+ * does not touch disk or the network - refreshing, repairing, and persisting
+ * credentials is owned by `UserSessionManager`.
+ *
+ * Passing `credentials = undefined` is equivalent to "no stored session
+ * for this call", used by contexts that should never inherit the local
+ * session (e.g. `dreamboard login` before the browser flow).
+ */
 export function resolveConfig(
   globalConfig: GlobalConfig,
   flags: ConfigFlags,
   project?: ProjectConfig,
+  credentials?: StoredSessionSnapshot | null,
 ): ResolvedConfig {
   if (IS_PUBLISHED_BUILD) {
     assertPublicRuntimeFlags(flags);
   }
 
-  const environment = IS_PUBLISHED_BUILD
-    ? PUBLISHED_ENVIRONMENT
-    : flags.env || globalConfig.environment || "dev";
+  const envEnvironment = CAN_SELECT_ENVIRONMENT
+    ? environmentFromProcess()
+    : undefined;
+  const projectEnvironment = CAN_SELECT_ENVIRONMENT
+    ? project?.environment
+    : undefined;
+  const environment = CAN_SELECT_ENVIRONMENT
+    ? flags.env ||
+      envEnvironment ||
+      projectEnvironment ||
+      globalConfig.environment ||
+      (IS_PUBLISHED_BUILD ? PUBLISHED_ENVIRONMENT : "staging")
+    : PUBLISHED_ENVIRONMENT;
   const envConfig = ENVIRONMENT_CONFIGS[environment];
+  const publishedEnvConfig = ENVIRONMENT_CONFIGS[PUBLISHED_ENVIRONMENT];
+  const hasExplicitEnvironmentOverride =
+    CAN_SELECT_ENVIRONMENT &&
+    Boolean(flags.env || envEnvironment || projectEnvironment);
 
-  const apiBaseUrl = IS_PUBLISHED_BUILD
-    ? ENVIRONMENT_CONFIGS[PUBLISHED_ENVIRONMENT].apiBaseUrl
-    : project?.apiBaseUrl || envConfig?.apiBaseUrl || DEFAULT_API_BASE_URL;
+  const resolvedApiBaseUrl =
+    IS_PUBLISHED_BUILD && !CAN_SELECT_ENVIRONMENT
+      ? (publishedEnvConfig?.apiBaseUrl ?? DEFAULT_API_BASE_URL)
+      : hasExplicitEnvironmentOverride
+        ? projectLocalBaseUrl(project?.apiBaseUrl, environment) ||
+          envConfig?.apiBaseUrl ||
+          DEFAULT_API_BASE_URL
+        : project?.apiBaseUrl || envConfig?.apiBaseUrl || DEFAULT_API_BASE_URL;
+  const apiBaseUrl =
+    valueOrUndefined(process.env.DREAMBOARD_API_BASE_URL) ?? resolvedApiBaseUrl;
 
-  const webBaseUrl = IS_PUBLISHED_BUILD
-    ? ENVIRONMENT_CONFIGS[PUBLISHED_ENVIRONMENT].webBaseUrl
-    : project?.webBaseUrl || envConfig?.webBaseUrl || DEFAULT_WEB_BASE_URL;
+  const resolvedWebBaseUrl =
+    IS_PUBLISHED_BUILD && !CAN_SELECT_ENVIRONMENT
+      ? (publishedEnvConfig?.webBaseUrl ?? DEFAULT_WEB_BASE_URL)
+      : hasExplicitEnvironmentOverride
+        ? projectLocalBaseUrl(project?.webBaseUrl, environment) ||
+          envConfig?.webBaseUrl ||
+          DEFAULT_WEB_BASE_URL
+        : project?.webBaseUrl || envConfig?.webBaseUrl || DEFAULT_WEB_BASE_URL;
+  const webBaseUrl =
+    valueOrUndefined(process.env.DREAMBOARD_WEB_BASE_URL) ?? resolvedWebBaseUrl;
 
-  const supabaseUrl = envConfig?.supabaseUrl;
-  const supabaseAnonKey = envConfig?.supabaseAnonKey;
-
-  const authToken = IS_PUBLISHED_BUILD
-    ? globalConfig.authToken
-    : valueOrUndefined(flags.token) ||
-      process.env.DREAMBOARD_TOKEN ||
-      globalConfig.authToken;
-
-  const refreshToken = IS_PUBLISHED_BUILD
-    ? globalConfig.refreshToken
-    : process.env.DREAMBOARD_REFRESH_TOKEN || globalConfig.refreshToken;
+  const snapshot = buildCredentialSnapshot(flags, credentials, environment);
+  const oauthConfig = resolveEnvironmentOAuthConfig(environment, envConfig);
 
   return {
+    environment,
     apiBaseUrl,
     webBaseUrl,
-    supabaseUrl,
-    supabaseAnonKey,
-    authToken,
-    refreshToken,
+    authToken:
+      snapshot.dreamboardApiToken ??
+      (snapshot.refreshToken ? undefined : snapshot.accessToken),
+    refreshToken: snapshot.refreshToken,
+    tokenExpiresAt:
+      snapshot.dreamboardApiExpiresAt ??
+      (snapshot.refreshToken ? undefined : snapshot.tokenExpiresAt),
+    clerkAccessToken: snapshot.accessToken,
+    clerkAccessExpiresAt: snapshot.tokenExpiresAt,
+    dreamboardApiToken: snapshot.dreamboardApiToken,
+    dreamboardApiExpiresAt: snapshot.dreamboardApiExpiresAt,
+    clerkOAuthIssuer: snapshot.clerkOAuthIssuer ?? oauthConfig.issuer,
+    clerkOAuthClientId: snapshot.clerkOAuthClientId ?? oauthConfig.clientId,
+    clerkOAuthTokenUrl: snapshot.clerkOAuthTokenUrl ?? oauthConfig.tokenUrl,
+    clerkOAuthScope: oauthConfig.scope,
+    authTokenSource: snapshot.authTokenSource,
+    refreshTokenSource: snapshot.refreshTokenSource,
   };
 }
 
-function assertPublicRuntimeFlags(flags: ConfigFlags): void {
-  const argv = process.argv.slice(2);
+function resolveEnvironmentOAuthConfig(
+  environment: Environment,
+  envConfig?: EnvironmentConfig,
+): {
+  issuer?: string;
+  clientId?: string;
+  tokenUrl?: string;
+  scope?: string;
+} {
+  const prefix = environment.toUpperCase();
+  return {
+    issuer:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_ISSUER`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_ISSUER) ??
+      envConfig?.clerkOAuthIssuer,
+    clientId:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_CLIENT_ID`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_CLIENT_ID) ??
+      envConfig?.clerkOAuthClientId,
+    tokenUrl:
+      valueOrUndefined(
+        process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_TOKEN_URL`],
+      ) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_TOKEN_URL) ??
+      envConfig?.clerkOAuthTokenUrl,
+    scope:
+      valueOrUndefined(process.env[`DREAMBOARD_${prefix}_CLERK_OAUTH_SCOPE`]) ??
+      valueOrUndefined(process.env.DREAMBOARD_CLERK_OAUTH_SCOPE) ??
+      envConfig?.clerkOAuthScope,
+  };
+}
 
-  if (flags.env || argv.includes("--env")) {
+function buildCredentialSnapshot(
+  flags: ConfigFlags,
+  storedCredentials?: StoredSessionSnapshot | null,
+  environment?: Environment,
+): CredentialSnapshot {
+  const flagToken = valueOrUndefined(flags.token);
+  const agentEnvToken = valueOrUndefined(process.env.DREAMBOARD_AGENT_TOKEN);
+  const envToken = valueOrUndefined(process.env.DREAMBOARD_TOKEN);
+  const environmentScopedStoredCredentials =
+    storedCredentials?.environment &&
+    environment &&
+    storedCredentials.environment !== environment
+      ? null
+      : (storedCredentials ?? null);
+
+  if (IS_PUBLISHED_BUILD) {
+    const stored = environmentScopedStoredCredentials;
+    if (agentEnvToken) {
+      return {
+        accessToken: agentEnvToken,
+        refreshToken: undefined,
+        tokenExpiresAt: undefined,
+        authTokenSource: "agent-env",
+        refreshTokenSource: "none",
+      };
+    }
+    return {
+      accessToken: stored?.accessToken,
+      refreshToken: stored?.refreshToken,
+      tokenExpiresAt: stored?.tokenExpiresAt,
+      dreamboardApiToken: stored?.dreamboardApiToken,
+      dreamboardApiExpiresAt: stored?.dreamboardApiExpiresAt,
+      clerkOAuthIssuer: stored?.clerkOAuthIssuer,
+      clerkOAuthClientId: stored?.clerkOAuthClientId,
+      clerkOAuthTokenUrl: stored?.clerkOAuthTokenUrl,
+      environment: stored?.environment,
+      authTokenSource:
+        stored?.dreamboardApiToken ||
+        (stored?.accessToken && !stored.refreshToken)
+          ? "global"
+          : "none",
+      refreshTokenSource: stored?.refreshToken ? "global" : "none",
+    };
+  }
+
+  const accessToken =
+    flagToken ||
+    agentEnvToken ||
+    envToken ||
+    environmentScopedStoredCredentials?.accessToken;
+  const refreshToken = environmentScopedStoredCredentials?.refreshToken;
+
+  const authTokenSource: ResolvedConfig["authTokenSource"] = flagToken
+    ? "flag"
+    : agentEnvToken
+      ? "agent-env"
+      : envToken
+        ? "env"
+        : environmentScopedStoredCredentials?.accessToken
+          ? "global"
+          : "none";
+
+  const refreshTokenSource: ResolvedConfig["refreshTokenSource"] =
+    environmentScopedStoredCredentials?.refreshToken ? "global" : "none";
+
+  return {
+    accessToken,
+    refreshToken,
+    tokenExpiresAt: environmentScopedStoredCredentials?.tokenExpiresAt,
+    dreamboardApiToken: environmentScopedStoredCredentials?.dreamboardApiToken,
+    dreamboardApiExpiresAt:
+      environmentScopedStoredCredentials?.dreamboardApiExpiresAt,
+    clerkOAuthIssuer: environmentScopedStoredCredentials?.clerkOAuthIssuer,
+    clerkOAuthClientId: environmentScopedStoredCredentials?.clerkOAuthClientId,
+    clerkOAuthTokenUrl: environmentScopedStoredCredentials?.clerkOAuthTokenUrl,
+    environment: environmentScopedStoredCredentials?.environment,
+    authTokenSource,
+    refreshTokenSource,
+  };
+}
+
+function environmentFromProcess(): Environment | undefined {
+  const value = valueOrUndefined(process.env.DREAMBOARD_ENV);
+  if (!value) return undefined;
+  if (value === "local" || value === "staging" || value === "prod") {
+    return value;
+  }
+  throw new Error(
+    `Invalid DREAMBOARD_ENV '${value}'. Valid options: local, staging, prod`,
+  );
+}
+
+function projectLocalBaseUrl(
+  rawUrl: string | undefined,
+  environment: Environment,
+): string | undefined {
+  if (environment !== "local" || !rawUrl) return undefined;
+  try {
+    const url = new URL(rawUrl);
+    return url.hostname === "localhost" || url.hostname === "127.0.0.1"
+      ? rawUrl
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function assertPublicRuntimeFlags(
+  flags: ConfigFlags,
+  options: {
+    canSelectEnvironment?: boolean;
+    argv?: string[];
+  } = {},
+): void {
+  const canSelectEnvironment =
+    options.canSelectEnvironment ?? CAN_SELECT_ENVIRONMENT;
+  const argv = options.argv ?? process.argv.slice(2);
+
+  if (!canSelectEnvironment && (flags.env || argv.includes("--env"))) {
     throw new Error(
       "The published Dreamboard CLI is production-only and does not accept `--env`.",
     );
@@ -67,75 +297,247 @@ function assertPublicRuntimeFlags(flags: ConfigFlags): void {
 
   if (valueOrUndefined(flags.token) || argv.includes("--token")) {
     throw new Error(
-      "Direct JWT injection is not supported in the published Dreamboard CLI. Use `dreamboard login` so the CLI can store and refresh your session.",
+      "Direct JWT injection is not supported in the published Dreamboard CLI. Use `dreamboard auth login` so the CLI can store and refresh your session.",
     );
   }
 
-  if (process.env.DREAMBOARD_TOKEN || process.env.DREAMBOARD_REFRESH_TOKEN) {
+  if (process.env.DREAMBOARD_TOKEN) {
     throw new Error(
-      "The published Dreamboard CLI ignores direct token environment variables. Use `dreamboard login` so the CLI can manage refreshable credentials.",
+      "The published Dreamboard CLI ignores direct token environment variables. Use `dreamboard auth login` so the CLI can manage refreshable credentials.",
     );
   }
 }
 
 /**
- * Configure the API client with the resolved auth token.
+ * Configure the API client for the resolved environment, refreshing the
+ * stored CLI session first if it is close to expiry.
  *
- * When a refresh token is available (e.g. DREAMBOARD_REFRESH_TOKEN env var set
- * inside a sandbox), this will first use the Supabase SDK to refresh the session
- * so the CLI always has a valid access token, even if the original JWT has expired.
+ * The refresh path never mutates `config`. It goes through
+ * Clerk OAuth directly and the CredentialStore writes. After a successful
+ * rotation the HTTP client
+ * is configured with the rotated access token; on transient failures we
+ * fall back to the `config.authToken` snapshot (which is why commands
+ * still see a bearer header and can surface the original error).
  */
 export async function configureClient(config: ResolvedConfig): Promise<void> {
-  await refreshAuthTokenIfNeeded(config);
+  const localHarnessToken = resolveLocalHarnessAccessToken(config);
+  const resolvedToken = localHarnessToken
+    ? { token: localHarnessToken }
+    : await createUserSessionManager(config).resolveApiToken();
+  const effectiveAccessToken = resolvedToken?.token;
 
   client.setConfig({
     baseUrl: config.apiBaseUrl,
-    headers: config.authToken
-      ? { Authorization: `Bearer ${config.authToken}` }
+    fetch: createRetryingReadFetch(globalThis.fetch.bind(globalThis)),
+    headers: effectiveAccessToken
+      ? { Authorization: `Bearer ${effectiveAccessToken}` }
       : {},
   });
 }
 
-/**
- * If both an auth token and a refresh token are available (e.g. inside a sandbox),
- * use the Supabase SDK to refresh the session. This ensures the CLI always has
- * a valid access token even if the original JWT has expired.
- *
- * Mutates `config.authToken` in-place with the fresh token.
- */
-async function refreshAuthTokenIfNeeded(config: ResolvedConfig): Promise<void> {
-  if (!config.authToken || !config.refreshToken) return;
-  if (!config.supabaseUrl || !config.supabaseAnonKey) return;
+function createRetryingReadFetch(fetchImpl: typeof fetch): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const method = resolveFetchMethod(input, init);
+    if (method !== "GET" && method !== "HEAD") {
+      return fetchWithOptionalTrace(fetchImpl, input, init, {
+        attempt: 0,
+        willRetry: false,
+      });
+    }
 
+    let lastError: unknown;
+    for (
+      let attempt = 0;
+      attempt <= TRANSIENT_READ_RETRY_DELAYS_MS.length;
+      attempt += 1
+    ) {
+      try {
+        return await fetchWithOptionalTrace(fetchImpl, input, init, {
+          attempt,
+          willRetry: attempt < TRANSIENT_READ_RETRY_DELAYS_MS.length,
+        });
+      } catch (error) {
+        lastError = error;
+        if (
+          attempt >= TRANSIENT_READ_RETRY_DELAYS_MS.length ||
+          !isTransientFetchError(error)
+        ) {
+          throw error;
+        }
+        await sleep(TRANSIENT_READ_RETRY_DELAYS_MS[attempt]!);
+      }
+    }
+
+    throw lastError;
+  }) as typeof fetch;
+}
+
+async function fetchWithOptionalTrace(
+  fetchImpl: typeof fetch,
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  options: { attempt: number; willRetry: boolean },
+): Promise<Response> {
+  if (!isHttpTraceEnabled()) {
+    return fetchImpl(input, init);
+  }
+
+  const request = describeRequest(input, init);
+  const startedAt = Date.now();
   try {
-    const supabase = createSupabaseClient(
-      config.supabaseUrl,
-      config.supabaseAnonKey,
-    );
-
-    const { data, error } = await supabase.auth.setSession({
-      access_token: config.authToken,
-      refresh_token: config.refreshToken,
+    const response = await fetchImpl(input, init);
+    writeHttpTrace({
+      ...request,
+      attempt: options.attempt,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
     });
-
-    if (error) {
-      // If refresh fails, continue with the original token — it may still be valid
-      console.warn(`Token refresh failed: ${error.message}`);
-      return;
-    }
-
-    if (data.session?.access_token) {
-      config.authToken = data.session.access_token;
-    }
-  } catch {
-    // Swallow errors — the original token may still work
+    return response;
+  } catch (error) {
+    writeHttpTrace({
+      ...request,
+      attempt: options.attempt,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.name : "UnknownError",
+      willRetry: options.willRetry,
+    });
+    throw error;
   }
 }
 
+function isHttpTraceEnabled(): boolean {
+  return process.env.DREAMBOARD_CLI_HTTP_TRACE === "1";
+}
+
+function describeRequest(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): {
+  method: string;
+  url: string;
+  hasAuthorization: boolean;
+} {
+  return {
+    method: resolveFetchMethod(input, init),
+    url: redactUrl(input),
+    hasAuthorization: hasAuthorizationHeader(input, init),
+  };
+}
+
+function redactUrl(input: RequestInfo | URL): string {
+  const rawUrl =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+  try {
+    const url = new URL(rawUrl);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return "<unparseable-url>";
+  }
+}
+
+function hasAuthorizationHeader(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): boolean {
+  return (
+    headersContainAuthorization(init?.headers) ||
+    (typeof Request !== "undefined" &&
+      input instanceof Request &&
+      input.headers.has("Authorization"))
+  );
+}
+
+function headersContainAuthorization(headers?: HeadersInit): boolean {
+  if (!headers) {
+    return false;
+  }
+  if (headers instanceof Headers) {
+    return headers.has("Authorization");
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(([name]) => name.toLowerCase() === "authorization");
+  }
+  return Object.keys(headers).some(
+    (name) => name.toLowerCase() === "authorization",
+  );
+}
+
+function writeHttpTrace(event: {
+  method: string;
+  url: string;
+  hasAuthorization: boolean;
+  attempt: number;
+  durationMs: number;
+  status?: number;
+  error?: string;
+  willRetry?: boolean;
+}): void {
+  const parts = [
+    "[dreamboard-cli:http]",
+    `method=${event.method}`,
+    `url=${event.url}`,
+    `auth=${event.hasAuthorization ? "present" : "missing"}`,
+    `attempt=${event.attempt + 1}`,
+    `durationMs=${event.durationMs}`,
+  ];
+  if (typeof event.status === "number") {
+    parts.push(`status=${event.status}`);
+  }
+  if (event.error) {
+    parts.push(`error=${event.error}`);
+  }
+  if (event.willRetry) {
+    parts.push("willRetry=true");
+  }
+  console.error(parts.join(" "));
+}
+
+function resolveFetchMethod(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): string {
+  const method =
+    init?.method ??
+    (typeof Request !== "undefined" && input instanceof Request
+      ? input.method
+      : undefined);
+  return (method ?? "GET").toUpperCase();
+}
+
+function isTransientFetchError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("fetch failed") ||
+    normalized.includes("network") ||
+    normalized.includes("timeout") ||
+    normalized.includes("econnreset") ||
+    normalized.includes("econnrefused") ||
+    normalized.includes("socket")
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function requireAuth(config: ResolvedConfig): void {
-  if (!config.authToken) {
+  if (
+    !config.authToken &&
+    !config.refreshToken &&
+    !resolveLocalHarnessAccessToken(config)
+  ) {
     throw new Error(
-      "Missing Dreamboard session. Run `dreamboard login` to authenticate.",
+      "Missing Dreamboard session. Run `dreamboard auth login` to authenticate.",
     );
   }
 }
@@ -148,13 +550,53 @@ export function valueOrUndefined(
     : undefined;
 }
 
+export function getAuthTokenExpiry(
+  accessToken: string | undefined,
+): Date | null {
+  if (!accessToken) return null;
+  const parts = accessToken.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(parts[1]!, "base64url").toString("utf8"),
+    ) as { exp?: unknown };
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) {
+      return null;
+    }
+    return new Date(payload.exp * 1000);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compatibility helper retained for `dreamboard auth status` / tests.
+ * Returns true iff the error looks like a permanent refresh-token
+ * invalidation. Prefer `classifyRefreshError` for new call sites.
+ */
+export function isInvalidRefreshTokenMessage(
+  message: string | undefined,
+): boolean {
+  if (!message) return false;
+  return classifyRefreshError({ message }).kind === "permanent_invalid";
+}
+
+export function formatStoredSessionInvalidMessage(reason?: string): string {
+  const detail = reason ? ` (${reason})` : "";
+  return `Stored Dreamboard session is expired or invalid${detail}. ${LOGIN_HINT}`;
+}
+
+export async function loadProjectContextCredentials(
+  requireAuth: boolean,
+  loadCredentials = getStoredSession,
+): Promise<Awaited<ReturnType<typeof getStoredSession>> | undefined> {
+  return requireAuth ? loadCredentials() : undefined;
+}
+
 /**
  * Common init pattern used by pull, push, status, update, run commands:
- * find project root, load config, resolve config, require auth, configure client.
- *
- * When a refresh token is available (e.g. DREAMBOARD_REFRESH_TOKEN env var set
- * inside a sandbox), automatically refreshes the auth token via Supabase before
- * configuring the API client.
+ * find project root, load config, resolve config, require auth,
+ * configure client.
  */
 export async function resolveProjectContext(
   flags: ConfigFlags,
@@ -172,9 +614,14 @@ export async function resolveProjectContext(
   }
 
   const projectConfig = await loadProjectConfig(projectRoot);
-  const config = resolveConfig(await loadGlobalConfig(), flags, projectConfig);
+  const requireAuthForContext = opts?.requireAuth !== false;
+  const [globalConfig, credentials] = await Promise.all([
+    loadGlobalConfig(),
+    loadProjectContextCredentials(requireAuthForContext),
+  ]);
+  const config = resolveConfig(globalConfig, flags, projectConfig, credentials);
 
-  if (opts?.requireAuth !== false) {
+  if (requireAuthForContext) {
     requireAuth(config);
     await configureClient(config);
   }
