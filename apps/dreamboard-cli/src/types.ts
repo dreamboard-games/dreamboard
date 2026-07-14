@@ -1,33 +1,79 @@
-export type Environment = "local" | "dev" | "prod";
+export type Environment = "local" | "staging" | "prod";
 
 export type EnvironmentConfig = {
   apiBaseUrl: string;
   webBaseUrl: string;
-  supabaseUrl: string;
-  supabaseAnonKey: string;
+  clerkOAuthIssuer?: string;
+  clerkOAuthClientId?: string;
+  clerkOAuthTokenUrl?: string;
+  clerkOAuthScope?: string;
 };
 
+export type CredentialBackendPreference = "file" | "keychain";
+
 export type GlobalConfig = {
-  // Current environment (defaults to 'dev' if not set)
   environment?: Environment;
-  // Auth tokens
-  authToken?: string;
-  refreshToken?: string;
+  credentialBackend?: CredentialBackendPreference;
+};
+
+export type LocalMaintainerSdkPackageName =
+  | "@dreamboard-games/api-client"
+  | "@dreamboard-games/sdk";
+
+export type LocalMaintainerRegistryPackages = {
+  "@dreamboard-games/api-client"?: string;
+  "@dreamboard-games/sdk": string;
+};
+
+export type AgentMaintainerPackageSourceV1 = {
+  version: 1;
+  registryUrl: string;
+  snapshotId: string;
+  fingerprint: string;
+  publishedAt: string;
+  sdkVersion: string;
+  apiClientVersion?: string;
+};
+
+export type LocalMaintainerRegistryConfig = {
+  registryUrl: string;
+  snapshotId: string;
+  fingerprint: string;
+  publishedAt: string;
+  packages: LocalMaintainerRegistryPackages;
+};
+
+export type ProjectPendingSyncPhase =
+  | "source_revision_created"
+  | "game_revision_created";
+
+export type ProjectPendingAuthoringSync = {
+  phase: ProjectPendingSyncPhase;
+  revisionDigest?: string;
+  gameRevisionId?: string;
+  manifestContentHash?: string;
+  localManifestContentHash?: string;
+  sourceRevisionId: string;
+  sourceTreeHash: string;
 };
 
 export type ProjectAuthoringState = {
-  authoringStateId?: string;
-  ruleId?: string;
-  manifestId?: string;
+  revisionDigest?: string;
+  gameRevisionId?: string;
   manifestContentHash?: string;
+  localManifestContentHash?: string;
   sourceRevisionId?: string;
   sourceTreeHash?: string;
+  pendingSync?: ProjectPendingAuthoringSync;
 };
 
 export type ProjectCompileAttempt = {
   resultId?: string;
   jobId?: string;
-  authoringStateId: string;
+  revisionDigest: string;
+  gameRevisionId?: string;
+  sourceRevisionId?: string;
+  sourceTreeHash?: string;
   status: "successful" | "failed";
   diagnosticsSummary?: string;
 };
@@ -36,24 +82,45 @@ export type ProjectCompileState = {
   latestAttempt?: ProjectCompileAttempt;
   latestSuccessful?: {
     resultId: string;
-    authoringStateId: string;
+    revisionDigest: string;
+    gameRevisionId?: string;
+    sourceRevisionId?: string;
+    sourceTreeHash?: string;
   };
 };
 
-export type ProjectConfig = {
-  gameId: string;
+export type ProjectManifestV2 = {
+  schemaVersion: 2;
+  projectId: string;
   slug: string;
+};
+
+export type ProjectEnvironmentBindingV1 = {
+  deploymentId: string;
+  ownerScopeId: string;
+  remoteHeadDigest?: string;
+  jobId?: string;
+  agentManaged?: boolean;
+  workspacePrepared?: boolean;
+  allowCreateGame?: boolean;
+  environment?: Environment;
   authoring?: ProjectAuthoringState;
   compile?: ProjectCompileState;
+  localMaintainerRegistry?: LocalMaintainerRegistryConfig;
   apiBaseUrl?: string;
   webBaseUrl?: string;
-  ruleId?: string;
-  manifestId?: string;
-  manifestContentHash?: string;
-  resultId?: string;
-  sourceRevisionId?: string;
-  sourceTreeHash?: string;
+  environmentManifest?: Record<string, unknown>;
 };
+
+export type ProjectEnvironmentStateV1 = {
+  schemaVersion: 1;
+  bindings: Record<string, ProjectEnvironmentBindingV1>;
+};
+
+export type ProjectConfig = ProjectManifestV2 &
+  ProjectEnvironmentBindingV1 & {
+    bindingKey?: string;
+  };
 
 export type Snapshot = {
   files: Record<string, string>;
@@ -68,12 +135,22 @@ export type LocalDiff = {
 };
 
 export type ResolvedConfig = {
-  apiBaseUrl: string;
-  webBaseUrl: string;
-  supabaseUrl?: string;
-  supabaseAnonKey?: string;
-  authToken?: string;
-  refreshToken?: string;
+  readonly environment: Environment;
+  readonly apiBaseUrl: string;
+  readonly webBaseUrl: string;
+  readonly authToken?: string;
+  readonly refreshToken?: string;
+  readonly tokenExpiresAt?: string;
+  readonly clerkAccessToken?: string;
+  readonly clerkAccessExpiresAt?: string;
+  readonly dreamboardApiToken?: string;
+  readonly dreamboardApiExpiresAt?: string;
+  readonly clerkOAuthIssuer?: string;
+  readonly clerkOAuthClientId?: string;
+  readonly clerkOAuthTokenUrl?: string;
+  readonly clerkOAuthScope?: string;
+  readonly authTokenSource: "global" | "env" | "agent-env" | "flag" | "none";
+  readonly refreshTokenSource: "global" | "env" | "none";
 };
 
 export type ApiError = {

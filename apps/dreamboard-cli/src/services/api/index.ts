@@ -1,22 +1,31 @@
 export {
-  createAuthoringStateSdk,
-  getAuthoringHeadSdk,
-} from "./authoring-state-api.js";
-export {
-  findCompiledResultsForAuthoringState,
-  findLatestSuccessfulCompiledResult,
-  getCompiledResultSdk,
+  findProjectCompiledResultsForRevision,
+  getProjectCompiledResultSdk,
+  queueProjectRevisionCompileSdk,
   waitForCompiledResultJobSdk,
 } from "./compiled-results-api.js";
-export { tryGetGameBySlug } from "./game-api.js";
 export {
-  getLatestManifestIdSdk,
-  getManifestSdk,
-  isManifestDifferentFromServer,
-  saveManifestSdk,
-} from "./manifest-api.js";
-export { getLatestRuleIdSdk, saveRuleSdk } from "./rule-api.js";
+  createProjectSessionFromReducerSnapshotSdk,
+  createProjectSessionSdk,
+  ensureProjectDevCompileSdk,
+  ensureProjectSdk,
+  getProjectBySlugSdk,
+  loadRemoteProjectIdentity,
+  type RemoteProjectIdentity,
+} from "./project-api.js";
 export {
-  createSourceRevisionSdk,
-  queueCompiledResultJobSdk,
-} from "./source-revisions-api.js";
+  ensureProjectRepositorySdk,
+  getProjectRepositorySdk,
+  pollProjectRepository,
+  ProjectRepositoryTimeoutError,
+  retryProjectRepositoryReconciliationSdk,
+} from "./project-repository-api.js";
+export {
+  createProjectPreviewSdk,
+  ensureProjectBuildSdk,
+  getCurrentProjectReleaseSdk,
+  getProjectCommitStatusSdk,
+  publishProjectReleaseSdk,
+} from "./source-build-release-api.js";
+export { uploadInitialProjectionSdk } from "./preview-api.js";
+export { uploadProjectSourceBlobsSdk } from "./source-revisions-api.js";

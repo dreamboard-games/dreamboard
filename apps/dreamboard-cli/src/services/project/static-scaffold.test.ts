@@ -1,11 +1,9 @@
-import { mkdtemp, mkdir, rm, symlink } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, stat, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "bun:test";
-import { STATIC_SCAFFOLD_FILES } from "../../scaffold/static/static-files.generated.js";
 import {
   assertCliStaticScaffoldComplete,
-  collectModifiedStaticSdkFiles,
   scaffoldStaticWorkspace,
 } from "./static-scaffold.js";
 
@@ -13,15 +11,15 @@ const TYPECHECK_FIXTURE_ROOT = path.resolve(
   import.meta.dir,
   "__fixtures__/static-typecheck",
 );
-const WORKSPACE_NODE_MODULES = path.join(
-  path.resolve(import.meta.dir, "../../../../.."),
+const CLI_NODE_MODULES = path.join(
+  path.resolve(import.meta.dir, "../../.."),
   "node_modules",
 );
-const UI_SDK_NODE_MODULES = path.join(
-  path.resolve(import.meta.dir, "../../../../../packages/ui-sdk"),
+const DEV_HOST_NODE_MODULES = path.join(
+  path.resolve(import.meta.dir, "../../../../../packages/dev-host"),
   "node_modules",
 );
-const TSC_BIN = path.join(WORKSPACE_NODE_MODULES, ".bin", "tsc");
+const TSC_BIN = path.join(CLI_NODE_MODULES, ".bin", "tsc");
 
 async function seedDynamicFilesForTypecheck(tempRoot: string): Promise<void> {
   const fixtureFiles = [
@@ -38,8 +36,11 @@ async function seedDynamicFilesForTypecheck(tempRoot: string): Promise<void> {
     await Bun.write(targetPath, await Bun.file(sourcePath).text());
   }
 
-  await symlink(WORKSPACE_NODE_MODULES, path.join(tempRoot, "node_modules"));
-  await symlink(UI_SDK_NODE_MODULES, path.join(tempRoot, "ui", "node_modules"));
+  await symlink(CLI_NODE_MODULES, path.join(tempRoot, "node_modules"));
+  await symlink(
+    DEV_HOST_NODE_MODULES,
+    path.join(tempRoot, "ui", "node_modules"),
+  );
 }
 
 function runTypecheck(tempRoot: string, projectPath: string): void {
@@ -64,7 +65,7 @@ test("scaffolds static framework files locally", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
 
   try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
+    await scaffoldStaticWorkspace(tempRoot, "new");
 
     expect(
       await Bun.file(path.join(tempRoot, "app", "tsconfig.json")).exists(),
@@ -73,70 +74,38 @@ test("scaffolds static framework files locally", async () => {
       await Bun.file(path.join(tempRoot, "ui", "index.tsx")).exists(),
     ).toBe(true);
     expect(
+      await Bun.file(path.join(tempRoot, "ui", "style.css")).exists(),
+    ).toBe(true);
+    expect(
       await Bun.file(
-        path.join(tempRoot, "shared", "game-message.d.ts"),
+        path.join(
+          tempRoot,
+          "test",
+          "scenarios",
+          "smoke-initial-turn.scenario.ts",
+        ),
       ).exists(),
     ).toBe(true);
+    expect(
+      await stat(path.join(tempRoot, "test", "bases")).catch(() => null),
+    ).toBeNull();
+    expect(
+      await stat(path.join(tempRoot, "test", "generated")).catch(() => null),
+    ).toBeNull();
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("update-sdk false preserves modified SDK files and true refreshes them", async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
-  const sdkFilePath = path.join(
-    tempRoot,
-    "ui",
-    "sdk",
-    "components",
-    "Card.tsx",
-  );
-
-  try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
-
-    const original = await Bun.file(sdkFilePath).text();
-    const modified = `${original}\n// local change\n`;
-    await Bun.write(sdkFilePath, modified);
-
-    const detected = await collectModifiedStaticSdkFiles(tempRoot);
-    expect(detected).toContain("ui/sdk/components/Card.tsx");
-
-    await scaffoldStaticWorkspace(tempRoot, "update", { updateSdk: false });
-    expect(await Bun.file(sdkFilePath).text()).toBe(modified);
-
-    await scaffoldStaticWorkspace(tempRoot, "update", { updateSdk: true });
-    expect(await Bun.file(sdkFilePath).text()).toBe(original);
-  } finally {
-    await rm(tempRoot, { recursive: true, force: true });
-  }
-});
-
-test("migrates legacy scenario testing import to local testing-types", async () => {
+test("ignores local dependency installs in authored Git state", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
 
   try {
-    const scenariosDir = path.join(tempRoot, "test", "scenarios");
-    await mkdir(scenariosDir, { recursive: true });
-    const scenarioPath = path.join(scenariosDir, "setup.scenario.ts");
-    await Bun.write(
-      scenarioPath,
-      "import { defineScenario } from '@dreamboard/cli/testing';\nexport default defineScenario({});\n",
-    );
+    await scaffoldStaticWorkspace(tempRoot, "new");
 
-    await scaffoldStaticWorkspace(tempRoot, "update");
-
-    const migrated = await Bun.file(scenarioPath).text();
-    expect(migrated).toContain("from '../testing-types'");
-
-    const legacyShimPath = path.join(
-      tempRoot,
-      "node_modules",
-      "@dreamboard",
-      "cli",
-      "testing.js",
-    );
-    expect(await Bun.file(legacyShimPath).exists()).toBe(false);
+    const gitignore = await Bun.file(path.join(tempRoot, ".gitignore")).text();
+    expect(gitignore).toContain("node_modules/");
+    expect(gitignore).toContain("ui/node_modules/");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -144,39 +113,93 @@ test("migrates legacy scenario testing import to local testing-types", async () 
 
 test("fails compile preflight when shared static files are missing", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
-  const missingFilePath = path.join(tempRoot, "shared", "index.ts");
+  const missingFilePath = path.join(tempRoot, "app", "tsconfig.json");
 
   try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
+    await scaffoldStaticWorkspace(tempRoot, "new");
     await rm(missingFilePath, { force: true });
 
     await expect(assertCliStaticScaffoldComplete(tempRoot)).rejects.toThrow(
-      "dreamboard sync",
+      "dreamboard project create or dreamboard project clone",
     );
     await expect(assertCliStaticScaffoldComplete(tempRoot)).rejects.toThrow(
-      "shared/index.ts",
+      "app/tsconfig.json",
     );
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("fails compile preflight when sdk scaffold files are missing", async () => {
+test("does not require .npmrc when no local maintainer registry is configured", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
-  const missingFilePath = path.join(
-    tempRoot,
-    "ui",
-    "sdk",
-    "components",
-    "Card.tsx",
-  );
 
   try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
+    await scaffoldStaticWorkspace(tempRoot, "new");
+    await scaffoldStaticWorkspace(tempRoot, "update");
+
+    expect(await Bun.file(path.join(tempRoot, ".npmrc")).exists()).toBe(false);
+    await expect(assertCliStaticScaffoldComplete(tempRoot)).resolves.toBe(
+      undefined,
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("applies local maintainer package source consistently", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+
+  try {
+    await scaffoldStaticWorkspace(tempRoot, "new", {
+      localMaintainerRegistry: {
+        registryUrl: "http://127.0.0.1:4873",
+        snapshotId: "local-20260623T021500Z",
+        fingerprint: "sha256:local",
+        publishedAt: "2026-06-23T02:15:00.000Z",
+        packages: {
+          "@dreamboard-games/api-client": "0.3.0-local.20260623.1",
+          "@dreamboard-games/sdk": "0.4.0-local.20260623.1",
+        },
+      },
+    });
+
+    const packageJson = JSON.parse(
+      await Bun.file(path.join(tempRoot, "package.json")).text(),
+    ) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+      pnpm: { overrides: Record<string, string> };
+    };
+    expect(packageJson.dependencies["@dreamboard-games/sdk"]).toBe(
+      "0.4.0-local.20260623.1",
+    );
+    expect(packageJson.pnpm.overrides["@dreamboard-games/sdk"]).toBe(
+      packageJson.dependencies["@dreamboard-games/sdk"],
+    );
+    expect(packageJson.pnpm.overrides["@dreamboard-games/api-client"]).toBe(
+      "0.3.0-local.20260623.1",
+    );
+    expect(packageJson.pnpm.overrides["@dreamboard-games/dev-host"]).toBe(
+      packageJson.devDependencies["@dreamboard-games/dev-host"],
+    );
+    expect(await Bun.file(path.join(tempRoot, ".npmrc")).text()).toBe(
+      "@dreamboard-games:registry=http://127.0.0.1:4873\n",
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("fails compile preflight when ui scaffold files are missing", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+  const missingFilePath = path.join(tempRoot, "ui", "index.tsx");
+
+  try {
+    await scaffoldStaticWorkspace(tempRoot, "new");
     await rm(missingFilePath, { force: true });
 
     await expect(assertCliStaticScaffoldComplete(tempRoot)).rejects.toThrow(
-      "ui/sdk/components/Card.tsx",
+      "ui/index.tsx",
     );
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
@@ -187,14 +210,14 @@ test("fails compile preflight when cli static files are deleted locally", async 
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
 
   try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
+    await scaffoldStaticWorkspace(tempRoot, "new");
 
     await expect(
-      assertCliStaticScaffoldComplete(tempRoot, ["ui/sdk/components/Card.tsx"]),
+      assertCliStaticScaffoldComplete(tempRoot, ["ui/index.tsx"]),
     ).rejects.toThrow("deleted");
     await expect(
-      assertCliStaticScaffoldComplete(tempRoot, ["ui/sdk/components/Card.tsx"]),
-    ).rejects.toThrow("dreamboard sync");
+      assertCliStaticScaffoldComplete(tempRoot, ["ui/index.tsx"]),
+    ).rejects.toThrow("dreamboard project create or dreamboard project clone");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -205,7 +228,7 @@ test("refreshes generated testing-types on update when the file is still framewo
   const testingTypesPath = path.join(tempRoot, "test", "testing-types.ts");
 
   try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
+    await scaffoldStaticWorkspace(tempRoot, "new");
     await Bun.write(
       testingTypesPath,
       `// Generated by dreamboard — do not edit by hand.\nexport function defineScenario(scenario) { return scenario; }\n`,
@@ -214,32 +237,50 @@ test("refreshes generated testing-types on update when the file is still framewo
     await scaffoldStaticWorkspace(tempRoot, "update");
 
     const refreshed = await Bun.file(testingTypesPath).text();
-    expect(refreshed).toContain("getNormalizedHands");
-    expect(refreshed).toContain("getNormalizedDecks");
+    expect(refreshed).toContain('import game from "../app/game";');
+    expect(refreshed).toContain("createScenarioAuthoring(game)");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("static scaffold root sdk files use local types imports", () => {
-  const apiWrappers = STATIC_SCAFFOLD_FILES.find(
-    (entry) => entry.targetPath === "app/sdk/apiWrappers.ts",
-  );
-  const stateApi = STATIC_SCAFFOLD_FILES.find(
-    (entry) => entry.targetPath === "app/sdk/stateApi.ts",
+test("refreshes the generated smoke scenario without assuming interactions are empty", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+  const scenarioPath = path.join(
+    tempRoot,
+    "test",
+    "scenarios",
+    "smoke-initial-turn.scenario.ts",
   );
 
-  expect(apiWrappers?.content).toContain('from "./types"');
-  expect(apiWrappers?.content).not.toContain('from "../types"');
-  expect(stateApi?.content).toContain('from "./types.js"');
-  expect(stateApi?.content).not.toContain('from "../types.js"');
+  try {
+    await scaffoldStaticWorkspace(tempRoot, "new");
+    await Bun.write(
+      scenarioPath,
+      `// Generated by dreamboard scaffold.\nthrow new Error("stale scenario");\n`,
+    );
+
+    await scaffoldStaticWorkspace(tempRoot, "update");
+
+    const refreshed = await Bun.file(scenarioPath).text();
+    expect(refreshed).toContain("setup: { players: 4, seed: 1337 }");
+    expect(refreshed).toContain("given: []");
+    expect(refreshed).toContain("when: []");
+    expect(refreshed).toContain("expect(state()).toBeDefined()");
+    expect(refreshed).not.toContain("stale scenario");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("materialized static scaffold typechecks for app and ui targets", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
 
   try {
-    await scaffoldStaticWorkspace(tempRoot, "new", { updateSdk: true });
+    if (!(await Bun.file(TSC_BIN).exists())) {
+      return;
+    }
+    await scaffoldStaticWorkspace(tempRoot, "new");
     await seedDynamicFilesForTypecheck(tempRoot);
 
     runTypecheck(tempRoot, "app/tsconfig.json");

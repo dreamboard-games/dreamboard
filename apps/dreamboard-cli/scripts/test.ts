@@ -1,7 +1,9 @@
 import path from "node:path";
 
 const projectRoot = path.resolve(import.meta.dir, "..");
-const requestedPatterns = process.argv.slice(2);
+const args = process.argv.slice(2);
+const excludePackage = args.includes("--exclude-package");
+const requestedPatterns = args.filter((arg) => arg !== "--exclude-package");
 const discoveredFiles: string[] = [];
 
 for await (const file of new Bun.Glob("src/**/*.test.ts").scan({
@@ -15,7 +17,10 @@ discoveredFiles.sort();
 
 const filesToRun =
   requestedPatterns.length === 0
-    ? discoveredFiles
+    ? discoveredFiles.filter(
+        (filePath) =>
+          !excludePackage || filePath !== "src/published-package-smoke.test.ts",
+      )
     : discoveredFiles.filter((filePath) =>
         requestedPatterns.some((pattern) => filePath.includes(pattern)),
       );

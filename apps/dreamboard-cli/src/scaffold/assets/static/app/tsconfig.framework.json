@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": false,
+    "types": [],
+    "declaration": false,
+    "rootDir": "..",
+    "outDir": "./dist",
+    "paths": {
+      "@dreamboard/manifest-contract": ["../shared/manifest-contract.ts"],
+      "#dreamboard/ui-contract": ["../shared/generated/ui-contract.ts"],
+      "@shared/*": ["../shared/*"]
+    }
+  },
+  "include": [
+    "./**/*.ts",
+    "./**/*.d.ts",
+    "../shared/manifest-*.ts",
+    "../shared/manifest-*.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", "../shared/generated"]
+}

@@ -29,17 +29,17 @@ By the end of the tutorial you will have:
 - a `manifest.json` with a shared die
 - reducer code in `app/`
 - a playable `ui/App.tsx`
-- a base and scenario under `test/`
+- a reducer-native scenario under `test/scenarios/`
 
 ## Prerequisites
 
-- Dreamboard CLI installed: `npm install -g dreamboard`
-- authenticated with `dreamboard login`
+- Dreamboard installed: `npm install -g dreamboard`
+- authenticated with `dreamboard auth login`
 
 ## 1. Create the workspace
 
 ```bash
-dreamboard new race-to-ten --description "A tiny scoring game with one shared die"
+dreamboard project create race-to-ten --description "A tiny scoring game with one shared die"
 cd race-to-ten
 ```
 
@@ -51,7 +51,7 @@ The scaffold gives you the files you will edit next:
 - `app/game.ts`
 - `app/phases/*`
 - `ui/App.tsx`
-- `test/bases/*`
+- `test/testing-types.ts`
 - `test/scenarios/*`
 
 ## 2. Write `rule.md`
@@ -138,15 +138,16 @@ This game needs player-count metadata and one shared die.
 }
 ```
 
-Run:
+Commit and push the authored source with Git, then wait for the server to
+observe and verify the exact commit:
 
 ```bash
-dreamboard sync
-dreamboard compile
+git add .
+git commit -m "Build Race to Ten"
+git push -u origin main
+dreamboard project status --commit HEAD --wait
+dreamboard verify --commit HEAD
 ```
-
-`dreamboard sync` refreshes generated contracts from authored files.
-`dreamboard compile` builds the current authored head.
 
 ## 4. Define the reducer contract
 
@@ -156,7 +157,10 @@ rules require.
 ```ts
 import { z } from "zod";
 import * as manifestContract from "../shared/manifest-contract";
-import { defineGameContract, type GameStateOf } from "@dreamboard/app-sdk/reducer";
+import {
+  defineGameContract,
+  type GameStateOf,
+} from "@dreamboard/app-sdk/reducer";
 
 const playerId = manifestContract.ids.playerId;
 
@@ -242,7 +246,11 @@ Create `app/phases/take-turn.ts`:
 
 ```ts
 import { z } from "zod";
-import { defineAction, definePhase, setActivePlayers } from "@dreamboard/app-sdk/reducer";
+import {
+  defineAction,
+  definePhase,
+  setActivePlayers,
+} from "@dreamboard/app-sdk/reducer";
 import type { GameContract } from "../game-contract";
 
 const TARGET_SCORE = 10;
@@ -294,7 +302,8 @@ const rollDie = defineAction<GameContract>()({
       table: nextTable,
       publicState: {
         ...state.publicState,
-        currentPlayerId: nextScore >= TARGET_SCORE ? input.playerId : nextPlayerId,
+        currentPlayerId:
+          nextScore >= TARGET_SCORE ? input.playerId : nextPlayerId,
         winnerPlayerId: nextScore >= TARGET_SCORE ? input.playerId : null,
         lastRoll: nextRoll,
         scores: nextScores,
@@ -316,9 +325,7 @@ export const takeTurn = definePhase<GameContract>()({
       return accept(state);
     }
 
-    return accept(
-      setActivePlayers(state, [state.publicState.currentPlayerId]),
-    );
+    return accept(setActivePlayers(state, [state.publicState.currentPlayerId]));
   },
   actions: {
     rollDie,
@@ -363,7 +370,12 @@ At this point the rules exist, but the UI is still the scaffold placeholder.
 Update `ui/App.tsx`:
 
 ```tsx
-import { DiceRoller, useActions, useDice, useGameView } from "@dreamboard/ui-sdk";
+import {
+  DiceRoller,
+  useActions,
+  useDice,
+  useGameView,
+} from "@dreamboard/ui-sdk";
 
 export default function App() {
   const view = useGameView();
@@ -423,21 +435,15 @@ The important part is that:
 - the UI reads projected view data and the die state from the runtime
 - actions still go through `useActions()`
 
-## 9. Add a base and a scenario
+## 9. Author and explore one scenario
 
-Replace `test/bases/initial-turn.base.ts`:
+`test/testing-types.ts` binds scenario types to this game:
 
 ```ts
-import { defineBase } from "../testing-types";
+import game from "../app/game";
+import { createScenarioAuthoring } from "@dreamboard-games/sdk/testing";
 
-export default defineBase({
-  id: "initial-turn",
-  seed: 1337,
-  players: 2,
-  setup: async ({ game }) => {
-    await game.start();
-  },
-});
+export const { defineScenario } = createScenarioAuthoring(game);
 ```
 
 Create `test/scenarios/player-two-wins.scenario.ts`:
@@ -445,49 +451,107 @@ Create `test/scenarios/player-two-wins.scenario.ts`:
 ```ts
 import { defineScenario } from "../testing-types";
 
-export default defineScenario({
-  id: "player-two-wins",
-  description: "The deterministic roll sequence lets player 2 reach ten first",
-  from: "initial-turn",
-  when: async ({ game }) => {
-    await game.action("player-1", "rollDie", {});
-    await game.action("player-2", "rollDie", {});
-    await game.action("player-1", "rollDie", {});
-    await game.action("player-2", "rollDie", {});
-    await game.action("player-1", "rollDie", {});
-    await game.action("player-2", "rollDie", {});
-  },
-  then: ({ publicState, view, expect, history, phase }) => {
-    const state = publicState();
+const roll = (seat: number) => ({
+  actor: { seat },
+  interactionId: "rollDie" as const,
+  params: {},
+});
 
-    expect(phase()).toBe("takeTurn");
-    expect(state.lastRoll).toBe(6);
-    expect(state.scores["player-1"]).toBe(9);
-    expect(state.scores["player-2"]).toBe(12);
-    expect(state.winnerPlayerId).toBe("player-2");
-    expect(view("player-2").winnerPlayerId).toBe("player-2");
-    expect(history().accepted().length).toBe(6);
+export default defineScenario({
+  id: "race-to-ten.player-two-wins",
+  description: "Player 2 reaches ten on the sixth turn",
+  setup: { players: 2, seed: 1337 },
+  given: [roll(0), roll(1), roll(0), roll(1), roll(0)],
+  when: [roll(1)],
+  then: async ({ state, view, expect, probe }) => {
+    const publicState = state().publicState;
+
+    expect(publicState.lastRoll).toBe(6);
+    expect(publicState.scores["player-1"]).toBe(9);
+    expect(publicState.scores["player-2"]).toBe(12);
+    expect(publicState.winnerPlayerId).toBe("player-2");
+    expect(view({ seat: 1 }).winnerPlayerId).toBe("player-2");
+
+    const afterGame = await probe(roll(0));
+    await expect(afterGame).toRejectWith({
+      errorCode: "GAME_ALREADY_ENDED",
+    });
   },
 });
 ```
 
-Generate artifacts and run the test suite:
+The setup is normal game setup. Commands use stable, zero-based seats instead
+of runtime-generated player IDs. `given` establishes the node under test,
+`when` performs the behavior, and every command in both arrays must be
+accepted. The rejection probe runs on an isolated clone and cannot change the
+scenario result.
+
+While authoring, inspect the node before the final roll:
 
 ```bash
-dreamboard test generate
-dreamboard test run
+dreamboard test inspect test/scenarios/player-two-wins.scenario.ts \
+  --perspective player:1 --at when:0
 ```
+
+The command emits one JSON envelope. Its `result.node.interactions` contains
+the descriptors visible to player seat 1, while `result.node.actions` contains
+the interactions proven performable at that node.
+
+Ask Dreamboard for accepted concrete next commands:
+
+```bash
+dreamboard test explore test/scenarios/player-two-wins.scenario.ts \
+  --perspective player:1 --at when:0 \
+  --limit 50 --max-evaluations 5000
+```
+
+Copy the desired `result.candidates[].command` object directly into `when`.
+There is no translation step and exploration does not edit the scenario. Then
+run the proof:
+
+```bash
+dreamboard test --scenario test/scenarios/player-two-wins.scenario.ts
+```
+
+`--at` accepts only `setup`, `given:<completed-count>`, or
+`when:<completed-count>`. Inspection and exploration always require either a
+`player:<zero-based-seat>` or `spectator` perspective. Transition pages default
+to 50 candidates and allow at most 200; the deterministic evaluation budget
+defaults to and is capped at 5,000. Pass a returned opaque cursor using
+`--cursor` to request the next page.
+
+This tutorial's roll sequence is deterministic, so its seed does not select a
+branch. For a game with runtime-owned randomness, compare an inclusive range of
+at most 64 safe-integer seeds, inspect one override, and then persist it:
+
+```bash
+dreamboard test explore test/scenarios/random-opening.scenario.ts \
+  --perspective player:0 --at setup --seed-range 1:64
+dreamboard test inspect test/scenarios/random-opening.scenario.ts \
+  --perspective player:0 --at setup --seed 17
+```
+
+`--seed` and `--seed-range` are ephemeral and cannot be combined. The chosen
+branch becomes test authority only after you write the number to
+`scenario.setup.seed` and rerun `dreamboard test`.
 
 ## 10. Run the game locally
 
-Use the local runtime to verify the same flow manually:
+Use the local dev host to verify the same flow manually:
 
 ```bash
-dreamboard run
+dreamboard dev \
+  --from-scenario test/scenarios/player-two-wins.scenario.ts \
+  --at given:5
 ```
 
-If you edit `rule.md` or `manifest.json`, run `dreamboard sync` again before
-continuing.
+This performs normal backend setup and replays the first five accepted commands
+so you can perform the final roll through the UI. Omitting `--at` selects the
+end of `given`. The dev command does not run `then` or write runtime state back
+to the scenario.
+
+If you edit `rule.md` or `manifest.json`, commit and push the changes before
+running commit-scoped build, preview, release, or remote test commands.
 
 ## Where to go next
 
@@ -497,7 +561,7 @@ components, reducer state, UI, and tests. The next layer of depth is:
 - add setup profiles or setup options
 - add richer reducer state and more than one phase
 - replace the plain button UI with grouped action panels and richer views
-- add rejection-path tests such as out-of-turn actions
+- add clone-only rejection probes such as out-of-turn actions
 
 If you need live randomness in authored reducer logic, do not call
 `Math.random()` inside reducers. Use runtime-owned effects instead:

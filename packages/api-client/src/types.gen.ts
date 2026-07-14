@@ -4,180 +4,710 @@ export type ClientOptions = {
     baseUrl: 'https://dreamboard.games' | 'http://localhost:8080' | (string & {});
 };
 
-export type GameMetadata = {
+/**
+ * Backend runtime version metadata used by local development hosts.
+ */
+export type ApiVersionResponse = {
     /**
-     * URL to the game's cover image
+     * Stable logical backend deployment identifier used for local CLI state binding.
      */
-    coverImage?: string;
+    deploymentId: string;
     /**
-     * Estimated play time
+     * Deployed backend application revision or git SHA, when available.
      */
-    playTime?: '15-30 minutes' | '30-60 minutes' | '1-2 hours' | '2-3 hours' | '3+ hours';
+    backendRevision: string;
     /**
-     * Recommended age range
+     * UI SDK version expected by the backend runtime.
      */
-    ageRange?: '3+' | '6+' | '8+' | '10+' | '12+' | '14+' | '16+' | '18+';
-    /**
-     * Game category or genre
-     */
-    gameCategory?: 'Abstract' | 'Strategy' | 'Eurogame' | 'Ameritrash' | 'Card Game' | 'Dice Game' | 'Party Game' | 'Cooperative' | 'Competitive' | 'Solo' | 'Family Game' | 'Wargame' | 'Tile-Placement' | 'Worker Placement' | 'Deck Builder';
-    /**
-     * Key game mechanics
-     */
-    keyMechanics?: 'Area Control' | 'Set Collection' | 'Hand Management' | 'Dice Rolling' | 'Route Building' | 'Pick-up and Deliver' | 'Auction/Bidding' | 'Hidden Roles' | 'Bluffing' | 'Push Your Luck';
+    uiSdkVersion: string;
 };
 
 /**
- * Tracks which steps have been completed for a game
+ * Backend-resolved authenticated Dreamboard user identity.
  */
-export type CompletedSteps = {
+export type CurrentAuthUserResponse = {
     /**
-     * Whether the rule has been saved (includes AI enhanced rules)
-     */
-    ruleSaved?: boolean;
-    /**
-     * Whether the manifest has been generated
-     */
-    manifestGenerated?: boolean;
-    /**
-     * Whether the app has been built
-     */
-    appBuilt?: boolean;
-    /**
-     * Whether the UI has been built
-     */
-    uiBuilt?: boolean;
-};
-
-/**
- * Development status light shown in the dashboard
- */
-export type StepLightStatus = 'yellow' | 'green' | 'red';
-
-/**
- * Per-area development lights shown for a game
- */
-export type GameCompletionLights = {
-    /**
-     * Rule authoring status light
-     */
-    rules: StepLightStatus;
-    /**
-     * Manifest authoring status light
-     */
-    manifest: StepLightStatus;
-    /**
-     * Phase logic status light
-     */
-    phases: StepLightStatus;
-    /**
-     * UI implementation status light
-     */
-    ui: StepLightStatus;
-};
-
-export type Game = {
-    /**
-     * Unique identifier for the game
+     * Dreamboard internal user UUID. Use this for ownership and session control.
      */
     id: string;
     /**
-     * URL-safe game slug (lowercase kebab-case)
+     * External auth provider that authenticated the user.
      */
-    slug: string;
+    provider: string;
     /**
-     * Display name of the game
+     * Provider-specific subject, such as a Clerk user ID.
      */
-    name: string;
+    providerSubject: string;
     /**
-     * Detailed description of the game
+     * Active personal owner scope used for project installation and slug uniqueness.
      */
-    description?: string;
+    ownerScopeId: string;
     /**
-     * Game rules text
+     * Verified email address when provided by the auth provider.
      */
-    ruleText?: string;
-    /**
-     * Whether the game is publicly visible
-     */
-    public: boolean;
-    /**
-     * When the game was created
-     */
-    createdAt: string;
-    /**
-     * When the game was last updated
-     */
-    updatedAt: string;
-    /**
-     * ID of the script that defines the game logic
-     */
-    scriptId?: string;
-    metadata?: GameMetadata;
-    /**
-     * Tracks which steps have been completed for this game
-     */
-    completedSteps: CompletedSteps;
-    /**
-     * Color lights representing progress since scaffold for rules, manifest, phases, and UI
-     */
-    completionLights: GameCompletionLights;
-    /**
-     * Whether the game is ready to play (all completion lights are green)
-     */
-    readyToPlay: boolean;
-    /**
-     * Whether the game has completed initial setup (all steps complete: rule saved, manifest generated, app built, UI built)
-     */
-    initialized: boolean;
+    email?: string;
 };
 
-export type ErrorResponse = {
+/**
+ * Stable machine-readable problem identifier
+ */
+export type ProblemType = 'urn:dreamboard:problem:action-rejected' | 'urn:dreamboard:problem:active-job-conflict' | 'urn:dreamboard:problem:authoring-state-base-missing' | 'urn:dreamboard:problem:authoring-state-drift' | 'urn:dreamboard:problem:forbidden' | 'urn:dreamboard:problem:game-slug-conflict' | 'urn:dreamboard:problem:internal-error' | 'urn:dreamboard:problem:project-deleted' | 'urn:dreamboard:problem:project-id-invalid' | 'urn:dreamboard:problem:project-not-found' | 'urn:dreamboard:problem:project-owner-scope-forbidden' | 'urn:dreamboard:problem:project-slug-conflict' | 'urn:dreamboard:problem:resource-not-found' | 'urn:dreamboard:problem:revision-head-conflict' | 'urn:dreamboard:problem:source-revision-base-missing' | 'urn:dreamboard:problem:source-revision-drift' | 'urn:dreamboard:problem:source-revision-not-found' | 'urn:dreamboard:problem:state-conflict' | 'urn:dreamboard:problem:too-many-requests' | 'urn:dreamboard:problem:unauthorized' | 'urn:dreamboard:problem:validation-failed';
+
+export type ProblemViolation = {
     /**
-     * Human-readable error message
+     * Optional field or input path associated with the issue
+     */
+    field?: string;
+    /**
+     * Optional machine-readable issue code
+     */
+    code?: string;
+    /**
+     * Human-readable issue description
      */
     message: string;
+};
+
+export type ProblemDetails = {
+    type: ProblemType;
     /**
-     * List of specific error details
+     * Short summary of the problem type
      */
-    errors?: Array<string>;
+    title: string;
     /**
-     * ISO 8601 timestamp of the error
+     * HTTP status code for this problem
+     */
+    status: number;
+    /**
+     * Human-readable explanation specific to this occurrence
+     */
+    detail: string;
+    /**
+     * Request URI or other occurrence identifier
+     */
+    instance?: string;
+    /**
+     * Correlation ID for tracing this request across logs and support tooling
+     */
+    requestId?: string;
+    /**
+     * Whether retrying the same request may succeed without changing input
+     */
+    retryable?: boolean;
+    /**
+     * Structured context for programmatic handling and richer UX
+     */
+    context?: {
+        [key: string]: string;
+    };
+    /**
+     * Optional structured issues associated with the problem
+     */
+    violations?: Array<ProblemViolation>;
+    /**
+     * ISO 8601 timestamp of the problem response
      */
     timestamp?: string;
 };
 
 /**
- * Request to create a new game
+ * Short-lived Dreamboard user-token audience requested by the CLI.
  */
-export type CreateGameRequest = {
+export type TokenExchangeAudience = 'dreamboard-api' | 'dreamboard-git';
+
+export type TokenExchangeRequest = {
+    audience: TokenExchangeAudience;
+};
+
+export type TokenExchangeResponse = {
     /**
-     * URL-safe game slug (lowercase kebab-case). Optional for legacy clients.
+     * Short-lived Dreamboard JWT for the requested audience.
      */
-    slug?: string;
+    accessToken: string;
+    tokenType: 'Bearer';
+    audience: TokenExchangeAudience;
     /**
-     * Name of the game (default: 'Untitled Game')
+     * Token lifetime in seconds.
      */
-    name?: string;
+    expiresIn: number;
+};
+
+export type CreateBillingCheckoutSessionRequest = {
     /**
-     * Optional description of the game
+     * Dreamboard plan key to purchase.
+     */
+    planKey?: string;
+    /**
+     * Absolute URL Stripe should redirect to after successful checkout.
+     */
+    successUrl?: string;
+    /**
+     * Absolute URL Stripe should redirect to if checkout is cancelled.
+     */
+    cancelUrl?: string;
+};
+
+export type BillingSessionResponse = {
+    /**
+     * Stripe-hosted session id.
+     */
+    id: string;
+    /**
+     * URL the client should navigate to.
+     */
+    url: string;
+};
+
+export type CreateBillingPortalSessionRequest = {
+    /**
+     * Absolute URL Stripe should return to from the billing portal.
+     */
+    returnUrl?: string;
+};
+
+export type BillingEntitlement = {
+    key: string;
+    active: boolean;
+    source: string;
+    expiresAt?: string;
+};
+
+export type CurrentBillingEntitlementsResponse = {
+    checkoutEnabled: boolean;
+    portalEnabled: boolean;
+    planKey?: string;
+    subscriptionStatus?: string;
+    currentPeriodEnd?: string;
+    entitlements: Array<BillingEntitlement>;
+};
+
+export type GameMetadata = {
+    /**
+     * Minimum player count
+     */
+    minPlayers?: number;
+    /**
+     * Maximum player count
+     */
+    maxPlayers?: number;
+    /**
+     * Minimum estimated play time in minutes
+     */
+    playTimeMinMinutes?: number;
+    /**
+     * Maximum estimated play time in minutes
+     */
+    playTimeMaxMinutes?: number;
+    /**
+     * Complexity rating from 1 (simple) to 5 (complex)
+     */
+    difficulty?: number;
+};
+
+/**
+ * Portable exact authored head for a project. Populated after the atomic revision hard cut.
+ */
+export type ProjectHead = {
+    /**
+     * Portable digest of the current authored revision
+     */
+    revisionDigest: string;
+};
+
+/**
+ * Public project identity resolved within the caller's active owner scope. It never exposes the deployment-local game instance identifier.
+ */
+export type Project = {
+    /**
+     * Portable project lineage identifier
+     */
+    projectId: string;
+    /**
+     * URL-safe project slug within the active owner scope
+     */
+    slug: string;
+    /**
+     * Display name of the project
+     */
+    name: string;
+    /**
+     * Optional project description
+     */
+    description?: string;
+    metadata?: GameMetadata;
+    /**
+     * Whether the project is publicly visible
+     */
+    public: boolean;
+    /**
+     * Artifact object key for the latest generated project preview PNG
+     */
+    previewStorageKey?: string;
+    /**
+     * Artifact object key for the reducer-native projection used to render previews
+     */
+    initialProjectionKey?: string;
+    /**
+     * Whether an agent build has passed Dreamboard workspace verification for this project
+     */
+    verified: boolean;
+    /**
+     * When the latest passing agent verification was recorded
+     */
+    verifiedAt?: string;
+    /**
+     * When the project installation was created
+     */
+    createdAt: string;
+    /**
+     * When the project installation was last updated
+     */
+    updatedAt: string;
+    head?: ProjectHead;
+};
+
+/**
+ * Request to extract a structured game spec from rule text.
+ */
+export type ExtractGameSpecRequest = {
+    ruleText: string;
+};
+
+/**
+ * Supported player count range for a generated game.
+ */
+export type GameSpecPlayers = {
+    min: number;
+    max: number;
+};
+
+/**
+ * Component family expected in the generated game.
+ */
+export type GameSpecComponent = 'deck' | 'dice' | 'board' | 'resource' | 'token' | 'tracker';
+
+/**
+ * A named child entry within a component, such as a card in a deck, a
+ * region on a board, a space on a track, or a type in a tile set.
+ *
+ */
+export type GameSpecComponentItem = {
+    name: string;
+    notes?: string;
+};
+
+/**
+ * A single component instance in the generated game. Multiple instances of
+ * the same `kind` are allowed (e.g. two decks). `name` is a short label and
+ * `notes` is freeform detail the agent will expand into manifest entries.
+ * `items` can carry named child entries when the component naturally contains
+ * them.
+ *
+ */
+export type GameSpecComponentSpec = {
+    kind: GameSpecComponent;
+    name: string;
+    notes?: string;
+    items?: Array<GameSpecComponentItem>;
+};
+
+/**
+ * Structured game specification submitted by the new-game flow.
+ */
+export type GameSpecForm = {
+    name: string;
+    players: GameSpecPlayers;
+    components: Array<GameSpecComponentSpec>;
+    winCondition: string;
+    additionalRules: string;
+};
+
+/**
+ * Structured game spec extracted from rule text.
+ */
+export type ExtractGameSpecResponse = {
+    gameSpec: GameSpecForm;
+};
+
+/**
+ * Request to ensure a portable project exists in the caller's active owner scope
+ */
+export type EnsureProjectRequest = {
+    /**
+     * URL-safe project slug within the active owner scope
+     */
+    slug: string;
+    /**
+     * Display name of the project
+     */
+    name: string;
+    /**
+     * Optional project description
      */
     description?: string;
     /**
-     * Optional initial rule text
+     * Rename an existing project installation to the supplied slug and metadata
      */
-    ruleText?: string;
-    /**
-     * Whether to enhance the rules using AI before saving
-     */
-    enhanceRule?: boolean;
+    updateAlias?: boolean;
 };
+
+export type DeleteProjectResponse = {
+    /**
+     * Confirms the project installation was soft deleted
+     */
+    deleted: boolean;
+};
+
+/**
+ * Request to update project metadata in the caller's active owner scope.
+ */
+export type UpdateProjectRequest = {
+    /**
+     * URL-safe project slug within the active owner scope
+     */
+    slug?: string;
+    /**
+     * Display name of the project
+     */
+    name?: string;
+    /**
+     * Optional project description
+     */
+    description?: string;
+    /**
+     * Updated visibility setting
+     */
+    public?: boolean;
+    metadata?: GameMetadata;
+};
+
+export type ProjectRepositoryProvisioningState = 'REQUESTED' | 'PROVISIONING' | 'READY' | 'ERROR' | 'DELETING' | 'DELETED';
+
+/**
+ * Environment-local opaque Git repository binding for a project installation.
+ */
+export type ProjectRepository = {
+    /**
+     * Environment-local repository binding identifier. This is not portable project identity.
+     */
+    repoBindingId: string;
+    /**
+     * Git smart-HTTP clone URL for the Dreamboard Git gateway.
+     */
+    cloneUrl: string;
+    /**
+     * Default branch configured for the repository.
+     */
+    defaultBranch: string;
+    /**
+     * Current repository HEAD commit OID when known.
+     */
+    headCommit: string;
+    provisioningState: ProjectRepositoryProvisioningState;
+    /**
+     * Desired repository reconciliation generation.
+     */
+    desiredGeneration: number;
+    /**
+     * Latest Forgejo state generation observed by reconciliation.
+     */
+    observedGeneration: number;
+    /**
+     * Whether retrying reconciliation is allowed for the current state.
+     */
+    retryable: boolean;
+    /**
+     * Stable sanitized reconciliation error code when provisioning is in error.
+     */
+    errorCode?: string;
+};
+
+export type ProjectBuildTargetProfile = 'preview' | 'release';
+
+/**
+ * Request to ensure a build exists for one exact observed Git commit.
+ */
+export type EnsureProjectBuildRequest = {
+    /**
+     * Exact Git commit OID already pushed to the project repository.
+     */
+    commitOid: string;
+    targetProfile: ProjectBuildTargetProfile;
+};
+
+export type ProjectCompiledArtifactStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
+
+/**
+ * Server-derived build recipe and compiled artifact state for one exact Git commit.
+ */
+export type ProjectBuild = {
+    buildRecipeId: string;
+    buildRecipeDigest: string;
+    gameRevisionId: string;
+    gitSourceRevisionId: string;
+    commitOid: string;
+    treeOid: string;
+    targetProfile: ProjectBuildTargetProfile;
+    compiledArtifactId: string;
+    compiledArtifactStatus: ProjectCompiledArtifactStatus;
+    compiledArtifactDigest: string | null;
+    storageKey: string | null;
+    workJobId: string | null;
+    /**
+     * Whether this request created the compile work job.
+     */
+    enqueued: boolean;
+};
+
+export type ProjectCommitSourceValidationStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
+
+/**
+ * Server observation and validation state for one exact Git source revision.
+ */
+export type ProjectCommitSourceStatus = {
+    observed: boolean;
+    gitSourceRevisionId: string | null;
+    treeOid: string | null;
+    refName: string | null;
+    validationStatus: ProjectCommitSourceValidationStatus | null;
+    validationDiagnostics: {
+        [key: string]: unknown;
+    } | null;
+    observedAt: string | null;
+};
+
+/**
+ * Materialized game revision linked to an exact Git source revision.
+ */
+export type ProjectCommitGameRevisionStatus = {
+    gameRevisionId: string | null;
+    revisionDigest: string | null;
+    sourceTreeHash: string | null;
+};
+
+/**
+ * Build recipe and compiled artifact state for a target profile at one exact commit.
+ */
+export type ProjectCommitBuildStatus = {
+    targetProfile: ProjectBuildTargetProfile;
+    buildRecipeDigest: string;
+    buildRecipe: {
+        [key: string]: unknown;
+    };
+    buildRecipeId: string | null;
+    compiledArtifactId: string | null;
+    compiledArtifactStatus: ProjectCompiledArtifactStatus | null;
+    compiledArtifactDigest: string | null;
+    storageKey: string | null;
+    diagnostics: {
+        [key: string]: unknown;
+    } | null;
+};
+
+export type ProjectPreviewStatus = 'PENDING_RETENTION' | 'ACTIVE' | 'EXPIRED';
+
+/**
+ * Preview aggregate for one exact Git source revision and compiled artifact.
+ */
+export type ProjectPreview = {
+    previewId: string;
+    gameRevisionId: string;
+    compiledArtifactId: string;
+    status: ProjectPreviewStatus;
+    sourceRef: string | null;
+    retentionRef: string | null;
+    expiresAt: string;
+    createdAt: string;
+};
+
+export type ProjectReleaseStatus = 'PENDING_RETENTION' | 'ACTIVE' | 'REVOKED';
+
+/**
+ * Release membership for a commit-scoped game revision.
+ */
+export type ProjectCommitReleaseStatus = {
+    releaseId: string;
+    gameRevisionId: string;
+    compiledArtifactId: string;
+    status: ProjectReleaseStatus;
+    retentionRef: string | null;
+    current: boolean;
+    createdAt: string;
+};
+
+/**
+ * Server-owned status aggregate for one exact Git commit.
+ */
+export type ProjectCommitStatus = {
+    projectId: string;
+    commitOid: string;
+    source: ProjectCommitSourceStatus;
+    gameRevision: ProjectCommitGameRevisionStatus;
+    builds: Array<ProjectCommitBuildStatus>;
+    previews: Array<ProjectPreview>;
+    releases: Array<ProjectCommitReleaseStatus>;
+};
+
+/**
+ * Request to create a preview for one exact observed Git commit.
+ */
+export type CreateProjectPreviewRequest = {
+    /**
+     * Exact Git commit OID already pushed to the project repository.
+     */
+    commitOid: string;
+};
+
+/**
+ * Request to publish a release for one exact observed Git commit.
+ */
+export type PublishProjectReleaseRequest = {
+    /**
+     * Exact Git commit OID already pushed to the project repository.
+     */
+    commitOid: string;
+};
+
+/**
+ * Release aggregate for one exact Git source revision and compiled artifact.
+ */
+export type ProjectRelease = {
+    releaseId: string;
+    gameRevisionId: string;
+    compiledArtifactId: string;
+    status: ProjectReleaseStatus;
+    retentionRef: string | null;
+    createdAt: string;
+};
+
+/**
+ * Source file descriptor included in an atomic game revision
+ */
+export type GameRevisionSourceFile = {
+    /**
+     * Workspace-relative normalized source path
+     */
+    path: string;
+    /**
+     * Bare SHA-256 hash of the file content
+     */
+    contentHash: string;
+    /**
+     * UTF-8 byte size of the source file
+     */
+    byteSize: number;
+};
+
+/**
+ * Complete source snapshot for an atomic game revision
+ */
+export type CreateGameRevisionSource = {
+    files: Array<GameRevisionSourceFile>;
+};
+
+/**
+ * Supported player-count metadata for the game
+ */
+export type PlayersDefinition = {
+    minPlayers: number;
+    maxPlayers: number;
+    optimalPlayers?: number;
+};
+
+export type DetachedHomeSpec = {
+    type: 'detached';
+};
+
+export type ZoneHomeSpec = {
+    type: 'zone';
+    zoneId: string;
+};
+
+export type SpaceHomeSpec = {
+    type: 'space';
+    boardId: string;
+    spaceId: string;
+};
+
+export type ContainerHomeSpec = {
+    type: 'container';
+    boardId: string;
+    containerId: string;
+};
+
+/**
+ * Tiled board edge identified by the spaces that border it
+ */
+export type BoardEdgeRef = {
+    spaces: Array<string>;
+};
+
+export type EdgeHomeSpec = {
+    type: 'edge';
+    boardId: string;
+    ref: BoardEdgeRef;
+};
+
+/**
+ * Tiled board vertex identified by the spaces that touch it
+ */
+export type BoardVertexRef = {
+    spaces: Array<string>;
+};
+
+export type VertexHomeSpec = {
+    type: 'vertex';
+    boardId: string;
+    ref: BoardVertexRef;
+};
+
+export type PieceSlotHostRef = {
+    kind: 'piece';
+    id: string;
+};
+
+export type DieSlotHostRef = {
+    kind: 'die';
+    id: string;
+};
+
+export type SlotHostRef = ({
+    kind: 'piece';
+} & PieceSlotHostRef) | ({
+    kind: 'die';
+} & DieSlotHostRef);
+
+export type SlotHomeSpec = {
+    type: 'slot';
+    host: SlotHostRef;
+    slotId: string;
+};
+
+export type ComponentHomeSpec = ({
+    type: 'detached';
+} & DetachedHomeSpec) | ({
+    type: 'zone';
+} & ZoneHomeSpec) | ({
+    type: 'space';
+} & SpaceHomeSpec) | ({
+    type: 'container';
+} & ContainerHomeSpec) | ({
+    type: 'edge';
+} & EdgeHomeSpec) | ({
+    type: 'vertex';
+} & VertexHomeSpec) | ({
+    type: 'slot';
+} & SlotHomeSpec);
 
 export type PresetCardSetDefinition = {
     /**
-     * Unique identifier for the card set
+     * Unique local identifier for the authored card set
      */
     id: string;
+    /**
+     * Built-in preset card-set selector
+     */
+    presetId: string;
     /**
      * Display name of the card set
      */
@@ -186,17 +716,43 @@ export type PresetCardSetDefinition = {
      * Type of card set source
      */
     type: 'preset';
+    /**
+     * Default initial home for cards materialized from the preset
+     */
+    defaultHome: ComponentHomeSpec;
+};
+
+/**
+ * Arbitrary authored JSON value.
+ */
+export type JsonValue = string | number | number | boolean | null | Array<JsonValue> | {
+    [key: string]: JsonValue;
 };
 
 export type PropertySchema = {
     /**
      * The data type of the property.
      */
-    type: 'string' | 'integer' | 'number' | 'boolean' | 'deckId' | 'cardId' | 'playerId' | 'array' | 'object' | 'enum';
+    type: 'string' | 'integer' | 'number' | 'boolean' | 'zoneId' | 'cardId' | 'playerId' | 'boardId' | 'edgeId' | 'vertexId' | 'spaceId' | 'pieceId' | 'dieId' | 'resourceId' | 'array' | 'object' | 'record' | 'enum';
     /**
      * Optional description of the property's purpose and usage.
      */
     description?: string;
+    /**
+     * Whether an object property may be omitted.
+     */
+    optional?: boolean;
+    /**
+     * Whether the value may be null.
+     */
+    nullable?: boolean;
+    /**
+     * Optional authored default value for this property. When present, omitted
+     * seed values materialize to the default and generated TypeScript treats
+     * the property as present even if `optional: true` is also set.
+     *
+     */
+    default?: JsonValue;
     /**
      * For array types, the schema of the array items. Required if type is 'array'.
      */
@@ -211,6 +767,10 @@ export type PropertySchema = {
      * For enum types, the list of allowed string values. Required if type is 'enum'.
      */
     enums?: Array<string>;
+    /**
+     * For record types, the schema of the record's values. Required if type is 'record'.
+     */
+    values?: PropertySchema;
 };
 
 export type ObjectSchema = {
@@ -220,6 +780,34 @@ export type ObjectSchema = {
     properties: {
         [key: string]: PropertySchema;
     };
+};
+
+export type CardPropertySchemaVariants = {
+    /**
+     * Property schemas present on every card-type variant.
+     */
+    shared?: {
+        [key: string]: PropertySchema;
+    };
+    /**
+     * Property schema for each card type in this manual card set.
+     */
+    variants: {
+        [key: string]: ObjectSchema;
+    };
+};
+
+export type CardPropertySchema = ObjectSchema | CardPropertySchemaVariants;
+
+/**
+ * Default authored visibility for a component instance
+ */
+export type ComponentVisibilitySpec = {
+    faceUp?: boolean;
+    /**
+     * When omitted, visible to all players
+     */
+    visibleTo?: Array<string>;
 };
 
 export type BoardCard = {
@@ -244,14 +832,22 @@ export type BoardCard = {
      */
     count: number;
     /**
-     * Card type identifier. This field is optional and can be used for categorizing cards within a deck.
+     * Optional authored card category or subtype identifier
      */
     cardType?: string;
     /**
-     * Actual property values for this specific card instance. Keys must match the properties defined in the referenced cardSchema. Values are validated against the schema's type definitions.
+     * Optional per-card authored home override. When omitted, the manual card set defaultHome is used.
+     */
+    home?: ComponentHomeSpec;
+    /**
+     * Default authored visibility for the card inventory
+     */
+    visibility?: ComponentVisibilitySpec;
+    /**
+     * Actual property values for this specific card instance. Keys must match the properties defined in the referenced cardSchema.
      */
     properties: {
-        [key: string]: string;
+        [key: string]: JsonValue;
     };
 };
 
@@ -269,11 +865,15 @@ export type ManualCardSetDefinition = {
      */
     type: 'manual';
     /**
-     * Schema definition for card properties in this card set. Defines the structure and types of properties that cards in this card set can have.
+     * Schema definition for authored card properties in this card set
      */
-    cardSchema: ObjectSchema;
+    cardSchema: CardPropertySchema;
     /**
-     * List of cards in this card set
+     * Default initial home for cards that do not declare a per-card home.
+     */
+    defaultHome: ComponentHomeSpec;
+    /**
+     * List of authored cards in this card set
      */
     cards: Array<BoardCard>;
 };
@@ -285,226 +885,569 @@ export type CardSetDefinition = ({
 } & ManualCardSetDefinition);
 
 /**
- * Definition of a player hand type
+ * Whether authored topology exists once for the table or once per player
  */
-export type PlayerHandDefinition = {
+export type TopologyScope = 'shared' | 'perPlayer';
+
+/**
+ * Default topology visibility for a zone or slot
+ */
+export type ZoneVisibility = 'ownerOnly' | 'public' | 'hidden';
+
+/**
+ * Generic authored container that can hold cards, pieces, or dice
+ */
+export type ZoneSpec = {
     /**
-     * Unique identifier for this hand type (becomes HandId literal)
+     * Stable zone identifier
      */
     id: string;
     /**
-     * Human-readable name for UI display
+     * Display name for the zone
      */
-    displayName: string;
+    name: string;
+    scope: TopologyScope;
     /**
-     * Optional longer description of this hand's purpose
+     * Optional card-set restriction for this zone
      */
-    description?: string;
-    /**
-     * Maximum number of cards allowed in this hand
-     */
-    maxCards?: number;
-    /**
-     * Minimum number of cards required in this hand
-     */
-    minCards?: number;
-    /**
-     * Who can see cards in this hand
-     */
-    visibility?: 'ownerOnly' | 'public' | 'hidden';
-    /**
-     * List of card set IDs that can be stored in this hand. If empty, the hand can store cards from any card set.
-     */
-    cardSetIds?: Array<string>;
+    allowedCardSetIds?: Array<string>;
+    visibility?: ZoneVisibility;
 };
 
-export type DeckDefinition = {
+/**
+ * Stable authored board space or slot anchor
+ */
+export type BoardSpaceSpec = {
     /**
-     * Unique identifier for the deck
+     * Stable space identifier local to the board
      */
     id: string;
     /**
-     * Display name of the deck
+     * Human-readable space name
      */
-    name: string;
+    name?: string;
     /**
-     * ID of the card set this deck uses
+     * Optional authored space type identifier
      */
-    cardSetId: string;
+    typeId?: string;
+    /**
+     * Typed authored fields validated against the board's spaceFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
 };
 
 /**
- * A die component for randomization and chance mechanics
+ * Named relation between two authored spaces
  */
-export type DieDefinition = {
+export type BoardRelationSpec = {
     /**
-     * Unique identifier for the die
+     * Optional stable relation identifier
+     */
+    id?: string;
+    /**
+     * Relation type identifier such as adjacent, covers, blocks, or linked
+     */
+    typeId: string;
+    fromSpaceId: string;
+    toSpaceId: string;
+    directed?: boolean;
+    /**
+     * Typed authored relation fields validated against relationFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+export type BoardHostSpec = {
+    type: 'board';
+};
+
+export type SpaceHostSpec = {
+    type: 'space';
+    spaceId: string;
+};
+
+export type BoardContainerHostSpec = ({
+    type: 'board';
+} & BoardHostSpec) | ({
+    type: 'space';
+} & SpaceHostSpec);
+
+/**
+ * Authored board-attached or space-attached container/slot
+ */
+export type BoardContainerSpec = {
+    /**
+     * Stable container identifier local to the board
      */
     id: string;
     /**
-     * Display name of the die
+     * Display name for the container
      */
     name: string;
+    host: BoardContainerHostSpec;
+    allowedCardSetIds?: Array<string>;
     /**
-     * Number of sides on the die (e.g., 6 for standard die)
+     * Typed authored container fields validated against containerFieldsSchema
      */
-    sides: number;
-};
-
-export type PlayerConfig = {
-    /**
-     * Minimum number of players required
-     */
-    minPlayers: number;
-    /**
-     * Maximum number of players supported
-     */
-    maxPlayers: number;
-    /**
-     * Optimal number of players for best experience
-     */
-    optimalPlayers: number;
-};
-
-export type VariableSchema = {
-    /**
-     * Schema for global variables.
-     */
-    globalVariableSchema: ObjectSchema;
-    /**
-     * Schema for player-specific variables.
-     */
-    playerVariableSchema: ObjectSchema;
+    fields?: {
+        [key: string]: JsonValue;
+    };
 };
 
 /**
- * Type of parameter accepted by an action. cardId refers to runtime card instance IDs (e.g., 'lumber-1', 'lumber-2'), while cardType refers to manifest-level card type identifiers (e.g., 'lumber'). tileId is used for hex tiles and network nodes.
+ * Reusable authored board topology template
  */
-export type ParameterType = 'cardId' | 'cardType' | 'deckId' | 'playerId' | 'string' | 'number' | 'boolean' | 'zoneId' | 'tokenId' | 'tileId' | 'edgeId' | 'vertexId' | 'spaceId' | 'pieceId' | 'resourceId';
-
-/**
- * Defines a parameter for an action
- */
-export type ActionParameterDefinition = {
+export type GenericBoardTemplateSpec = {
     /**
-     * Parameter name
+     * Stable template identifier
      */
+    id: string;
     name: string;
-    type: ParameterType;
+    layout: 'generic';
     /**
-     * Whether this parameter is required
+     * Optional authored board type identifier such as track, map, tableau, or grid
      */
-    required?: boolean;
-    /**
-     * Whether this parameter accepts an array of values
-     */
-    array?: boolean;
-    /**
-     * Minimum length for array parameters (only applicable when array=true)
-     */
-    minLength?: number;
-    /**
-     * Maximum length for array parameters (only applicable when array=true)
-     */
-    maxLength?: number;
-    /**
-     * Optional card set ID to specify which card set the CARD_ID parameter refers to (only applicable when type is CARD_ID)
-     */
-    cardSetId?: string;
-    /**
-     * Optional help text for this parameter
-     */
-    description?: string;
+    typeId?: string;
+    boardFieldsSchema?: ObjectSchema;
+    spaceFieldsSchema?: ObjectSchema;
+    relationFieldsSchema?: ObjectSchema;
+    containerFieldsSchema?: ObjectSchema;
+    spaces?: Array<BoardSpaceSpec>;
+    relations?: Array<BoardRelationSpec>;
+    containers?: Array<BoardContainerSpec>;
 };
 
 /**
- * Defines an available player action with metadata and parameter definitions
+ * Visual orientation for authored hex coordinates
  */
-export type ActionDefinition = {
+export type HexOrientation = 'pointy-top' | 'flat-top';
+
+/**
+ * One authored hex space in axial coordinates
+ */
+export type HexSpaceSpec = {
     /**
-     * Unique action identifier (e.g., 'playCard', 'pass', 'drawCard')
+     * Stable space identifier local to the board
      */
-    actionType: string;
+    id: string;
     /**
-     * UI display name for this action
+     * Axial q coordinate
      */
-    displayName: string;
+    q: number;
     /**
-     * Optional help text describing the action
+     * Axial r coordinate
      */
-    description?: string;
+    r: number;
     /**
-     * List of parameters this action accepts
+     * Optional authored space type identifier
      */
-    parameters: Array<ActionParameterDefinition>;
+    typeId?: string;
     /**
-     * List of possible error codes that this action's validation can return
+     * Optional hex-space label for setup or rendering
      */
-    errorCodes?: Array<string>;
+    label?: string;
+    /**
+     * Typed authored fields validated against the board's spaceFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
 };
 
 /**
- * Type of state in the state machine
+ * Hex edge identified by two adjacent hex spaces
  */
-export type StateType = 'AUTO' | 'SINGLE_PLAYER' | 'ALL_PLAYERS';
-
-/**
- * Definition of a state transition with optional documentation to help guide game logic implementation
- */
-export type StateTransition = {
-    /**
-     * The name of the state to transition to
-     */
-    targetState: string;
-    /**
-     * Optional description explaining when/why this transition should occur
-     */
-    description?: string;
+export type HexEdgeRef = {
+    spaces: [
+        string,
+        string
+    ];
 };
 
 /**
- * Definition of a state in the game state machine
+ * Authored metadata attached to one derived hex edge
  */
-export type StateDefinition = {
+export type HexEdgeSpec = {
+    ref: HexEdgeRef;
     /**
-     * Unique name of the state
+     * Optional authored edge type identifier
      */
+    typeId?: string;
+    /**
+     * Optional edge label for setup or rendering
+     */
+    label?: string;
+    tags?: Array<string>;
+    /**
+     * Typed authored edge fields validated against edgeFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+/**
+ * Hex vertex identified by three touching hex spaces
+ */
+export type HexVertexRef = {
+    spaces: [
+        string,
+        string,
+        string
+    ];
+};
+
+/**
+ * Authored metadata attached to one derived hex vertex
+ */
+export type HexVertexSpec = {
+    ref: HexVertexRef;
+    /**
+     * Optional authored vertex type identifier
+     */
+    typeId?: string;
+    /**
+     * Optional vertex label for setup or rendering
+     */
+    label?: string;
+    tags?: Array<string>;
+    /**
+     * Typed authored vertex fields validated against vertexFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+/**
+ * Reusable authored hex board topology template
+ */
+export type HexBoardTemplateSpec = {
+    /**
+     * Stable template identifier
+     */
+    id: string;
     name: string;
-    type: StateType;
+    layout: 'hex';
     /**
-     * Description of the state. It should include the full logic of what happens in this state, including any automatic actions taken by the system, as well as what the active player(s) can do.
+     * Optional authored board type identifier
      */
-    description: string;
-    /**
-     * List of action types that can be performed in this state (only applicable for active_player and multiple_active_player states). Must reference actions defined in BoardManifest.availableActions
-     */
-    availableActions?: Array<string>;
-    /**
-     * List of possible next state transitions with optional metadata
-     */
-    transitions: Array<StateTransition>;
-    /**
-     * Whether the state should automatically advance when complete
-     */
-    autoAdvance?: boolean;
+    typeId?: string;
+    orientation?: HexOrientation;
+    boardFieldsSchema?: ObjectSchema;
+    spaceFieldsSchema?: ObjectSchema;
+    edgeFieldsSchema?: ObjectSchema;
+    vertexFieldsSchema?: ObjectSchema;
+    spaces?: Array<HexSpaceSpec>;
+    edges?: Array<HexEdgeSpec>;
+    vertices?: Array<HexVertexSpec>;
 };
 
 /**
- * Definition of the game's state machine
+ * One authored square space in row/column coordinates
  */
-export type StateMachineDefinition = {
+export type SquareSpaceSpec = {
     /**
-     * List of state definitions
+     * Stable space identifier local to the board
      */
-    states: Array<StateDefinition>;
+    id: string;
     /**
-     * Initial state when the game starts
+     * Zero-based row coordinate
      */
-    initialState: string;
+    row: number;
+    /**
+     * Zero-based column coordinate
+     */
+    col: number;
+    /**
+     * Optional authored space type identifier
+     */
+    typeId?: string;
+    /**
+     * Optional square-space label for setup or rendering
+     */
+    label?: string;
+    /**
+     * Typed authored fields validated against the board's spaceFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
 };
 
 /**
- * Definition of a game resource type.
+ * Authored metadata attached to one derived square edge
+ */
+export type SquareEdgeSpec = {
+    ref: BoardEdgeRef;
+    /**
+     * Optional authored edge type identifier
+     */
+    typeId?: string;
+    /**
+     * Optional edge label for setup or rendering
+     */
+    label?: string;
+    tags?: Array<string>;
+    /**
+     * Typed authored edge fields validated against edgeFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+/**
+ * Authored metadata attached to one derived square vertex
+ */
+export type SquareVertexSpec = {
+    ref: BoardVertexRef;
+    /**
+     * Optional authored vertex type identifier
+     */
+    typeId?: string;
+    /**
+     * Optional vertex label for setup or rendering
+     */
+    label?: string;
+    tags?: Array<string>;
+    /**
+     * Typed authored vertex fields validated against vertexFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+/**
+ * Reusable authored square board topology template
+ */
+export type SquareBoardTemplateSpec = {
+    /**
+     * Stable template identifier
+     */
+    id: string;
+    name: string;
+    layout: 'square';
+    /**
+     * Optional authored board type identifier
+     */
+    typeId?: string;
+    boardFieldsSchema?: ObjectSchema;
+    spaceFieldsSchema?: ObjectSchema;
+    relationFieldsSchema?: ObjectSchema;
+    containerFieldsSchema?: ObjectSchema;
+    edgeFieldsSchema?: ObjectSchema;
+    vertexFieldsSchema?: ObjectSchema;
+    spaces?: Array<SquareSpaceSpec>;
+    relations?: Array<BoardRelationSpec>;
+    containers?: Array<BoardContainerSpec>;
+    edges?: Array<SquareEdgeSpec>;
+    vertices?: Array<SquareVertexSpec>;
+};
+
+export type BoardTemplateSpec = ({
+    layout: 'generic';
+} & GenericBoardTemplateSpec) | ({
+    layout: 'hex';
+} & HexBoardTemplateSpec) | ({
+    layout: 'square';
+} & SquareBoardTemplateSpec);
+
+/**
+ * Shared or per-player authored board instance shell
+ */
+export type GenericBoardSpec = {
+    /**
+     * Stable board identifier
+     */
+    id: string;
+    name: string;
+    layout: 'generic';
+    /**
+     * Optional authored board type identifier such as track, map, tableau, or grid
+     */
+    typeId?: string;
+    scope: TopologyScope;
+    /**
+     * Optional board template to clone before applying inline authored additions
+     */
+    templateId?: string;
+    boardFieldsSchema?: ObjectSchema;
+    spaceFieldsSchema?: ObjectSchema;
+    relationFieldsSchema?: ObjectSchema;
+    containerFieldsSchema?: ObjectSchema;
+    /**
+     * Typed authored board fields validated against boardFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+    spaces?: Array<BoardSpaceSpec>;
+    relations?: Array<BoardRelationSpec>;
+    containers?: Array<BoardContainerSpec>;
+};
+
+/**
+ * Shared or per-player authored hex board instance shell
+ */
+export type HexBoardSpec = {
+    /**
+     * Stable board identifier
+     */
+    id: string;
+    name: string;
+    layout: 'hex';
+    /**
+     * Optional authored board type identifier
+     */
+    typeId?: string;
+    scope: TopologyScope;
+    /**
+     * Optional hex board template to clone before applying inline authored additions
+     */
+    templateId?: string;
+    orientation?: HexOrientation;
+    boardFieldsSchema?: ObjectSchema;
+    spaceFieldsSchema?: ObjectSchema;
+    edgeFieldsSchema?: ObjectSchema;
+    vertexFieldsSchema?: ObjectSchema;
+    /**
+     * Typed authored board fields validated against boardFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+    spaces?: Array<HexSpaceSpec>;
+    edges?: Array<HexEdgeSpec>;
+    vertices?: Array<HexVertexSpec>;
+};
+
+/**
+ * Shared or per-player authored square board instance shell
+ */
+export type SquareBoardSpec = {
+    /**
+     * Stable board identifier
+     */
+    id: string;
+    name: string;
+    layout: 'square';
+    /**
+     * Optional authored board type identifier
+     */
+    typeId?: string;
+    scope: TopologyScope;
+    /**
+     * Optional square board template to clone before applying inline authored additions
+     */
+    templateId?: string;
+    boardFieldsSchema?: ObjectSchema;
+    spaceFieldsSchema?: ObjectSchema;
+    relationFieldsSchema?: ObjectSchema;
+    containerFieldsSchema?: ObjectSchema;
+    edgeFieldsSchema?: ObjectSchema;
+    vertexFieldsSchema?: ObjectSchema;
+    /**
+     * Typed authored board fields validated against boardFieldsSchema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+    spaces?: Array<SquareSpaceSpec>;
+    relations?: Array<BoardRelationSpec>;
+    containers?: Array<BoardContainerSpec>;
+    edges?: Array<SquareEdgeSpec>;
+    vertices?: Array<SquareVertexSpec>;
+};
+
+export type BoardSpec = ({
+    layout: 'generic';
+} & GenericBoardSpec) | ({
+    layout: 'hex';
+} & HexBoardSpec) | ({
+    layout: 'square';
+} & SquareBoardSpec);
+
+/**
+ * Named authored slot exposed by a piece or die type
+ */
+export type ComponentSlotSpec = {
+    id: string;
+    name?: string;
+};
+
+/**
+ * Reusable authored piece type
+ */
+export type PieceTypeSpec = {
+    id: string;
+    name: string;
+    fieldsSchema?: ObjectSchema;
+    slots?: Array<ComponentSlotSpec>;
+};
+
+/**
+ * Authored seeded piece inventory or supply definition
+ */
+export type PieceSeedSpec = {
+    /**
+     * Stable piece id seed. When count > 1, runtime ids are generated as '{id}-1', '{id}-2', etc.
+     */
+    id?: string;
+    name?: string;
+    typeId: string;
+    count?: number;
+    ownerId?: string;
+    home?: ComponentHomeSpec;
+    visibility?: ComponentVisibilitySpec;
+    /**
+     * Typed authored piece fields validated against the piece type schema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+/**
+ * Reusable authored die type
+ */
+export type DieTypeSpec = {
+    id: string;
+    name: string;
+    sides?: number;
+    fieldsSchema?: ObjectSchema;
+    slots?: Array<ComponentSlotSpec>;
+};
+
+/**
+ * Authored seeded die inventory or supply definition
+ */
+export type DieSeedSpec = {
+    /**
+     * Stable die id seed. When count > 1, runtime ids are generated as '{id}-1', '{id}-2', etc.
+     */
+    id?: string;
+    name?: string;
+    typeId: string;
+    count?: number;
+    ownerId?: string;
+    home?: ComponentHomeSpec;
+    visibility?: ComponentVisibilitySpec;
+    /**
+     * Typed authored die fields validated against the die type schema
+     */
+    fields?: {
+        [key: string]: JsonValue;
+    };
+};
+
+/**
+ * Definition of a game resource type
  */
 export type ResourceDefinition = {
     /**
@@ -515,595 +1458,221 @@ export type ResourceDefinition = {
      * Human-readable display name for the resource
      */
     name: string;
+    /**
+     * Optional compact icon or emoji rendered by generic UI resource controls.
+     */
+    icon?: string;
 };
 
 /**
- * Layout pattern for hex board tile placement
+ * One authored setup option choice
  */
-export type HexLayoutType = 'ring' | 'rectangle' | 'custom';
+export type SetupOptionChoiceSpec = {
+    id: string;
+    label: string;
+    description?: string;
+};
 
 /**
- * Definition of a hex tile
+ * Authored setup module/variant axis metadata
  */
-export type HexTileDefinition = {
-    /**
-     * Unique tile ID
-     */
+export type SetupOptionSpec = {
     id: string;
+    name: string;
+    description?: string;
+    choices?: Array<SetupOptionChoiceSpec>;
+};
+
+/**
+ * Reducer-consumed authored setup profile, recipe, or loadout metadata
+ */
+export type SetupProfileSpec = {
+    id: string;
+    name: string;
+    description?: string;
     /**
-     * Axial Q coordinate (only used with 'custom' layout)
+     * Selected setup-option values for this profile
      */
-    q?: number;
-    /**
-     * Axial R coordinate (only used with 'custom' layout)
-     */
-    r?: number;
-    /**
-     * Tile type (must be in tileTypes)
-     */
-    type?: string;
-    /**
-     * Tile properties (validated against tileSchema)
-     */
-    properties?: {
+    optionValues?: {
         [key: string]: string;
     };
 };
 
 /**
- * Definition of a hex edge
+ * Authoritative topology manifest for reducer-native games
  */
-export type HexEdgeDefinition = {
+export type GameTopologyManifest = {
+    players: PlayersDefinition;
     /**
-     * Unique edge ID
-     */
-    id: string;
-    /**
-     * Edge type (must be in edgeTypes)
-     */
-    type?: string;
-    /**
-     * Edge properties (validated against edgeSchema)
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition of a hex vertex
- */
-export type HexVertexDefinition = {
-    /**
-     * Unique vertex ID
-     */
-    id: string;
-    /**
-     * Vertex type (must be in vertexTypes)
-     */
-    type?: string;
-    /**
-     * Vertex properties (validated against vertexSchema)
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition for a hexagonal grid board (Catan, wargames, etc.)
- */
-export type HexBoardDefinition = {
-    /**
-     * Unique board ID
-     */
-    id: string;
-    boardType: 'hex';
-    /**
-     * Layout pattern for tile placement. Defaults to 'ring' if not specified.
-     */
-    layout?: HexLayoutType;
-    /**
-     * Number of rings for 'ring' layout (1=1 tile, 2=7 tiles, 3=19 tiles like Catan). Defaults to 3.
-     */
-    rings?: number;
-    /**
-     * Board width for 'rectangle' layout
-     */
-    width?: number;
-    /**
-     * Board height for 'rectangle' layout
-     */
-    height?: number;
-    /**
-     * Schema for tile properties
-     */
-    tileSchema?: ObjectSchema;
-    /**
-     * Schema for edge properties
-     */
-    edgeSchema?: ObjectSchema;
-    /**
-     * Schema for vertex properties
-     */
-    vertexSchema?: ObjectSchema;
-    /**
-     * Valid tile type IDs (e.g., 'desert', 'forest')
-     */
-    tileTypes?: Array<string>;
-    /**
-     * Valid edge type IDs (e.g., 'road')
-     */
-    edgeTypes?: Array<string>;
-    /**
-     * Valid vertex type IDs (e.g., 'settlement', 'city')
-     */
-    vertexTypes?: Array<string>;
-    /**
-     * List of tile definitions. Tiles are assigned positions based on layout.
-     */
-    tiles: Array<HexTileDefinition>;
-    /**
-     * List of edge definitions
-     */
-    edges?: Array<HexEdgeDefinition>;
-    /**
-     * List of vertex definitions
-     */
-    vertices?: Array<HexVertexDefinition>;
-};
-
-/**
- * Layout pattern for network board node placement
- */
-export type NetworkLayoutType = 'circle' | 'grid' | 'custom';
-
-/**
- * Definition of a network node
- */
-export type NetworkNodeDefinition = {
-    /**
-     * Unique node ID
-     */
-    id: string;
-    /**
-     * X coordinate (only used with 'custom' layout)
-     */
-    x?: number;
-    /**
-     * Y coordinate (only used with 'custom' layout)
-     */
-    y?: number;
-    /**
-     * Node type (must be in nodeTypes)
-     */
-    type?: string;
-    /**
-     * Display label
-     */
-    label?: string;
-    /**
-     * Node properties (validated against nodeSchema)
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition of a network edge
- */
-export type NetworkEdgeDefinition = {
-    /**
-     * Unique edge ID
-     */
-    id: string;
-    /**
-     * Edge type (must be in edgeTypes)
-     */
-    type?: string;
-    /**
-     * Display label
-     */
-    label?: string;
-    /**
-     * Edge properties (validated against edgeSchema)
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition for a network/graph board (Ticket to Ride, Pandemic, etc.)
- */
-export type NetworkBoardDefinition = {
-    /**
-     * Unique board ID
-     */
-    id: string;
-    boardType: 'network';
-    /**
-     * Layout pattern for node placement. Defaults to 'circle' if not specified.
-     */
-    layout?: NetworkLayoutType;
-    /**
-     * Radius for 'circle' layout. Defaults to 100.
-     */
-    radius?: number;
-    /**
-     * Number of columns for 'grid' layout
-     */
-    columns?: number;
-    /**
-     * Spacing between nodes for 'grid' layout. Defaults to 100.
-     */
-    spacing?: number;
-    /**
-     * Schema for node properties
-     */
-    nodeSchema?: ObjectSchema;
-    /**
-     * Schema for edge properties
-     */
-    edgeSchema?: ObjectSchema;
-    /**
-     * Valid node type IDs
-     */
-    nodeTypes?: Array<string>;
-    /**
-     * Valid edge type IDs
-     */
-    edgeTypes?: Array<string>;
-    /**
-     * List of node definitions. Nodes are assigned positions based on layout.
-     */
-    nodes: Array<NetworkNodeDefinition>;
-    /**
-     * List of edge definitions
-     */
-    edges?: Array<NetworkEdgeDefinition>;
-};
-
-/**
- * Definition of a square board piece
- */
-export type SquarePieceDefinition = {
-    /**
-     * Unique piece ID
-     */
-    id: string;
-    /**
-     * Piece type (must be in pieceTypes)
-     */
-    type?: string;
-    /**
-     * Piece properties
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition for a square grid board (Chess, Checkers, Go, etc.)
- */
-export type SquareBoardDefinition = {
-    /**
-     * Unique board ID
-     */
-    id: string;
-    boardType: 'square';
-    /**
-     * Number of rows
-     */
-    rows: number;
-    /**
-     * Number of columns
-     */
-    cols: number;
-    /**
-     * Schema for cell properties
-     */
-    cellSchema?: ObjectSchema;
-    /**
-     * Valid cell type IDs
-     */
-    cellTypes?: Array<string>;
-    /**
-     * Valid piece type IDs
-     */
-    pieceTypes?: Array<string>;
-    /**
-     * List of piece definitions
-     */
-    pieces?: Array<SquarePieceDefinition>;
-};
-
-/**
- * Definition of a track space
- */
-export type TrackSpaceDefinition = {
-    /**
-     * Unique space ID
-     */
-    id: string;
-    /**
-     * Space type (must be in spaceTypes)
-     */
-    type?: string;
-    /**
-     * Display name
-     */
-    name?: string;
-    /**
-     * Space properties (validated against spaceSchema)
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition of a track board piece
- */
-export type TrackPieceDefinition = {
-    /**
-     * Unique piece ID
-     */
-    id: string;
-    /**
-     * Piece type (must be in pieceTypes)
-     */
-    type?: string;
-    /**
-     * Piece properties
-     */
-    properties?: {
-        [key: string]: string;
-    };
-};
-
-/**
- * Definition for a track/path board (Monopoly, Game of Life, etc.)
- */
-export type TrackBoardDefinition = {
-    /**
-     * Unique board ID
-     */
-    id: string;
-    boardType: 'track';
-    /**
-     * Type of track layout
-     */
-    trackType?: 'linear' | 'circular' | 'branching';
-    /**
-     * Schema for space properties
-     */
-    spaceSchema?: ObjectSchema;
-    /**
-     * Valid space type IDs
-     */
-    spaceTypes?: Array<string>;
-    /**
-     * List of space definitions
-     */
-    spaces: Array<TrackSpaceDefinition>;
-    /**
-     * Valid piece type IDs
-     */
-    pieceTypes?: Array<string>;
-    /**
-     * List of piece definitions
-     */
-    pieces?: Array<TrackPieceDefinition>;
-};
-
-/**
- * Board definition - can be hex, network, square, or track board.
- */
-export type BoardDefinition = ({
-    boardType: 'hex';
-} & HexBoardDefinition) | ({
-    boardType: 'network';
-} & NetworkBoardDefinition) | ({
-    boardType: 'square';
-} & SquareBoardDefinition) | ({
-    boardType: 'track';
-} & TrackBoardDefinition);
-
-export type BoardManifest = {
-    /**
-     * List of card sets
+     * Authored card catalogs and schemas
      */
     cardSets: Array<CardSetDefinition>;
     /**
-     * Definitions of different hand types players can hold
+     * Shared and per-player authored containers
      */
-    playerHandDefinitions: Array<PlayerHandDefinition>;
+    zones?: Array<ZoneSpec>;
     /**
-     * Shared decks available to the whole game
+     * Reusable board topology templates
      */
-    decks?: Array<DeckDefinition>;
+    boardTemplates?: Array<BoardTemplateSpec>;
     /**
-     * Dice available to the whole game
+     * Shared and per-player authored board shells
      */
-    dice?: Array<DieDefinition>;
-    /**
-     * Player configuration settings
-     */
-    playerConfig: PlayerConfig;
-    /**
-     * Schema definitions for game variables at different scopes.
-     */
-    variableSchema: VariableSchema;
-    /**
-     * List of available actions that players can perform
-     */
-    availableActions: Array<ActionDefinition>;
-    /**
-     * Definition of the game's state machine
-     */
-    stateMachine: StateMachineDefinition;
-    /**
-     * List of resource definitions.
-     */
+    boards?: Array<BoardSpec>;
+    pieceTypes?: Array<PieceTypeSpec>;
+    pieceSeeds?: Array<PieceSeedSpec>;
+    dieTypes?: Array<DieTypeSpec>;
+    dieSeeds?: Array<DieSeedSpec>;
     resources?: Array<ResourceDefinition>;
     /**
-     * List of board definitions for hex, network, square, or track boards.
+     * Authored setup-option metadata consumed by reducer-owned setup flows
      */
-    boardDefinitions?: Array<BoardDefinition>;
+    setupOptions?: Array<SetupOptionSpec>;
+    /**
+     * Authored setup recipes, loadouts, or module profiles consumed by reducer setup code
+     */
+    setupProfiles?: Array<SetupProfileSpec>;
 };
 
-export type UpdateGameRequest = {
+/**
+ * Atomically finalize source, rules, and manifest into one immutable project revision
+ */
+export type CreateGameRevisionRequest = {
     /**
-     * Updated display name
+     * Current head digest expected by the caller, or null for a project without a head
      */
-    name?: string;
-    /**
-     * Updated description
-     */
-    description?: string;
-    /**
-     * Updated game rules text
-     */
-    rule?: string;
-    /**
-     * Updated visibility setting
-     */
-    public?: boolean;
-    manifest?: BoardManifest;
-    metadata?: GameMetadata;
+    baseRevisionDigest?: string;
+    scope?: 'CANONICAL' | 'DEV';
+    source: CreateGameRevisionSource;
+    ruleText: string;
+    manifest: GameTopologyManifest;
 };
 
-export type DeleteGameResponse = {
-    /**
-     * Confirms the resource was deleted
-     */
-    deleted: boolean;
+/**
+ * Portable exact authored revision for a project
+ */
+export type GameRevision = {
+    revisionDigest: string;
+    sourceTreeHash: string;
+    ruleContentHash: string;
+    manifestContentHash: string;
+    createdAt: string;
 };
 
-export type WorkshopRuleTextResponse = {
+/**
+ * Authored source files and metadata for an immutable project revision.
+ */
+export type ProjectRevisionSourcesResponse = {
+    revisionDigest: string;
     /**
-     * Extracted rulebook text from the first valid candidate.
+     * Compatibility source revision identifier containing the files for this project revision
+     */
+    sourceRevisionId: string;
+    sourceTreeHash: string;
+    /**
+     * Map of file path to file content (e.g., 'App.tsx' -> 'export ...')
+     */
+    files: {
+        [key: string]: string;
+    };
+    /**
+     * Game rules text for this revision
      */
     ruleText: string;
-};
-
-export type GameManifestSummaryDto = {
-    /**
-     * Unique identifier for this manifest version
-     */
-    manifestId: string;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * User who created this version
-     */
-    userId: string;
-    /**
-     * Agent job that created this manifest
-     */
-    jobId?: string;
-    /**
-     * Game rule used for this manifest
-     */
-    ruleId: string;
-    /**
-     * Version number for this game
-     */
-    version: number;
-    /**
-     * Whether this is the latest/current manifest version
-     */
-    current: boolean;
-    /**
-     * When this version was created
-     */
+    ruleContentHash: string;
+    manifest: GameTopologyManifest;
+    manifestContentHash: string;
     createdAt: string;
 };
 
-export type FindManifestsResponse = {
+/**
+ * Metadata describing a blob the client may need to upload before finalizing a source revision.
+ */
+export type SourceBlobUploadDescriptor = {
     /**
-     * List of manifest versions, ordered by version descending (newest first)
-     */
-    manifests: Array<GameManifestSummaryDto>;
-    /**
-     * Unique identifier of the current (latest) manifest version
-     */
-    currentManifestId?: string;
-};
-
-export type SaveManifestRequest = {
-    /**
-     * The board manifest to save
-     */
-    manifest: BoardManifest;
-    /**
-     * Agent job that created this manifest
-     */
-    jobId?: string;
-    ruleId: string;
-};
-
-export type SaveManifestResponse = {
-    /**
-     * Unique identifier for the saved manifest version
-     */
-    manifestId: string;
-    /**
-     * Auto-incremented version number for this game
-     */
-    version: number;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * SHA-256 hash of the canonical manifest content, for local change detection
+     * SHA-256 hash of the UTF-8 file content.
      */
     contentHash: string;
+    /**
+     * Size of the UTF-8 file content in bytes.
+     */
+    byteSize: number;
 };
 
-export type GameManifestDto = {
+/**
+ * Request upload targets for one or more source blobs.
+ */
+export type CreateSourceBlobUploadSessionRequest = {
     /**
-     * Unique identifier for this manifest version
+     * Unique blobs the client may need to upload.
      */
-    manifestId: string;
+    blobs: Array<SourceBlobUploadDescriptor>;
+};
+
+/**
+ * Provider-agnostic direct-upload target for a source blob.
+ */
+export type SourceBlobUploadTarget = {
     /**
-     * Game identifier
+     * HTTP method the client must use when uploading the blob.
      */
-    gameId: string;
+    method: string;
     /**
-     * User who created this version
+     * Fully qualified direct-upload URL.
      */
-    userId: string;
+    url: string;
     /**
-     * Agent job that created this manifest
+     * Required request headers for the direct upload.
      */
-    jobId?: string;
+    headers: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * Upload instructions for a single source blob.
+ */
+export type SourceBlobUploadSessionEntry = {
     /**
-     * Game rule used for this manifest
-     */
-    ruleId: string;
-    /**
-     * The board manifest data
-     */
-    manifest: BoardManifest;
-    /**
-     * Version number for this game
-     */
-    version: number;
-    /**
-     * When this version was created
-     */
-    createdAt: string;
-    /**
-     * SHA-256 hash of the canonical manifest content, for local change detection
+     * SHA-256 hash of the UTF-8 file content.
      */
     contentHash: string;
+    /**
+     * Whether the blob already exists in storage or requires upload.
+     */
+    status: 'exists' | 'upload_required';
+    /**
+     * Present only when status is upload_required.
+     */
+    uploadTarget?: SourceBlobUploadTarget;
+};
+
+/**
+ * Direct-upload session for source blobs needed by a source revision.
+ */
+export type SourceBlobUploadSession = {
+    /**
+     * Opaque identifier for the upload session.
+     */
+    sessionId: string;
+    /**
+     * Expiration time for any issued upload targets.
+     */
+    expiresAt: string;
+    /**
+     * Upload instructions for each requested blob.
+     */
+    uploads: Array<SourceBlobUploadSessionEntry>;
+};
+
+/**
+ * Accepted compile request response. The compilation continues asynchronously and can be tracked via the returned job ID.
+ */
+export type QueueCompiledResultJobResponse = {
+    /**
+     * Agent job identifier for the queued compile
+     */
+    jobId: string;
 };
 
 /**
@@ -1201,7 +1770,7 @@ export type CompilationDiagnostic = ({
 /**
  * Storage backend type for compiled game artifacts
  */
-export type CompiledResultStorageType = 'local' | 'supabase';
+export type CompiledResultStorageType = 'local' | 'object_store';
 
 /**
  * Unified compiled result containing both APP and UI outputs from a single source
@@ -1211,20 +1780,7 @@ export type CompiledResult = {
      * Compiled result identifier
      */
     id: string;
-    gameId: string;
     userId: string;
-    /**
-     * Authoring state used for this compilation
-     */
-    authoringStateId: string;
-    /**
-     * Manifest used for this compilation
-     */
-    manifestId: string;
-    /**
-     * Game rule used for this compilation
-     */
-    ruleId: string;
     /**
      * Client- or server-generated request correlation id
      */
@@ -1237,6 +1793,14 @@ export type CompiledResult = {
      * Root compiled result ID for this lineage
      */
     lineageRootId?: string;
+    /**
+     * Game revision row used for this compilation
+     */
+    gameRevisionId: string;
+    /**
+     * Portable authored revision digest used for cross-environment result correlation
+     */
+    revisionDigest?: string;
     /**
      * Whether the compilation was successful
      */
@@ -1261,6 +1825,10 @@ export type CompiledResult = {
      * Key/path for compiled UI artifacts. Null when UI compilation fails.
      */
     uiStorageKey?: string;
+    /**
+     * Non-secret identity of the artifact storage provider used for this compilation. Changes when switching between local filesystem storage and AWS S3 object storage.
+     */
+    artifactStorageFingerprint?: string;
     /**
      * Deterministic fingerprint for the APP target inputs used by this compilation.
      */
@@ -1291,132 +1859,18 @@ export type ListCompiledResultsResponse = {
     results: Array<CompiledResult>;
 };
 
-export type QueueCompiledResultJobRequest = {
+export type UploadInitialProjectionRequest = {
     /**
-     * Authoring state to compile
+     * Reducer-native projection JSON for the preview's initial rendered state
      */
-    authoringStateId: string;
+    projectionJson: string;
 };
 
-/**
- * Accepted compile request response. The compilation continues asynchronously and can be tracked via the returned job ID.
- */
-export type QueueCompiledResultJobResponse = {
+export type PreviewScreenshotJobResponse = {
     /**
-     * Agent job identifier for the queued compile
+     * Identifier of the queued preview screenshot job
      */
     jobId: string;
-};
-
-/**
- * Response containing authored source files resolved through an authoring state.
- */
-export type GameSourcesResponse = {
-    /**
-     * Current or requested authoring state identifier
-     */
-    authoringStateId: string;
-    /**
-     * Map of file path to file content (e.g., 'App.tsx' -> 'export ...')
-     */
-    files: {
-        [key: string]: string;
-    };
-    /**
-     * Source revision identifier used to fetch the authored source files
-     */
-    sourceRevisionId: string;
-    /**
-     * Deterministic hash of the authored source tree
-     */
-    treeHash: string;
-    /**
-     * ID of the manifest associated with this authoring state
-     */
-    manifestId?: string;
-    /**
-     * SHA-256 hash of the canonical manifest content for this authoring state
-     */
-    manifestContentHash?: string;
-    /**
-     * The board manifest data (null if no manifest is associated)
-     */
-    manifest?: BoardManifest;
-    /**
-     * ID of the game rule associated with this authoring state
-     */
-    ruleId?: string;
-    /**
-     * The game rules text content (null if no rule is associated)
-     */
-    ruleText?: string;
-};
-
-/**
- * Request options for dynamic scaffold generation.
- */
-export type DynamicScaffoldRequest = {
-    /**
-     * Manifest ID to scaffold from
-     */
-    manifestId: string;
-    /**
-     * Optional rule ID for generators that use rule context.
-     */
-    ruleId?: string;
-    /**
-     * Generation profile.
-     */
-    mode: 'new' | 'update';
-    /**
-     * Advisory metadata for clients indicating seed write policy preference.
-     */
-    seedMissingOnly?: boolean;
-    /**
-     * Optional template version pinning request.
-     */
-    templateVersion?: string;
-};
-
-/**
- * Metadata describing the dynamic scaffold generation run.
- */
-export type DynamicScaffoldMetadata = {
-    /**
-     * ISO timestamp when files were generated.
-     */
-    generatedAt: string;
-    /**
-     * Template version used for generation.
-     */
-    templateVersion: string;
-    /**
-     * List of phase names in the manifest at generation time.
-     */
-    phaseNames: Array<string>;
-    /**
-     * Optional deprecation notices for generated output.
-     */
-    deprecations?: Array<string>;
-};
-
-/**
- * Response containing generated files and seed files with explicit ownership split.
- */
-export type DynamicScaffoldResponse = {
-    /**
-     * Dynamic generated files that should always be replaced by clients.
-     */
-    generatedFiles: {
-        [key: string]: string;
-    };
-    /**
-     * Dynamic seed files that should only be written when missing/empty unless forced.
-     */
-    seedFiles: {
-        [key: string]: string;
-    };
-    metadata: DynamicScaffoldMetadata;
 };
 
 /**
@@ -1434,9 +1888,13 @@ export type SourceFileUpsert = {
      */
     path: string;
     /**
-     * UTF-8 file content for the authored source file.
+     * SHA-256 hash of the UTF-8 file content stored in the blob store.
      */
-    content: string;
+    contentHash: string;
+    /**
+     * Size of the UTF-8 file content in bytes.
+     */
+    byteSize: number;
 };
 
 /**
@@ -1472,295 +1930,38 @@ export type CreateSourceRevisionRequest = {
 };
 
 /**
- * Immutable authored source revision for a game.
+ * Request to reuse or create a private dev compilation for an exact local workspace fingerprint.
  */
-export type SourceRevision = {
+export type EnsureDevCompileRequest = {
     /**
-     * Source revision identifier
+     * Client-computed deterministic fingerprint of the compile-relevant local workspace inputs.
      */
-    id: string;
+    devFingerprint: string;
     /**
-     * Game identifier
+     * Dreamboard environment the dev compile targets.
      */
-    gameId: string;
+    env: string;
+    sourceRevision: CreateSourceRevisionRequest;
     /**
-     * User who created the source revision
-     */
-    userId: string;
-    /**
-     * Parent source revision identifier
-     */
-    parentSourceRevisionId?: string;
-    /**
-     * Deterministic hash of the authored source tree
-     */
-    treeHash: string;
-    /**
-     * Number of authored files stored in this revision
-     */
-    fileCount: number;
-    /**
-     * Revision creation timestamp
-     */
-    createdAt: string;
-};
-
-/**
- * Immutable authored workspace checkpoint tying together rule, manifest, and source revision.
- */
-export type AuthoringState = {
-    /**
-     * Authoring state identifier
-     */
-    authoringStateId: string;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * User who created this authoring state
-     */
-    userId: string;
-    /**
-     * Parent authoring state identifier
-     */
-    parentAuthoringStateId?: string;
-    /**
-     * Source revision identifier
-     */
-    sourceRevisionId: string;
-    /**
-     * Deterministic hash of the authored source tree
-     */
-    sourceTreeHash: string;
-    /**
-     * Manifest identifier
-     */
-    manifestId: string;
-    /**
-     * SHA-256 hash of the canonical manifest content
-     */
-    manifestContentHash: string;
-    /**
-     * Rule identifier
-     */
-    ruleId: string;
-    /**
-     * Authoring state creation timestamp
-     */
-    createdAt: string;
-};
-
-/**
- * Advance the current authoring head to a new immutable state.
- */
-export type CreateAuthoringStateRequest = {
-    /**
-     * Expected current authoring head before advancing. Required once a head exists.
-     */
-    baseAuthoringStateId?: string;
-    /**
-     * Source revision for the next authored state
-     */
-    sourceRevisionId: string;
-    /**
-     * Deterministic hash of the authored source tree for the next state
-     */
-    sourceTreeHash: string;
-    /**
-     * Manifest identifier for the next state
-     */
-    manifestId: string;
-    /**
-     * SHA-256 hash of the canonical manifest content for the next state
-     */
-    manifestContentHash: string;
-    /**
-     * Rule identifier for the next state
-     */
-    ruleId: string;
-};
-
-export type GameScriptsResponse = {
-    /**
-     * List of compiled app (game logic) scripts
-     */
-    appScripts: Array<CompiledResult>;
-    /**
-     * List of compiled UI scripts
-     */
-    uiScripts: Array<CompiledResult>;
-};
-
-export type GameRuleSummaryDto = {
-    /**
-     * Unique identifier for this rule version
-     */
-    ruleId: string;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * User who created this version
-     */
-    userId: string;
-    /**
-     * Version number for this game's rules
-     */
-    version: number;
-    /**
-     * When this version was created
-     */
-    createdAt: string;
-    /**
-     * Preview snippet of the rule text (first 200 characters)
-     */
-    preview?: string;
-};
-
-/**
- * Scripts context with pre-selected defaults for agent chat
- */
-export type AgentChatScriptsContext = {
-    /**
-     * List of compiled app (game logic) scripts
-     */
-    appScripts: Array<CompiledResult>;
-    /**
-     * Pre-selected app script ID
-     */
-    currentAppScriptId?: string;
-};
-
-/**
- * Combined response containing all initial data for the agent chat page
- */
-export type AgentChatContextResponse = {
-    /**
-     * All game rules sorted by version descending
-     */
-    rules: Array<GameRuleSummaryDto>;
-    /**
-     * Pre-selected rule ID (latest version)
-     */
-    currentRuleId?: string;
-    /**
-     * Manifests for the current rule
-     */
-    manifests: Array<GameManifestSummaryDto>;
-    /**
-     * Pre-selected manifest ID
-     */
-    currentManifestId?: string;
-    /**
-     * Scripts for the current manifest
-     */
-    scripts?: AgentChatScriptsContext;
-};
-
-/**
- * Type of agent job
- */
-export type AgentJobType = 'APP_BUILD' | 'UI_BUILD' | 'COMPILED_RESULT_BUILD' | 'MODAL_SANDBOX';
-
-/**
- * Status of an agent job
- */
-export type AgentJobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'INTERRUPTED';
-
-/**
- * Information about an active agent job
- */
-export type ActiveJobInfo = {
-    /**
-     * Unique identifier for the job
-     */
-    jobId: string;
-    /**
-     * The conversation this job belongs to, if any
-     */
-    conversationId?: string;
-    jobType: AgentJobType;
-    status: AgentJobStatus;
-    /**
-     * When the job was created
-     */
-    createdAt: string;
-    /**
-     * When the job started running
-     */
-    startedAt?: string;
-};
-
-/**
- * Response containing the active job for a game, if any
- */
-export type ActiveJobResponse = {
-    /**
-     * The active job, or null if no job is currently running
-     */
-    activeJob?: ActiveJobInfo;
-    /**
-     * True if there is an active job for this game
-     */
-    hasActiveJob: boolean;
-};
-
-export type ListGameRulesResponse = {
-    /**
-     * List of game rule versions, ordered by version descending (newest first)
-     */
-    rules: Array<GameRuleSummaryDto>;
-};
-
-export type CreateGameRuleRequest = {
-    /**
-     * The game rules text content
+     * Current local rule text for cache misses.
      */
     ruleText: string;
+    manifest: GameTopologyManifest;
 };
 
-export type CreateGameRuleResponse = {
+/**
+ * Response for a fingerprint-backed dev compile ensure request.
+ */
+export type EnsureDevCompileResponse = {
     /**
-     * Unique identifier for the created rule version
+     * Whether an existing successful dev compiled result was reused.
      */
-    ruleId: string;
+    reused: boolean;
+    compiledResult?: CompiledResult;
     /**
-     * Auto-incremented version number for this game
+     * Compile job identifier when a new dev compile was queued.
      */
-    version: number;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-};
-
-export type GameRule = {
-    /**
-     * Unique identifier for this rule version
-     */
-    ruleId: string;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * User who created this version
-     */
-    userId: string;
-    /**
-     * The game rules text content
-     */
-    ruleText: string;
-    /**
-     * Version number for this game's rules
-     */
-    version: number;
-    /**
-     * When this version was created
-     */
-    createdAt: string;
+    jobId?: string;
 };
 
 export type CreateSessionRequest = {
@@ -1780,7 +1981,71 @@ export type CreateSessionRequest = {
      * If true, assign all seats to the host user (skips lobby seat assignment)
      */
     autoAssignSeats?: boolean;
+    /**
+     * Optional authored setup profile to apply when creating the session
+     */
+    setupProfileId?: string;
 };
+
+/**
+ * Authenticated user acting in a session.
+ */
+export type SessionActorAuthUser = {
+    kind: 'AUTH_USER';
+    /**
+     * Internal user id
+     */
+    id: string;
+};
+
+/**
+ * Anonymous demo principal for one demo_sessions row (shared across tabs).
+ */
+export type SessionActorDemoGuest = {
+    kind: 'DEMO_GUEST';
+    /**
+     * demo_sessions.id
+     */
+    demoActorSessionId: string;
+};
+
+/**
+ * Machine-owned performance run actor for benchmark-created sessions.
+ */
+export type SessionActorPerfOperator = {
+    kind: 'PERF_OPERATOR';
+    /**
+     * perf_runs.run_id
+     */
+    perfRunId: string;
+};
+
+export type SessionActor = ({
+    kind: 'AUTH_USER';
+} & SessionActorAuthUser) | ({
+    kind: 'DEMO_GUEST';
+} & SessionActorDemoGuest) | ({
+    kind: 'PERF_OPERATOR';
+} & SessionActorPerfOperator);
+
+export type SessionGameSourceUserCompiled = {
+    kind: 'USER_COMPILED';
+    projectId: string;
+    revisionDigest: string;
+    compiledResultId: string;
+};
+
+export type SessionGameSourceDemoRevision = {
+    kind: 'DEMO_REVISION';
+    slug: string;
+    revisionId: string;
+};
+
+export type SessionGameSource = ({
+    kind: 'USER_COMPILED';
+} & SessionGameSourceUserCompiled) | ({
+    kind: 'DEMO_REVISION';
+} & SessionGameSourceDemoRevision);
 
 export type CreateSessionResponse = {
     /**
@@ -1791,1423 +2056,129 @@ export type CreateSessionResponse = {
      * Memorable short code for sharing (e.g., 'swift-falcon-73')
      */
     shortCode: string;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * User ID of the session host
-     */
-    hostUserId: string;
-};
-
-export type SeatAssignment = {
-    /**
-     * Player identifier (e.g., 'player-1')
-     */
-    playerId: string;
-    /**
-     * User ID assigned to this seat (null if empty)
-     */
-    controllerUserId?: string;
-    /**
-     * Display name for this seat/player
-     */
-    displayName: string;
-    /**
-     * Hex color code for the player (e.g., '#FF5733')
-     */
-    playerColor?: string;
-    /**
-     * Whether this seat is the host
-     */
-    isHost?: boolean;
+    hostActor: SessionActor;
+    gameSource: SessionGameSource;
 };
 
 /**
- * Complete session status including all fields needed by the frontend. Player IDs are provided via GAME_STARTED SSE message.
+ * Response containing authored source files resolved through the current project revision.
  */
-export type SessionStatus = {
+export type GameSourcesResponse = {
     /**
-     * Unique identifier for the session
+     * Current game revision identifier
      */
-    sessionId: string;
+    gameRevisionId: string;
     /**
-     * Memorable short code for sharing (e.g., 'swift-falcon-73')
+     * Portable digest for the current game revision
      */
-    shortCode: string;
+    revisionDigest: string;
     /**
-     * Unique identifier for the game definition
+     * Map of file path to file content (e.g., 'App.tsx' -> 'export ...')
      */
-    gameId: string;
-    /**
-     * User ID of the session host
-     */
-    hostUserId: string;
-    /**
-     * Overall session status
-     */
-    status: 'active' | 'ended';
-    /**
-     * Current phase of the session
-     */
-    phase: 'lobby' | 'gameplay' | 'ended';
-    /**
-     * Current seat assignments (populated in lobby phase)
-     */
-    seats: Array<SeatAssignment>;
-    /**
-     * Whether the game can be started (all required seats filled)
-     */
-    canStart: boolean;
-};
-
-/**
- * Card information including type and properties
- */
-export type CardInfo = {
-    /**
-     * Card type identifier matching a card set in the manifest
-     */
-    cardType: string;
-    /**
-     * The card set ID this card was created from (e.g., 'standard_52_deck')
-     */
-    cardSetId: string;
-    /**
-     * Display name for the card
-     */
-    cardName?: string;
-    /**
-     * Optional rules text or description
-     */
-    description?: string;
-    /**
-     * JSON-serialized custom properties specific to this game's cards as defined by the game's BoardManifest card set schemas
-     */
-    properties: string;
-};
-
-/**
- * State of a hex tile on a hex board
- */
-export type SimpleHexTileState = {
-    /**
-     * Unique tile identifier
-     */
-    id: string;
-    /**
-     * Axial coordinate Q
-     */
-    q: number;
-    /**
-     * Axial coordinate R
-     */
-    r: number;
-    /**
-     * Tile type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Display label on the tile
-     */
-    label?: string;
-    /**
-     * Player ID who owns this tile
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * State of an edge between two hex tiles (e.g., roads in Catan)
- */
-export type SimpleHexEdgeState = {
-    /**
-     * Unique edge identifier
-     */
-    id: string;
-    /**
-     * First hex tile ID this edge borders
-     */
-    hex1: string;
-    /**
-     * Second hex tile ID this edge borders
-     */
-    hex2: string;
-    /**
-     * Edge type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Player ID who owns this edge
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * State of a vertex where three hex tiles meet (e.g., settlements in Catan)
- */
-export type SimpleHexVertexState = {
-    /**
-     * Unique vertex identifier
-     */
-    id: string;
-    /**
-     * The three hex tile IDs this vertex touches
-     */
-    hexes: [
-        string,
-        string,
-        string
-    ];
-    /**
-     * Vertex type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Player ID who owns this vertex
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * Complete state of a hex board
- */
-export type SimpleHexBoardState = {
-    /**
-     * Unique board identifier
-     */
-    id: string;
-    /**
-     * All tiles on the board
-     */
-    tiles: Array<SimpleHexTileState>;
-    /**
-     * All edges on the board
-     */
-    edges: Array<SimpleHexEdgeState>;
-    /**
-     * All vertices on the board
-     */
-    vertices: Array<SimpleHexVertexState>;
-};
-
-/**
- * State of a node in a network graph board
- */
-export type SimpleNetworkNodeState = {
-    /**
-     * Unique node identifier
-     */
-    id: string;
-    /**
-     * X coordinate position
-     */
-    x: number;
-    /**
-     * Y coordinate position
-     */
-    y: number;
-    /**
-     * Node type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Display label on the node
-     */
-    label?: string;
-    /**
-     * Player ID who owns this node
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * State of an edge connecting two nodes in a network graph
- */
-export type SimpleNetworkEdgeState = {
-    /**
-     * Unique edge identifier
-     */
-    id: string;
-    /**
-     * Source node ID
-     */
-    from: string;
-    /**
-     * Target node ID
-     */
-    to: string;
-    /**
-     * Edge type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Display label on the edge
-     */
-    label?: string;
-    /**
-     * Player ID who owns this edge
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * State of a piece placed on a network node
- */
-export type SimpleNetworkPieceState = {
-    /**
-     * Unique piece identifier
-     */
-    id: string;
-    /**
-     * ID of the node this piece is on
-     */
-    nodeId: string;
-    /**
-     * Piece type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Player ID who owns this piece
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * Complete state of a network graph board
- */
-export type SimpleNetworkBoardState = {
-    /**
-     * Unique board identifier
-     */
-    id: string;
-    /**
-     * All nodes on the board
-     */
-    nodes: Array<SimpleNetworkNodeState>;
-    /**
-     * All edges on the board
-     */
-    edges: Array<SimpleNetworkEdgeState>;
-    /**
-     * All pieces on the board
-     */
-    pieces: Array<SimpleNetworkPieceState>;
-};
-
-/**
- * State of a cell on a square grid board
- */
-export type SimpleSquareCellState = {
-    /**
-     * Row index (0-based)
-     */
-    row: number;
-    /**
-     * Column index (0-based)
-     */
-    col: number;
-    /**
-     * Cell type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Player ID who owns this cell
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * State of a piece on a square grid board
- */
-export type SimpleSquarePieceState = {
-    /**
-     * Unique piece identifier
-     */
-    id: string;
-    /**
-     * Row index where piece is located
-     */
-    row: number;
-    /**
-     * Column index where piece is located
-     */
-    col: number;
-    /**
-     * Piece type identifier for rendering
-     */
-    typeId: string;
-    /**
-     * Player ID who owns this piece
-     */
-    owner?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * Complete state of a square grid board
- */
-export type SimpleSquareBoardState = {
-    /**
-     * Unique board identifier
-     */
-    id: string;
-    /**
-     * Number of rows in the grid
-     */
-    rows: number;
-    /**
-     * Number of columns in the grid
-     */
-    cols: number;
-    /**
-     * All cells with non-default state
-     */
-    cells: Array<SimpleSquareCellState>;
-    /**
-     * All pieces on the board
-     */
-    pieces: Array<SimpleSquarePieceState>;
-};
-
-/**
- * State of a space on a track board (e.g., Monopoly board spaces)
- */
-export type SimpleTrackSpaceState = {
-    /**
-     * Unique space identifier
-     */
-    id: string;
-    /**
-     * Position index in the track sequence
-     */
-    index: number;
-    /**
-     * X coordinate for rendering
-     */
-    x: number;
-    /**
-     * Y coordinate for rendering
-     */
-    y: number;
-    /**
-     * Display name of the space
-     */
-    name?: string;
-    /**
-     * Space type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * Player ID who owns this space
-     */
-    owner?: string;
-    /**
-     * IDs of spaces that can be reached from here (for branching tracks)
-     */
-    nextSpaces?: Array<string>;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * State of a piece on a track board
- */
-export type SimpleTrackPieceState = {
-    /**
-     * Unique piece identifier
-     */
-    id: string;
-    /**
-     * ID of the space this piece occupies
-     */
-    spaceId: string;
-    /**
-     * Player ID who owns this piece
-     */
-    owner: string;
-    /**
-     * Piece type identifier for rendering
-     */
-    typeId?: string;
-    /**
-     * JSON-serialized custom properties
-     */
-    properties?: string;
-};
-
-/**
- * Complete state of a track board
- */
-export type SimpleTrackBoardState = {
-    /**
-     * Unique board identifier
-     */
-    id: string;
-    /**
-     * All spaces on the track
-     */
-    spaces: Array<SimpleTrackSpaceState>;
-    /**
-     * All pieces on the board
-     */
-    pieces: Array<SimpleTrackPieceState>;
-};
-
-/**
- * Container for all board states organized by type
- */
-export type SimpleBoardStates = {
-    /**
-     * Map of board IDs to hex board states (e.g., Catan, Hive)
-     */
-    hex: {
-        [key: string]: SimpleHexBoardState;
-    };
-    /**
-     * Map of board IDs to network board states (e.g., Ticket to Ride)
-     */
-    network: {
-        [key: string]: SimpleNetworkBoardState;
-    };
-    /**
-     * Map of board IDs to square grid board states (e.g., Chess, Go)
-     */
-    square: {
-        [key: string]: SimpleSquareBoardState;
-    };
-    /**
-     * Map of board IDs to track board states (e.g., Monopoly)
-     */
-    track: {
-        [key: string]: SimpleTrackBoardState;
-    };
-};
-
-/**
- * State of a die component
- */
-export type SimpleDieState = {
-    /**
-     * Unique die identifier
-     */
-    id: string;
-    /**
-     * Number of sides on the die (e.g., 6 for standard die)
-     */
-    sides: number;
-    /**
-     * Current face value (1 to sides, null if not rolled)
-     */
-    currentValue?: number;
-    /**
-     * Optional color for visual identification
-     */
-    color?: string;
-};
-
-/**
- * Simplified game state for API responses
- */
-export type SimpleGameState = {
-    /**
-     * IDs of all currently active players (supports MULTIPLE_ACTIVE_PLAYER states)
-     */
-    currentPlayerIds: Array<string>;
-    /**
-     * Map of deck IDs to array of card IDs (arrays are always present, never null)
-     */
-    decks: {
-        [key: string]: Array<string>;
-    };
-    /**
-     * Nested map of playerId -> handId -> card IDs. Frontend extracts only the controlling player's hands.
-     */
-    hands: {
-        [key: string]: {
-            [key: string]: Array<string>;
-        };
-    };
-    /**
-     * Public hands grouped by hand ID then player ID.
-     */
-    publicHands: {
-        [key: string]: {
-            [key: string]: Array<string>;
-        };
-    };
-    /**
-     * Map of card IDs to their card info including type and properties
-     */
-    cards: {
-        [key: string]: CardInfo;
-    };
-    /**
-     * JSON-serialized global game variables as defined in manifest variableSchema.globalVariableSchema
-     */
-    globalVariables: string;
-    /**
-     * JSON-serialized map of player IDs to their variables as defined in manifest variableSchema.playerVariableSchema
-     */
-    playerVariables: string;
-    /**
-     * JSON-serialized map of player IDs to their resource amounts (resourceId -> amount)
-     */
-    playerResources?: string;
-    /**
-     * Current state in the game's state machine
-     */
-    currentState: string;
-    /**
-     * Whether it is the current user's turn
-     */
-    isMyTurn: boolean;
-    /**
-     * Map of player ID to JSON-serialized UI arguments for each controlled player
-     */
-    uiArgs?: {
+    files: {
         [key: string]: string;
     };
     /**
-     * Container for all board states organized by type
+     * Source revision identifier used to fetch the authored source files
      */
-    boards: SimpleBoardStates;
+    sourceRevisionId: string;
     /**
-     * Map of die IDs to their current state
+     * Deterministic hash of the authored source tree
      */
-    dice: {
-        [key: string]: SimpleDieState;
-    };
+    treeHash: string;
+    /**
+     * SHA-256 hash of the canonical manifest content for this game revision
+     */
+    manifestContentHash: string;
+    /**
+     * The board manifest data
+     */
+    manifest: GameTopologyManifest;
+    /**
+     * The game rules text content
+     */
+    ruleText: string;
 };
 
-export type GameStartedMessage = {
-    type: 'GAME_STARTED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    gameState: SimpleGameState;
-    /**
-     * Player IDs of currently active players
-     */
-    activePlayers: Array<string>;
-    /**
-     * Player IDs that this user can control in this session
-     */
-    controllablePlayerIds: Array<string>;
+export type UserProjectSource = {
+    kind: 'USER_PROJECT';
+    projectId: string;
+    revisionDigest: string;
 };
 
-export type YourTurnMessage = {
-    type: 'YOUR_TURN';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * List of action definitions available to the player
-     */
-    availableActions: Array<ActionDefinition>;
-    gameState: SimpleGameState;
-    /**
-     * Player IDs whose turn it is
-     */
-    activePlayers: Array<string>;
+export type UserProjectDraftSource = {
+    kind: 'USER_PROJECT_DRAFT';
+    projectId: string;
 };
+
+export type BundledDemoSource = {
+    kind: 'BUNDLED_DEMO';
+    demoSlug: string;
+    releaseDigest: string;
+};
+
+export type GameSource = ({
+    kind: 'USER_PROJECT';
+} & UserProjectSource) | ({
+    kind: 'USER_PROJECT_DRAFT';
+} & UserProjectDraftSource) | ({
+    kind: 'BUNDLED_DEMO';
+} & BundledDemoSource);
 
 /**
- * Represents a player action with type and parameters
+ * Type of async backend job
  */
-export type GameAction = {
-    /**
-     * Action type identifier from manifest availableActions
-     */
-    actionType: string;
-    /**
-     * JSON-serialized parameters specific to this action
-     */
-    parameters: string;
-};
-
-export type ActionExecutedMessage = {
-    type: 'ACTION_EXECUTED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Player ID who executed the action
-     */
-    playerId: string;
-    action: GameAction;
-    newState: SimpleGameState;
-};
-
-export type ActionRejectedMessage = {
-    type: 'ACTION_REJECTED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Reason why the action was rejected
-     */
-    reason: string;
-    /**
-     * Machine-readable error code from game logic validation
-     */
-    errorCode?: string;
-    /**
-     * Player ID whose action was rejected
-     */
-    targetPlayer?: string;
-};
-
-export type TurnChangedMessage = {
-    type: 'TURN_CHANGED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Player IDs of the previous active players
-     */
-    previousPlayers: Array<string>;
-    /**
-     * Player IDs of the current active players
-     */
-    currentPlayers: Array<string>;
-};
-
-export type GameEndedMessage = {
-    type: 'GAME_ENDED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Player ID of the winner (if any)
-     */
-    winner?: string;
-    /**
-     * Map of player IDs to their final scores
-     */
-    finalScores: {
-        [key: string]: number;
-    };
-    /**
-     * Reason for game ending
-     */
-    reason: string;
-};
-
-export type StateUpdateMessage = {
-    type: 'STATE_UPDATE';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    gameState: SimpleGameState;
-    /**
-     * Current game phase
-     */
-    phase: string;
-};
-
-export type StateChangedMessage = {
-    type: 'STATE_CHANGED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Name of the new state
-     */
-    newState: string;
-};
-
-export type AvailableActionsMessage = {
-    type: 'AVAILABLE_ACTIONS';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Player ID for whom actions are available
-     */
-    playerId: string;
-    /**
-     * List of available game actions
-     */
-    actions: Array<GameAction>;
-};
-
-export type ErrorMessage = {
-    type: 'ERROR';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Error message
-     */
-    message: string;
-    /**
-     * Error code
-     */
-    code?: string;
-};
-
-export type LobbyUpdateMessage = {
-    type: 'LOBBY_UPDATE';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * Current seat assignments in the lobby
-     */
-    seats: Array<SeatAssignment>;
-    /**
-     * Whether the game can be started
-     */
-    canStart: boolean;
-    /**
-     * User ID of the session host
-     */
-    hostUserId: string;
-};
+export type JobKind = 'GAME_BUILD' | 'COMPILE' | 'PREVIEW_SCREENSHOT';
 
 /**
- * Summary of a game state history entry
+ * Status of an async backend job
  */
-export type HistoryEntrySummary = {
-    /**
-     * Unique identifier for this history entry
-     */
-    id: string;
-    /**
-     * Event store version number
-     */
-    version: number;
-    /**
-     * When this snapshot was created
-     */
-    timestamp: string;
-    /**
-     * Human-readable description of the action
-     */
-    description: string;
-    /**
-     * Player who performed the action
-     */
-    playerId?: string;
-    /**
-     * Type of action that triggered this snapshot
-     */
-    actionType?: string;
-    /**
-     * Whether this is the current game state
-     */
-    isCurrent: boolean;
-};
+export type JobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'INTERRUPTED';
 
 /**
- * Sent to host when history entries change
+ * Summary information about an async backend job
  */
-export type HistoryUpdatedMessage = {
-    type: 'HISTORY_UPDATED';
+export type JobSummary = {
     /**
-     * User ID this message is addressed to (host only)
+     * Unique identifier for the job
      */
-    toUser: string;
+    jobId: string;
+    source: GameSource;
+    kind: JobKind;
+    status: JobStatus;
     /**
-     * List of history entries
-     */
-    entries: Array<HistoryEntrySummary>;
-    /**
-     * Index of the current state in the history
-     */
-    currentIndex: number;
-    /**
-     * Whether there are earlier states to restore to
-     */
-    canGoBack: boolean;
-    /**
-     * Whether there are later states to restore to
-     */
-    canGoForward: boolean;
-};
-
-/**
- * Sent to all users when game state is restored from history
- */
-export type HistoryRestoredMessage = {
-    type: 'HISTORY_RESTORED';
-    /**
-     * User ID this message is addressed to
-     */
-    toUser: string;
-    /**
-     * The version number that was restored to
-     */
-    restoredToVersion: number;
-    /**
-     * The restored game state
-     */
-    gameState: SimpleGameState;
-    /**
-     * Description of the restored point
-     */
-    description?: string;
-};
-
-export type GameMessage = ({
-    type: 'GAME_STARTED';
-} & GameStartedMessage) | ({
-    type: 'YOUR_TURN';
-} & YourTurnMessage) | ({
-    type: 'ACTION_EXECUTED';
-} & ActionExecutedMessage) | ({
-    type: 'ACTION_REJECTED';
-} & ActionRejectedMessage) | ({
-    type: 'TURN_CHANGED';
-} & TurnChangedMessage) | ({
-    type: 'GAME_ENDED';
-} & GameEndedMessage) | ({
-    type: 'STATE_UPDATE';
-} & StateUpdateMessage) | ({
-    type: 'STATE_CHANGED';
-} & StateChangedMessage) | ({
-    type: 'AVAILABLE_ACTIONS';
-} & AvailableActionsMessage) | ({
-    type: 'ERROR';
-} & ErrorMessage) | ({
-    type: 'LOBBY_UPDATE';
-} & LobbyUpdateMessage) | ({
-    type: 'HISTORY_UPDATED';
-} & HistoryUpdatedMessage) | ({
-    type: 'HISTORY_RESTORED';
-} & HistoryRestoredMessage);
-
-/**
- * Log entry from the game engine console output
- */
-export type LogMessageDto = {
-    /**
-     * Unique identifier for the log entry
-     */
-    id: number;
-    /**
-     * Type of log entry (e.g., STDOUT, STDERR)
-     */
-    type: string;
-    /**
-     * The log message content
-     */
-    message: string;
-    /**
-     * ISO 8601 timestamp of when the log was recorded
-     */
-    timestamp: string;
-};
-
-/**
- * Response containing gameplay session data after starting the game. Player IDs are sent via GAME_STARTED SSE message.
- */
-export type StartGameResponse = {
-    /**
-     * Unique identifier for the game session
-     */
-    sessionId: string;
-    /**
-     * Unique identifier for the game
-     */
-    gameId: string;
-    /**
-     * Memorable short code for the session (e.g., 'swift-falcon-73'). Can be used to construct the play URL.
-     */
-    shortCode: string;
-};
-
-export type SubmitActionRequest = {
-    /**
-     * Player identifier submitting the action
-     */
-    playerId: string;
-    /**
-     * Type of action being performed
-     */
-    actionType: string;
-    /**
-     * JSON-serialized action parameters
-     */
-    parameters: string;
-};
-
-export type SubmitActionResponse = {
-    /**
-     * Whether the action was successfully submitted
-     */
-    success: boolean;
-};
-
-/**
- * Request to validate a player action before submitting
- */
-export type ValidateActionRequest = {
-    /**
-     * Player identifier submitting the action
-     */
-    playerId: string;
-    /**
-     * Type of action being validated
-     */
-    actionType: string;
-    /**
-     * JSON-serialized action parameters
-     */
-    parameters: string;
-};
-
-/**
- * Result of action validation
- */
-export type ValidateActionResponse = {
-    /**
-     * Whether the action is valid
-     */
-    valid: boolean;
-    /**
-     * Machine-readable error code if validation failed
-     */
-    errorCode?: string;
-    /**
-     * Human-readable error message if validation failed
-     */
-    message?: string;
-};
-
-/**
- * Request to update seat settings (display name and/or player color)
- */
-export type UpdateSeatRequest = {
-    /**
-     * New display name for the player
-     */
-    displayName?: string;
-    /**
-     * Hex color code for the player (e.g., '#FF5733')
-     */
-    playerColor?: string;
-};
-
-/**
- * Request to restore game state to a previous history point
- */
-export type RestoreHistoryRequest = {
-    /**
-     * ID of the history entry to restore to
-     */
-    entryId: string;
-};
-
-/**
- * Response after restoring game state from history
- */
-export type RestoreHistoryResponse = {
-    /**
-     * Whether the restore operation succeeded
-     */
-    success: boolean;
-    /**
-     * The version number that was restored to
-     */
-    restoredToVersion: number;
-    /**
-     * Optional message about the restore operation
-     */
-    message?: string;
-};
-
-/**
- * Event representing a user's message in the conversation
- */
-export type UserMessageEvent = {
-    type: 'userMessage';
-    /**
-     * Unique identifier for this message
-     */
-    messageId: string;
-    /**
-     * The user's message content
-     */
-    content: string;
-    /**
-     * When the message was created
-     */
-    createdAt?: string;
-};
-
-/**
- * Progress update containing the LLM's reasoning/thinking content
- */
-export type ReasoningProgress = {
-    type: 'reasoning';
-    /**
-     * Incremental reasoning/thinking text to append to the current message
-     */
-    reason: string;
-    /**
-     * Incremental text change (the new text since the last event for this part)
-     */
-    delta?: string;
-    /**
-     * Unique identifier for this message section (stable across streaming updates)
-     */
-    messageId: string;
-    /**
-     * Name of the agent emitting this event
-     */
-    agentName?: string;
-};
-
-/**
- * Tool call is queued but not yet executing
- */
-export type ToolCallPendingState = {
-    status: 'pending';
-    /**
-     * JSON-serialized input parameters
-     */
-    input?: string;
-};
-
-/**
- * Tool call is currently executing
- */
-export type ToolCallRunningState = {
-    status: 'running';
-    /**
-     * JSON-serialized input parameters
-     */
-    input?: string;
-    /**
-     * Human-readable title of the operation
-     */
-    title?: string;
-    /**
-     * JSON-serialized metadata map
-     */
-    metadata?: string;
-};
-
-/**
- * Tool call finished successfully
- */
-export type ToolCallCompletedState = {
-    status: 'completed';
-    /**
-     * JSON-serialized input parameters
-     */
-    input?: string;
-    /**
-     * Output/result returned by the tool
-     */
-    output: string;
-    /**
-     * Human-readable title of the operation
+     * User-facing job title
      */
     title: string;
     /**
-     * Execution duration in milliseconds
-     */
-    durationMs?: number;
-    /**
-     * JSON-serialized metadata map
-     */
-    metadata?: string;
-};
-
-/**
- * Tool call failed with an error
- */
-export type ToolCallErrorState = {
-    status: 'error';
-    /**
-     * JSON-serialized input parameters
-     */
-    input?: string;
-    /**
-     * Error message from the tool
-     */
-    error: string;
-    /**
-     * Execution duration in milliseconds
-     */
-    durationMs?: number;
-    /**
-     * JSON-serialized metadata map
-     */
-    metadata?: string;
-};
-
-export type ToolCallState = ({
-    status: 'pending';
-} & ToolCallPendingState) | ({
-    status: 'running';
-} & ToolCallRunningState) | ({
-    status: 'completed';
-} & ToolCallCompletedState) | ({
-    status: 'error';
-} & ToolCallErrorState);
-
-/**
- * Progress update for a tool call with full lifecycle tracking
- */
-export type ToolCallProgress = {
-    type: 'toolCall';
-    /**
-     * Name of the tool being called
-     */
-    toolName: string;
-    /**
-     * Unique identifier for this specific tool call invocation
-     */
-    toolCallId?: string;
-    state?: ToolCallState;
-    /**
-     * Unique identifier for this message section
-     */
-    messageId: string;
-    /**
-     * Name of the agent emitting this event
-     */
-    agentName?: string;
-};
-
-/**
- * Progress update containing the LLM's conversational response
- */
-export type UtteranceProgress = {
-    type: 'utterance';
-    /**
-     * Incremental conversational response text to append to the current message
-     */
-    utterance: string;
-    /**
-     * Incremental text change (the new text since the last event for this part)
-     */
-    delta?: string;
-    /**
-     * Unique identifier for this message section (stable across streaming updates)
-     */
-    messageId: string;
-    /**
-     * Name of the agent emitting this event
-     */
-    agentName?: string;
-};
-
-/**
- * Error event emitted when an agent encounters an error
- */
-export type ErrorProgress = {
-    type: 'error';
-    /**
-     * Human-readable error message
-     */
-    message: string;
-    /**
-     * Specific error type classification (e.g., 'ProviderAuthError', 'APIError', 'MessageAbortedError')
-     */
-    errorType?: string;
-    /**
-     * Additional error details
-     */
-    details?: Array<string>;
-    /**
-     * Unique identifier for this message section
-     */
-    messageId: string;
-    /**
-     * Name of the agent emitting this event
-     */
-    agentName?: string;
-};
-
-/**
- * Error event emitted when a tool execution fails
- */
-export type ToolExecutionErrorProgress = {
-    type: 'toolExecutionError';
-    /**
-     * Name of the tool that failed
-     */
-    toolName: string;
-    /**
-     * JSON-serialized input parameters that were passed to the tool
-     */
-    toolInput?: string;
-    /**
-     * Human-readable error message describing what went wrong
-     */
-    errorMessage: string;
-    /**
-     * Unique identifier for this message section
-     */
-    messageId: string;
-    /**
-     * Name of the agent emitting this event
-     */
-    agentName?: string;
-};
-
-/**
- * Signal that the agent has completed streaming. The messageId references the last streamed message for frontend correlation.
- */
-export type StreamCompleteProgress = {
-    type: 'streamComplete';
-    /**
-     * References the messageId of the last streamed message (ReasoningProgress or UtteranceProgress) so frontend can mark it as complete
-     */
-    messageId: string;
-    /**
-     * Name of the agent that completed
-     */
-    agentName?: string;
-    /**
-     * Whether the agent completed successfully
-     */
-    success?: boolean;
-};
-
-/**
- * Signal that the entire agent job has completed. This is the final event in the stream and indicates the SSE connection should be closed. Includes IDs of any artifacts created during the job for cache updates.
- */
-export type JobCompleteProgress = {
-    type: 'jobComplete';
-    /**
-     * The ID of the completed job
-     */
-    jobId: string;
-    /**
-     * Unique identifier for this message section (for consistency with other progress events)
-     */
-    messageId: string;
-    /**
-     * Whether the job completed successfully
-     */
-    success?: boolean;
-    /**
-     * ID of the rule created during this job (rule enhancement)
-     */
-    createdRuleId?: string;
-    /**
-     * ID of the manifest created during this job (manifest generation, orchestration)
-     */
-    createdManifestId?: string;
-    /**
-     * ID of the app script (CompiledResult) created during this job (app build, orchestration)
-     */
-    createdAppScriptId?: string;
-};
-
-/**
- * Signal that the agent job was cancelled by the user. This is a terminal event indicating the SSE connection should be closed.
- */
-export type JobCancelledProgress = {
-    type: 'jobCancelled';
-    /**
-     * The ID of the cancelled job
-     */
-    jobId: string;
-    /**
-     * Unique identifier for this message section (for consistency with other progress events)
-     */
-    messageId: string;
-};
-
-export type AgentProgressEvent = ({
-    type: 'userMessage';
-} & UserMessageEvent) | ({
-    type: 'reasoning';
-} & ReasoningProgress) | ({
-    type: 'toolCall';
-} & ToolCallProgress) | ({
-    type: 'utterance';
-} & UtteranceProgress) | ({
-    type: 'error';
-} & ErrorProgress) | ({
-    type: 'toolExecutionError';
-} & ToolExecutionErrorProgress) | ({
-    type: 'streamComplete';
-} & StreamCompleteProgress) | ({
-    type: 'jobComplete';
-} & JobCompleteProgress) | ({
-    type: 'jobCancelled';
-} & JobCancelledProgress);
-
-/**
- * Summary of a conversation for listing
- */
-export type ConversationSummary = {
-    /**
-     * Unique identifier for the conversation
-     */
-    conversationId: string;
-    /**
-     * Associated game ID if any
-     */
-    gameId?: string;
-    /**
-     * When the conversation was created
+     * When the job was created
      */
     createdAt: string;
     /**
-     * When the conversation was last modified
+     * When the job started running
      */
-    lastModifiedAt: string;
+    startedAt?: string;
 };
 
 /**
- * Response containing list of conversations
+ * Response containing the active job for a game, if any
  */
-export type ConversationsListResponse = {
-    conversations: Array<ConversationSummary>;
+export type ActiveJobResponse = {
+    /**
+     * The active job, or null if no job is currently running
+     */
+    activeJob?: JobSummary;
+    /**
+     * True if there is an active job for this game
+     */
+    hasActiveJob: boolean;
+};
+
+export type WorkshopRuleTextResponse = {
+    /**
+     * Extracted rulebook text from the first valid candidate.
+     */
+    ruleText: string;
 };
 
 /**
@@ -3231,23 +2202,50 @@ export type JobNumericMetrics = {
 };
 
 /**
- * Detailed information for an agent job
+ * Status of a user-facing job task
+ */
+export type JobTaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+/**
+ * User-facing task progress for an async job
+ */
+export type JobTaskSummary = {
+    /**
+     * Stable task key
+     */
+    taskKey: string;
+    /**
+     * User-facing task title
+     */
+    title: string;
+    status: JobTaskStatus;
+    /**
+     * Latest high-level status for the task
+     */
+    latestStatus?: string;
+    /**
+     * Display order
+     */
+    orderIndex: number;
+    startedAt?: string;
+    completedAt?: string;
+};
+
+/**
+ * Detailed information for an async backend job
  */
 export type JobDetailResponse = {
     /**
      * Unique identifier for the job
      */
     jobId: string;
+    source: GameSource;
+    kind: JobKind;
+    status: JobStatus;
     /**
-     * Unique identifier for the game
+     * User-facing job title
      */
-    gameId: string;
-    /**
-     * The conversation this job belongs to, if any
-     */
-    conversationId?: string;
-    jobType: AgentJobType;
-    status: AgentJobStatus;
+    title: string;
     /**
      * Error message if the job failed
      */
@@ -3265,7 +2263,7 @@ export type JobDetailResponse = {
      */
     completedAt?: string;
     /**
-     * Current compile phase for COMPILED_RESULT_BUILD jobs.
+     * Current compile phase for COMPILE jobs.
      */
     phase?: string;
     /**
@@ -3280,13 +2278,17 @@ export type JobDetailResponse = {
     timings?: JobNumericMetrics;
     memory?: JobNumericMetrics;
     /**
-     * Rule ID created by this job
+     * Current phase of a GAME_BUILD job (e.g. PREPARING_WORKSPACE, AGENT_RUNNING). Null for non-build jobs.
      */
-    createdRuleId?: string;
+    buildPhase?: string;
     /**
-     * Manifest ID created by this job
+     * Opaque identifier for the underlying agent run. Null until the agent has started.
      */
-    createdManifestId?: string;
+    agentRunId?: string;
+    /**
+     * Ordered user-facing task progress for this job.
+     */
+    tasks: Array<JobTaskSummary>;
     /**
      * App script (compiled result) ID created by this job
      */
@@ -3298,353 +2300,868 @@ export type JobDetailResponse = {
 };
 
 /**
- * Request to send a prompt/message to an OpenCode sandbox session
+ * Bounded long-poll response for async job progress snapshots.
  */
-export type SendSandboxMessageRequest = {
+export type JobEventBatchResponse = {
     /**
-     * The prompt or message to send to the sandbox
+     * Opaque cursor for the returned job snapshot version.
      */
-    message: string;
+    cursor: string;
+    /**
+     * Current job snapshot when the job changed or the caller has no cursor.
+     */
+    snapshot?: JobDetailResponse;
+    /**
+     * True when no job update arrived before the bounded wait elapsed.
+     */
+    timedOut: boolean;
 };
 
 /**
- * Response after sending a message to the sandbox
+ * Request to create a coding-agent game build run.
  */
-export type SendSandboxMessageResponse = {
+export type CreateGameRunRequest = {
+    gameSpec: GameSpecForm;
+    ruleText?: string;
     /**
-     * The message ID assigned by the OpenCode server
+     * Optional pointer to a previous COMPLETED build for the same game,
+     * signaling the runner should resume that build's provider agent
+     * session if it is still alive. The backend validates ownership
+     * and resolves the underlying provider agent identifier server-side;
+     * this id is never propagated through to the runner directly.
+     *
      */
-    messageId?: string;
+    parentJobId?: string;
+    /**
+     * Optional pointer to a previous terminal failed build attempt for the
+     * same game. Retrying creates a new immutable job attempt linked to the
+     * failed job while reusing the original game.
+     *
+     */
+    retryOfJobId?: string;
 };
 
 /**
- * Request to send a chat message to the sandbox. If no sandbox session exists
- * for this conversation, one is created automatically. If conversationId is not
- * provided, a new conversation is created.
- *
+ * Response for an accepted game build run.
  */
-export type SandboxChatRequest = {
-    /**
-     * Game ID to work with
-     */
-    gameId: string;
-    /**
-     * Optional conversation ID. If absent, a new conversation is created.
-     */
-    conversationId?: string;
-    /**
-     * The message to send to the sandbox
-     */
-    message: string;
-};
-
-/**
- * Response after sending a chat message to the sandbox
- */
-export type SandboxChatResponse = {
-    /**
-     * The conversation ID (newly created or existing)
-     */
-    conversationId: string;
-    /**
-     * The agent job ID for tracking
-     */
+export type CreateGameRunResponse = {
     jobId: string;
+    projectId: string;
+};
+
+export type AcceptGameRunStatus = 'ACCEPTING' | 'CONFLICTED';
+
+/**
+ * Response for an accepted agent build result request.
+ */
+export type AcceptGameRunResponse = {
+    status: AcceptGameRunStatus;
+    workJobId?: string;
 };
 
 /**
- * Request to abort a sandbox session
+ * Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
  */
-export type SandboxAbortRequest = {
+export type CreateSessionFromReducerSnapshotRequest = {
     /**
-     * The conversation ID whose sandbox to abort
+     * Compiled result ID that produced the reducer bundle used to create the snapshot.
      */
-    conversationId: string;
-};
-
-/**
- * Type of sandbox webhook progress event
- */
-export type SandboxWebhookEventType = 'reasoning' | 'utterance' | 'tool_call' | 'error' | 'complete';
-
-/**
- * The actual progress event data from the sandbox
- */
-export type SandboxWebhookProgressEvent = {
-    type: string;
-    messageId?: string;
-    agentName?: string;
-    reasoning?: string;
-    utterance?: string;
-    toolName?: string;
-    toolArgs?: {
+    compiledResultId: string;
+    /**
+     * Deterministic RNG seed associated with the generated base.
+     */
+    seed: number;
+    /**
+     * Number of players materialized in the reducer snapshot.
+     */
+    playerCount: number;
+    /**
+     * Authored setup profile associated with the generated base, if any.
+     */
+    setupProfileId?: string;
+    /**
+     * Generated base artifact id used to hydrate the reducer shadow.
+     */
+    baseId: string;
+    /**
+     * Scenario id materialized into this session.
+     */
+    scenarioId: string;
+    /**
+     * Final reducer-native session state after running scenario.when locally.
+     */
+    reducerState: {
+        [key: string]: unknown;
+    };
+    /**
+     * Reducer runtime version corresponding to reducerState.
+     */
+    reducerStateVersion: number;
+    /**
+     * CLI-computed fingerprint diagnostics for the generated base and scenario materialization.
+     */
+    fingerprintMetadata?: {
         [key: string]: string;
     };
-    message?: string;
-    details?: string;
 };
 
+export type SessionSnapshotPhase = 'lobby' | 'gameplay' | 'ended';
+
+export type HostSessionStatus = 'active' | 'ended';
+
 /**
- * Webhook payload sent by Modal Bridge for each agent progress event
+ * Summary of a game state history entry.
  */
-export type SandboxWebhookEventPayload = {
-    eventType: SandboxWebhookEventType;
-    /**
-     * Sandbox that generated this event
-     */
-    sandboxId: string;
-    /**
-     * OpenCode session ID
-     */
-    sessionId: string;
-    /**
-     * When the event occurred
-     */
+export type HistoryEntrySummary = {
+    id: string;
+    generation: number;
+    version: number;
     timestamp: string;
-    event: SandboxWebhookProgressEvent;
+    description: string;
+    playerId?: string;
+    actionType?: string;
+    isCurrent: boolean;
 };
 
-/**
- * IDs of artifacts created during the sandbox session
- */
-export type SandboxWebhookCreatedArtifacts = {
+export type SessionSnapshotHistory = {
+    entries: Array<HistoryEntrySummary>;
+    currentIndex: number;
+    canGoBack: boolean;
+    canGoForward: boolean;
+};
+
+export type HostSessionContext = {
     /**
-     * ID of the compiled app script
+     * Unique identifier for the session.
      */
-    appScriptId?: string;
-};
-
-/**
- * Payload sent when a Modal sandbox completes
- */
-export type SandboxWebhookCompletePayload = {
-    sandboxId: string;
     sessionId: string;
-    success: boolean;
-    artifacts: SandboxWebhookCreatedArtifacts;
     /**
-     * Error message if success is false
+     * Memorable short code for sharing.
      */
+    shortCode: string;
+    phase: SessionSnapshotPhase;
+    status: HostSessionStatus;
+    hostActor: SessionActor;
+    gameSource: SessionGameSource;
+    /**
+     * Selected authored setup profile for this session.
+     */
+    setupProfileId?: string;
+    /**
+     * Player IDs the authenticated session actor may select.
+     */
+    switchablePlayerIds: Array<string>;
+    history?: SessionSnapshotHistory;
+};
+
+export type SeatAssignment = {
+    /**
+     * Player identifier (e.g., 'player-1')
+     */
+    playerId: string;
+    /**
+     * Session actor controlling this seat (null if empty)
+     */
+    controllerActor?: SessionActor;
+    /**
+     * Display name for this seat/player
+     */
+    displayName: string;
+    /**
+     * Hex color code for the player (e.g., '#FF5733')
+     */
+    playerColor?: string;
+    /**
+     * Whether this seat is the host
+     */
+    isHost?: boolean;
+};
+
+export type HostLobbyView = {
+    /**
+     * Current public seat assignments for the session.
+     */
+    seats: Array<SeatAssignment>;
+    /**
+     * Whether the lobby can currently be started.
+     */
+    canStart: boolean;
+    /**
+     * Session actor that hosts this session.
+     */
+    hostActor: SessionActor;
+    /**
+     * Selected authored setup profile for this session.
+     */
+    setupProfileId?: string;
+};
+
+export type HostLobbySessionSnapshot = {
+    type: 'lobby';
+    context: HostSessionContext;
+    lobby: HostLobbyView;
+};
+
+export type SimultaneousPhaseSnapshot = {
+    phaseName: string;
+    interactionId: string;
+    actorIds: Array<string>;
+    sealedPlayerIds: Array<string>;
+    pendingPlayerIds: Array<string>;
+};
+
+export type HostGameplaySharedView = {
+    /**
+     * Player IDs currently active in the game state.
+     */
+    activePlayers: Array<string>;
+    /**
+     * Current reducer-native gameplay phase.
+     */
+    currentPhase: string;
+    /**
+     * Current stage within the phase. Null when the phase has no active stage.
+     */
+    currentStage: string | null;
+    /**
+     * Player IDs this stage currently admits.
+     */
+    stageSeats: Array<string>;
+    /**
+     * Visibility-safe progress metadata for an active simultaneous-player phase.
+     */
+    simultaneousPhase?: SimultaneousPhaseSnapshot | null;
+    /**
+     * JSON-serialized session-scoped static view. Populated on gameplay bootstrap payloads only.
+     */
+    boardStatic?: string | null;
+    /**
+     * Content hash of the session-scoped static view held on the host.
+     */
+    boardStaticHash?: string | null;
+};
+
+/**
+ * Draft commit policy consumed by default UI surfaces.
+ */
+export type InteractionCommitPolicy = {
+    mode: 'manual' | 'autoWhenReady';
+};
+
+/**
+ * Single-value input selection.
+ */
+export type SingleInputSelection = {
+    mode: 'single';
+};
+
+/**
+ * Multi-value input selection.
+ */
+export type ManyInputSelection = {
+    mode: 'many';
+    min: number;
+    max?: number;
+    distinct?: boolean;
+};
+
+export type InputSelection = ({
+    mode: 'single';
+} & SingleInputSelection) | ({
+    mode: 'many';
+} & ManyInputSelection);
+
+export type InputDomain = ({
+    type: 'cardTarget';
+} & CardTargetDomain) | ({
+    type: 'boardTarget';
+} & BoardTargetDomain) | ({
+    type: 'resourceMap';
+} & ResourceMapDomain) | ({
+    type: 'boundedNumber';
+} & BoundedNumberDomain) | ({
+    type: 'choice';
+} & ChoiceDomain) | ({
+    type: 'choiceList';
+} & ChoiceListDomain);
+
+export type InputDomainDependencyCase = {
+    when: {
+        [key: string]: string;
+    };
+    domain: InputDomain;
+};
+
+export type EagerInputDomainDependencies = {
+    mode: 'eager';
+    dependentCases: Array<InputDomainDependencyCase>;
+};
+
+export type ResolvedCardTargetDomain = {
+    type: 'cardTarget';
+    projection: 'resolved';
+    targetKind: 'card';
+    zoneIds: Array<string>;
+    eligibleTargets: Array<string>;
+    selection?: InputSelection;
+    dependencies?: EagerInputDomainDependencies;
+};
+
+export type InputDomainResolver = {
+    interactionKey?: string;
+    inputKey: string;
+};
+
+export type LazyInputDomainDependencies = {
+    mode: 'lazy';
+    dependsOn: Array<string>;
+    resolver: InputDomainResolver;
+};
+
+export type LazyCardTargetDomain = {
+    type: 'cardTarget';
+    projection: 'lazy';
+    targetKind: 'card';
+    zoneIds: Array<string>;
+    selection?: InputSelection;
+    dependencies: LazyInputDomainDependencies;
+};
+
+export type CardTargetDomain = ({
+    projection: 'resolved';
+} & ResolvedCardTargetDomain) | ({
+    projection: 'lazy';
+} & LazyCardTargetDomain);
+
+export type ResolvedBoardTargetDomain = {
+    type: 'boardTarget';
+    projection: 'resolved';
+    targetKind: 'edge' | 'vertex' | 'space' | 'tile';
+    boardId: string;
+    valueKind?: 'board-id' | 'player-board-space';
+    eligibleTargets: Array<string>;
+    selection?: InputSelection;
+    dependencies?: EagerInputDomainDependencies;
+};
+
+export type LazyBoardTargetDomain = {
+    type: 'boardTarget';
+    projection: 'lazy';
+    targetKind: 'edge' | 'vertex' | 'space' | 'tile';
+    boardId: string;
+    valueKind?: 'board-id' | 'player-board-space';
+    selection?: InputSelection;
+    dependencies: LazyInputDomainDependencies;
+};
+
+export type BoardTargetDomain = ({
+    projection: 'resolved';
+} & ResolvedBoardTargetDomain) | ({
+    projection: 'lazy';
+} & LazyBoardTargetDomain);
+
+export type ResourceMapDomainEntry = {
+    resourceId: string;
+    label?: string;
+    icon?: string;
+    min: number;
+    max: number;
+};
+
+export type ResourceMapDomain = {
+    type: 'resourceMap';
+    resources: Array<ResourceMapDomainEntry>;
+    selection?: InputSelection;
+};
+
+export type BoundedNumberDomain = {
+    type: 'boundedNumber';
+    min: number;
+    max: number;
+    step?: number;
+    selection?: InputSelection;
+};
+
+export type ChoiceDomainOption = {
+    value: string | null;
+    label: string;
+    icon?: string;
+    badge?: string;
+    description?: string;
+    disabled?: boolean;
+    disabledReason?: string;
+};
+
+export type ChoiceDomain = {
+    type: 'choice';
+    choices: Array<ChoiceDomainOption>;
+    selection?: InputSelection;
+    dependencies?: EagerInputDomainDependencies;
+};
+
+export type ChoiceListDomain = {
+    type: 'choiceList';
+    choices: Array<ChoiceDomainOption>;
+    min?: number;
+    max?: number;
+    selection?: InputSelection;
+    dependencies?: EagerInputDomainDependencies;
+};
+
+/**
+ * Canonical descriptor for one interaction input collector.
+ */
+export type InteractionInputDescriptor = {
+    key: string;
+    kind: string;
+    domain: InputDomain;
+    /**
+     * Optional default value applied to this input when the player has not
+     * yet drafted a value. Mirrors the input collector's `defaultValue`
+     * from the authored interaction, so plugins can render a sensible
+     * starting state (e.g. a pre-selected resource for a bank trade).
+     *
+     */
+    defaultValue?: JsonValue;
+};
+
+export type AvailableInteractionAvailability = {
+    status: 'available';
+};
+
+export type NotYourTurnInteractionAvailability = {
+    status: 'notYourTurn';
+    reason: string;
+};
+
+export type InsufficientResourcesInteractionAvailability = {
+    status: 'insufficientResources';
+    reason: string;
+    /**
+     * Resource shortfall by resource id when a costed interaction is not currently affordable.
+     */
+    missingResources: {
+        [key: string]: number;
+    };
+};
+
+export type BlockedInteractionAvailability = {
+    status: 'blocked';
+    reason: string;
+    code?: string;
+};
+
+export type InteractionAvailability = ({
+    status: 'available';
+} & AvailableInteractionAvailability) | ({
+    status: 'notYourTurn';
+} & NotYourTurnInteractionAvailability) | ({
+    status: 'insufficientResources';
+} & InsufficientResourcesInteractionAvailability) | ({
+    status: 'blocked';
+} & BlockedInteractionAvailability);
+
+/**
+ * Authoritative interaction descriptor resolved by the trusted bundle.
+ */
+export type InteractionDescriptorBase = {
+    phaseName: string;
+    interactionKey: string;
+    interactionId: string;
+    /**
+     * Canonical interaction descriptor digest used by browser replay/protocol surfaces.
+     */
+    descriptorDigest?: string;
+    /**
+     * Canonical draft digest for the descriptor's current input values.
+     */
+    draftDigest?: string;
+    zoneId?: string;
+    /**
+     * Draft commit policy materialized by the trusted reducer bundle. Omitted authoring specs default to manual before this descriptor crosses the runtime boundary.
+     */
+    commit: InteractionCommitPolicy;
+    /**
+     * Ordered input descriptors. Each entry is the canonical source for its collector key, collector kind, and valid-value domain.
+     */
+    inputs: Array<InteractionInputDescriptor>;
+    cost?: {
+        [key: string]: JsonValue;
+    };
+    currentResources?: {
+        [key: string]: JsonValue;
+    };
+    availability: InteractionAvailability;
+};
+
+export type ActionInteractionDescriptor = InteractionDescriptorBase & {
+    kind: 'action';
+};
+
+export type InteractionContextOption = {
+    id: string;
+    label: string;
+};
+
+export type InteractionContext = {
+    to: string;
+    title?: string;
+    payload?: {
+        [key: string]: JsonValue;
+    };
+    options?: Array<InteractionContextOption>;
+};
+
+export type PromptInteractionDescriptor = InteractionDescriptorBase & {
+    kind: 'prompt';
+    context: InteractionContext;
+};
+
+export type InteractionDescriptor = ({
+    kind: 'action';
+} & ActionInteractionDescriptor) | ({
+    kind: 'prompt';
+} & PromptInteractionDescriptor);
+
+export type ZoneHandles = {
+    cardIds: Array<string>;
+    cardViewsById: {
+        [key: string]: string;
+    };
+    playableByCardId: {
+        [key: string]: Array<string>;
+    };
+};
+
+export type HostGameplaySeatView = {
+    /**
+     * Opaque revision token for this seat's available descriptors and input domains.
+     */
+    actionSetVersion: string;
+    /**
+     * JSON-serialized reducer-projected UI view for this player.
+     */
+    view: string | null;
+    /**
+     * Descriptor refs for interactions available to this player.
+     */
+    availableInteractionRefs: Array<string>;
+    /**
+     * Zone handles for this player, keyed by zone id.
+     */
+    zones: {
+        [key: string]: ZoneHandles;
+    };
+};
+
+export type HostPlayerGameplayView = {
+    /**
+     * Monotonic gameplay version for stale-client detection.
+     */
+    version: number;
+    /**
+     * Opaque revision token for the returned descriptors and input domains.
+     */
+    actionSetVersion: string;
+    /**
+     * Player ID currently selected for rendering and input.
+     */
+    perspectivePlayerId: string;
+    /**
+     * Player IDs included in this normalized projection envelope.
+     */
+    controllablePlayerIds: Array<string>;
+    shared: HostGameplaySharedView;
+    /**
+     * Deduplicated interaction descriptor registry keyed by stable descriptor ref.
+     */
+    interactionsByRef: {
+        [key: string]: InteractionDescriptor;
+    };
+    /**
+     * Player-scoped projections keyed by authorized player id.
+     */
+    seats: {
+        [key: string]: HostGameplaySeatView;
+    };
+};
+
+export type HostGameplaySessionSnapshot = {
+    type: 'gameplay';
+    context: HostSessionContext;
+    lobby: HostLobbyView;
+    gameplay: HostPlayerGameplayView;
+};
+
+export type HostEndedSessionSnapshot = {
+    type: 'ended';
+    context: HostSessionContext;
+    lobby: HostLobbyView;
+};
+
+export type HostSessionSnapshot = ({
+    type: 'lobby';
+} & HostLobbySessionSnapshot) | ({
+    type: 'gameplay';
+} & HostGameplaySessionSnapshot) | ({
+    type: 'ended';
+} & HostEndedSessionSnapshot);
+
+export type HostSessionSnapshotReason = 'load' | 'start' | 'switch-player' | 'resync';
+
+export type HostSessionSnapshotEvent = {
+    type: 'session.snapshot';
+    reason: HostSessionSnapshotReason;
+    snapshot: HostSessionSnapshot;
+};
+
+export type HostSessionLobbyUpdatedEvent = {
+    type: 'session.lobbyUpdated';
+    context: HostSessionContext;
+    lobby: HostLobbyView;
+};
+
+export type HostSessionEventCausation = {
+    clientActionId?: string;
+};
+
+export type HostSessionGameplayUpdatedEvent = {
+    type: 'session.gameplayUpdated';
+    context: HostSessionContext;
+    gameplay: HostPlayerGameplayView;
+    causation?: HostSessionEventCausation;
+};
+
+export type HostSessionHistoryUpdatedEvent = {
+    type: 'session.historyUpdated';
+    context: HostSessionContext;
+};
+
+export type HostSessionEndedEvent = {
+    type: 'session.ended';
+    context: HostSessionContext;
+    lobby: HostLobbyView;
+};
+
+export type HostSessionErrorEvent = {
+    type: 'session.error';
+    sessionId: string;
+    code?: string;
+    message: string;
+    recoverable: boolean;
+};
+
+export type HostSessionEvent = ({
+    type: 'session.snapshot';
+} & HostSessionSnapshotEvent) | ({
+    type: 'session.lobbyUpdated';
+} & HostSessionLobbyUpdatedEvent) | ({
+    type: 'session.gameplayUpdated';
+} & HostSessionGameplayUpdatedEvent) | ({
+    type: 'session.historyUpdated';
+} & HostSessionHistoryUpdatedEvent) | ({
+    type: 'session.ended';
+} & HostSessionEndedEvent) | ({
+    type: 'session.error';
+} & HostSessionErrorEvent);
+
+/**
+ * Bounded long-poll response for selected-perspective host session updates.
+ */
+export type HostSessionEventBatchResponse = {
+    /**
+     * Latest persisted session message id covered by this response.
+     */
+    cursor: number;
+    /**
+     * Fresh baseline snapshot when the caller has no cursor or needs resync.
+     */
+    snapshot?: HostSessionSnapshot;
+    /**
+     * Persisted events visible to the requested session actor after the supplied cursor.
+     */
+    events: Array<HostSessionEvent>;
+    /**
+     * True when no visible update arrived before the bounded wait elapsed.
+     */
+    timedOut: boolean;
+};
+
+export type GameplayCapabilityResponse = {
+    websocketUrl: string;
+    token: string;
+    expiresAt: string;
+    sessionId: string;
+    playerId: string;
+    permissions: Array<'observe' | 'submit' | 'restore-history'>;
+};
+
+/**
+ * Request to update seat settings (display name and/or player color)
+ */
+export type UpdateSeatRequest = {
+    /**
+     * New display name for the player
+     */
+    displayName?: string;
+    /**
+     * Hex color code for the player (e.g., '#FF5733')
+     */
+    playerColor?: string;
+};
+
+/**
+ * Public demo game summary.
+ */
+export type DemoGameSummary = {
+    slug: string;
+    name: string;
+    description?: string;
+    /**
+     * Short public overview shown before starting the demo.
+     */
+    overview?: string;
+    /**
+     * Relative URL for the bundled static demo thumbnail.
+     */
+    thumbnailUrl?: string;
+    /**
+     * Public creator or publisher attribution shown in the demo dialog.
+     */
+    creator?: string;
+    /**
+     * Minimum supported player count for the demo game.
+     */
+    minPlayers?: number;
+    /**
+     * Maximum supported player count for the demo game.
+     */
+    maxPlayers?: number;
+    /**
+     * Lower bound for the expected play time.
+     */
+    playTimeMinMinutes?: number;
+    /**
+     * Upper bound for the expected play time.
+     */
+    playTimeMaxMinutes?: number;
+    /**
+     * Lightweight public difficulty rating on a 1-5 scale.
+     */
+    difficulty?: number;
+    /**
+     * Public mechanics shown as chips in the demo dialog.
+     */
+    mechanics?: Array<string>;
+    /**
+     * Public categories shown as chips in the demo dialog.
+     */
+    categories?: Array<string>;
+    /**
+     * Public hero image URL for the demo dialog.
+     */
+    heroImageUrl?: string;
+    /**
+     * Approximate time needed to try the local demo.
+     */
+    estimatedMinutes?: number;
+    /**
+     * Number of player seats shown for the local teaching demo.
+     */
+    demoPlayerCount: number;
+    registrationStatus: 'PENDING' | 'REGISTERING' | 'REGISTERED' | 'FAILED';
+    playable: boolean;
+};
+
+export type DemoGameDetails = DemoGameSummary & {
+    /**
+     * Active immutable catalog revision when registered.
+     */
+    activeRevisionId?: string;
+    bundleFingerprint?: string;
     error?: string;
 };
 
 /**
- * Type of game message sent via Server-Sent Events
+ * Optional deterministic seed request for public demo session creation.
  */
-export type GameMessageType = 'GAME_STARTED' | 'YOUR_TURN' | 'ACTION_EXECUTED' | 'ACTION_REJECTED' | 'TURN_CHANGED' | 'GAME_ENDED' | 'STATE_UPDATE' | 'STATE_CHANGED' | 'AVAILABLE_ACTIONS' | 'ERROR' | 'LOBBY_UPDATE' | 'HISTORY_UPDATED' | 'HISTORY_RESTORED';
-
-/**
- * Type of location where a component can be
- */
-export type LocationType = 'InDeck' | 'InHand' | 'InZone' | 'Detached';
-
-export type InDeckLocation = {
-    type: 'InDeck';
+export type CreateDemoSessionRequest = {
     /**
-     * ID of the deck containing this component
+     * Optional canonical signed decimal Kotlin Long seed. Omit to keep randomized demo behavior.
      */
-    deckId: string;
-    /**
-     * Position within the deck (null means unordered)
-     */
-    position?: number;
+    seed?: string;
 };
 
-export type InHandLocation = {
-    type: 'InHand';
-    /**
-     * ID of the player holding this component
-     */
+/**
+ * Runtime player id bound to one canonical demo seat.
+ */
+export type DemoSessionSeatBinding = {
+    seat: number;
     playerId: string;
-    /**
-     * Position in hand (null means unordered)
-     */
-    position?: number;
-};
-
-export type InZoneLocation = {
-    type: 'InZone';
-    /**
-     * ID of the zone containing this component
-     */
-    zoneId: string;
-    /**
-     * Position within the zone (null means unordered)
-     */
-    position?: number;
+    controllable: boolean;
+    selected: boolean;
 };
 
 /**
- * Component is not in any location (detached/removed from play)
+ * Canonical identity for the immutable reducer artifact executed by Gameplay Authority.
  */
-export type DetachedLocation = {
-    type: 'Detached';
-};
-
-export type SimpleLocation = ({
-    type: 'InDeck';
-} & InDeckLocation) | ({
-    type: 'InHand';
-} & InHandLocation) | ({
-    type: 'InZone';
-} & InZoneLocation) | ({
-    type: 'Detached';
-} & DetachedLocation);
-
-/**
- * Type of source for the card set
- */
-export type CardSetSourceType = 'preset' | 'csv' | 'manual';
-
-export type TurnStepDefinition = {
-    /**
-     * Turn step identifier
-     */
-    name: string;
-};
-
-export type ValidationResult = {
-    /**
-     * Whether the validation passed
-     */
-    isValid: boolean;
-    /**
-     * List of validation errors
-     */
-    errors: Array<string>;
-    /**
-     * List of validation warnings
-     */
-    warnings: Array<string>;
-};
-
-export type BuildAppRequest = {
-    /**
-     * Game ID to build app for
-     */
-    gameId: string;
-    /**
-     * Specific manifest ID to build app with. If not provided, uses the latest manifest.
-     */
-    manifestId?: string;
-    /**
-     * Specific rule ID to build app with. If not provided, uses the latest rules associated with the manifest.
-     */
-    ruleId?: string;
-    /**
-     * Existing compiled result ID to build upon. If not provided, it will start from empty files.
-     */
-    compiledResultId?: string;
-    /**
-     * Optional instructions to guide the app build process
-     */
-    instruction?: string;
-};
-
-export type BuildAppResponse = {
-    /**
-     * Unique identifier for the app build job
-     */
-    jobId: string;
-};
-
-export type BuildUiRequest = {
-    /**
-     * Game ID to build UI for
-     */
-    gameId: string;
-    /**
-     * Specific manifest ID to build UI with. If not provided, uses the latest manifest.
-     */
-    manifestId?: string;
-    /**
-     * Specific rule ID to build UI with. If not provided, uses the latest rules associated with the manifest.
-     */
-    ruleId?: string;
-};
-
-export type BuildUiResponse = {
-    /**
-     * Unique identifier for the UI build job
-     */
-    jobId: string;
+export type DemoReducerArtifactIdentity = {
+    scheme: 'dreamboard-reducer-artifact@1';
+    digest: string;
 };
 
 /**
- * Request to start a Modal sandbox-based OpenCode agent job.
- * The agent runs in an isolated Modal sandbox with full development tools.
- *
+ * Guest-play session created for a public demo game.
  */
-export type ModalSandboxJobRequest = {
-    type: 'MODAL_SANDBOX';
+export type DemoSessionResponse = {
     /**
-     * Game ID to work with
+     * game_sessions.session_id
      */
-    gameId: string;
+    sessionId: string;
+    shortCode: string;
     /**
-     * Instruction for the AI agent describing the task to perform.
+     * demo_sessions.id; send with demo session secret headers to authorize as DemoGuest.
      */
-    instruction: string;
+    demoActorSessionId: string;
     /**
-     * Specific rule ID to use. If not provided, uses the latest rules.
+     * Per-session secret; send with demo headers (hashed server-side).
      */
-    ruleId?: string;
+    guestSessionSecret: string;
     /**
-     * Existing unified result ID to build upon. If provided, loads source files from previous build and uses its manifestId.
+     * Canonical signed decimal Kotlin Long seed selected for the demo session.
      */
-    existingResultId?: string;
+    seed: string;
+    selectedPlayerId?: string;
     /**
-     * Optional model ID for OpenRouter (defaults to anthropic/claude-sonnet-4)
+     * Number of demo seats selected from catalog metadata.
      */
-    modelId?: string;
+    playerCount: number;
     /**
-     * Optional provider ID (defaults to openrouter)
+     * Ordered runtime player bindings for each canonical demo seat.
      */
-    providerId?: string;
+    seatBindings: Array<DemoSessionSeatBinding>;
+    /**
+     * Setup profile selected by default demo behavior; omitted when the manifest has none.
+     */
+    setupProfileId?: string;
+    reducerArtifactIdentity: DemoReducerArtifactIdentity;
+    gameSource: SessionGameSource;
 };
-
-export type GameManifestResponse = {
-    /**
-     * Unique identifier for this manifest version
-     */
-    manifestId: string;
-    /**
-     * Game identifier
-     */
-    gameId: string;
-    /**
-     * User who created this version
-     */
-    userId: string;
-    /**
-     * Agent job that created this manifest
-     */
-    jobId?: string;
-    /**
-     * The board manifest data
-     */
-    manifest: BoardManifest;
-    /**
-     * Version number for this game
-     */
-    version: number;
-    /**
-     * When this version was created
-     */
-    createdAt: string;
-};
-
-export type MessageEvent = AgentProgressEvent;
 
 /**
- * Unique identifier for the game
+ * Portable project lineage identifier
  */
-export type GameId = string;
+export type ProjectId = string;
 
 /**
  * URL-safe game slug
  */
 export type GameSlug = string;
+
+/**
+ * Portable authored revision digest
+ */
+export type RevisionDigest = string;
 
 /**
  * Unique identifier for the game session
@@ -3672,200 +3189,890 @@ export type HealthCheckResponses = {
 
 export type HealthCheckResponse = HealthCheckResponses[keyof HealthCheckResponses];
 
-export type ListGamesData = {
+export type GetApiVersionData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Include games that haven't been fully initialized (missing rules, manifest, app, or UI). Defaults to false.
-         */
-        includeNotInitialized?: boolean;
-    };
-    url: '/api/games';
+    query?: never;
+    url: '/api/version';
 };
 
-export type ListGamesErrors = {
+export type GetApiVersionResponses = {
     /**
-     * Unauthorized - authentication required
+     * Successfully retrieved backend version metadata
      */
-    401: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
+    200: ApiVersionResponse;
 };
 
-export type ListGamesError = ListGamesErrors[keyof ListGamesErrors];
+export type GetApiVersionResponse = GetApiVersionResponses[keyof GetApiVersionResponses];
 
-export type ListGamesResponses = {
-    /**
-     * Successfully retrieved games list
-     */
-    200: Array<Game>;
-};
-
-export type ListGamesResponse = ListGamesResponses[keyof ListGamesResponses];
-
-export type CreateGameData = {
-    body: CreateGameRequest;
+export type GetCurrentAuthUserData = {
+    body?: never;
     path?: never;
     query?: never;
-    url: '/api/games';
+    url: '/api/auth/me';
 };
 
-export type CreateGameErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
+export type GetCurrentAuthUserErrors = {
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
+export type GetCurrentAuthUserError = GetCurrentAuthUserErrors[keyof GetCurrentAuthUserErrors];
 
-export type CreateGameResponses = {
+export type GetCurrentAuthUserResponses = {
     /**
-     * Game created successfully
+     * Current authenticated user identity
      */
-    201: Game;
+    200: CurrentAuthUserResponse;
 };
 
-export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
+export type GetCurrentAuthUserResponse = GetCurrentAuthUserResponses[keyof GetCurrentAuthUserResponses];
 
-export type DeleteGameData = {
+export type ExchangeAuthTokenData = {
+    body: TokenExchangeRequest;
+    path?: never;
+    query?: never;
+    url: '/api/auth/token-exchange';
+};
+
+export type ExchangeAuthTokenErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    503: ProblemDetails;
+};
+
+export type ExchangeAuthTokenError = ExchangeAuthTokenErrors[keyof ExchangeAuthTokenErrors];
+
+export type ExchangeAuthTokenResponses = {
+    /**
+     * Exchanged Dreamboard user token
+     */
+    200: TokenExchangeResponse;
+};
+
+export type ExchangeAuthTokenResponse = ExchangeAuthTokenResponses[keyof ExchangeAuthTokenResponses];
+
+export type GetAuthJwksData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/jwks';
+};
+
+export type GetAuthJwksResponses = {
+    /**
+     * JSON Web Key Set
+     */
+    200: unknown;
+};
+
+export type CreateBillingCheckoutSessionData = {
+    body: CreateBillingCheckoutSessionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/billing/checkout-sessions';
+};
+
+export type CreateBillingCheckoutSessionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateBillingCheckoutSessionError = CreateBillingCheckoutSessionErrors[keyof CreateBillingCheckoutSessionErrors];
+
+export type CreateBillingCheckoutSessionResponses = {
+    /**
+     * Checkout session created successfully
+     */
+    200: BillingSessionResponse;
+};
+
+export type CreateBillingCheckoutSessionResponse = CreateBillingCheckoutSessionResponses[keyof CreateBillingCheckoutSessionResponses];
+
+export type CreateBillingPortalSessionData = {
+    body: CreateBillingPortalSessionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/billing/portal-sessions';
+};
+
+export type CreateBillingPortalSessionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateBillingPortalSessionError = CreateBillingPortalSessionErrors[keyof CreateBillingPortalSessionErrors];
+
+export type CreateBillingPortalSessionResponses = {
+    /**
+     * Billing portal session created successfully
+     */
+    200: BillingSessionResponse;
+};
+
+export type CreateBillingPortalSessionResponse = CreateBillingPortalSessionResponses[keyof CreateBillingPortalSessionResponses];
+
+export type GetCurrentBillingEntitlementsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/billing/entitlements';
+};
+
+export type GetCurrentBillingEntitlementsErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetCurrentBillingEntitlementsError = GetCurrentBillingEntitlementsErrors[keyof GetCurrentBillingEntitlementsErrors];
+
+export type GetCurrentBillingEntitlementsResponses = {
+    /**
+     * Current billing and entitlement state
+     */
+    200: CurrentBillingEntitlementsResponse;
+};
+
+export type GetCurrentBillingEntitlementsResponse = GetCurrentBillingEntitlementsResponses[keyof GetCurrentBillingEntitlementsResponses];
+
+export type ListProjectsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/projects';
+};
+
+export type ListProjectsErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type ListProjectsError = ListProjectsErrors[keyof ListProjectsErrors];
+
+export type ListProjectsResponses = {
+    /**
+     * Successfully retrieved project list
+     */
+    200: Array<Project>;
+};
+
+export type ListProjectsResponse = ListProjectsResponses[keyof ListProjectsResponses];
+
+export type ExtractGameSpecData = {
+    body: ExtractGameSpecRequest;
+    path?: never;
+    query?: never;
+    url: '/api/game-specs/extract';
+};
+
+export type ExtractGameSpecErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Too many requests or live connections
+     */
+    429: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    503: ProblemDetails;
+};
+
+export type ExtractGameSpecError = ExtractGameSpecErrors[keyof ExtractGameSpecErrors];
+
+export type ExtractGameSpecResponses = {
+    /**
+     * Structured game spec extracted
+     */
+    200: ExtractGameSpecResponse;
+};
+
+export type ExtractGameSpecResponse2 = ExtractGameSpecResponses[keyof ExtractGameSpecResponses];
+
+export type DeleteProjectData = {
     body?: never;
     path: {
         /**
-         * Unique identifier for the game
+         * Portable project lineage identifier
          */
-        gameId: string;
+        projectId: string;
     };
     query?: never;
-    url: '/api/games/{gameId}';
+    url: '/api/projects/{projectId}';
 };
 
-export type DeleteGameErrors = {
+export type DeleteProjectErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type DeleteGameError = DeleteGameErrors[keyof DeleteGameErrors];
+export type DeleteProjectError = DeleteProjectErrors[keyof DeleteProjectErrors];
 
-export type DeleteGameResponses = {
+export type DeleteProjectResponses = {
     /**
-     * Game deleted successfully
+     * Project deleted
      */
-    200: DeleteGameResponse;
+    200: DeleteProjectResponse;
 };
 
-export type DeleteGameResponse2 = DeleteGameResponses[keyof DeleteGameResponses];
+export type DeleteProjectResponse2 = DeleteProjectResponses[keyof DeleteProjectResponses];
 
-export type GetGameData = {
+export type GetProjectData = {
     body?: never;
     path: {
         /**
-         * Unique identifier for the game
+         * Portable project lineage identifier
          */
-        gameId: string;
+        projectId: string;
     };
     query?: never;
-    url: '/api/games/{gameId}';
+    url: '/api/projects/{projectId}';
 };
 
-export type GetGameErrors = {
+export type GetProjectErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type GetGameError = GetGameErrors[keyof GetGameErrors];
+export type GetProjectError = GetProjectErrors[keyof GetProjectErrors];
 
-export type GetGameResponses = {
+export type GetProjectResponses = {
     /**
-     * Successfully retrieved game
+     * Project found
      */
-    200: Game;
+    200: Project;
 };
 
-export type GetGameResponse = GetGameResponses[keyof GetGameResponses];
+export type GetProjectResponse = GetProjectResponses[keyof GetProjectResponses];
 
-export type UpdateGameData = {
-    body: UpdateGameRequest;
+export type UpdateProjectData = {
+    body: UpdateProjectRequest;
     path: {
         /**
-         * Unique identifier for the game
+         * Portable project lineage identifier
          */
-        gameId: string;
+        projectId: string;
     };
     query?: never;
-    url: '/api/games/{gameId}';
+    url: '/api/projects/{projectId}';
 };
 
-export type UpdateGameErrors = {
+export type UpdateProjectErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type UpdateGameError = UpdateGameErrors[keyof UpdateGameErrors];
+export type UpdateProjectError = UpdateProjectErrors[keyof UpdateProjectErrors];
 
-export type UpdateGameResponses = {
+export type UpdateProjectResponses = {
     /**
-     * Success message
+     * Project updated
      */
-    200: string;
+    200: Project;
 };
 
-export type UpdateGameResponse = UpdateGameResponses[keyof UpdateGameResponses];
+export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses];
 
-export type GetGameBySlugData = {
+export type EnsureProjectData = {
+    body: EnsureProjectRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}';
+};
+
+export type EnsureProjectErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type EnsureProjectError = EnsureProjectErrors[keyof EnsureProjectErrors];
+
+export type EnsureProjectResponses = {
+    /**
+     * Existing project installation
+     */
+    200: Project;
+    /**
+     * Newly installed project
+     */
+    201: Project;
+};
+
+export type EnsureProjectResponse = EnsureProjectResponses[keyof EnsureProjectResponses];
+
+export type GetProjectRepositoryData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/repository';
+};
+
+export type GetProjectRepositoryErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectRepositoryError = GetProjectRepositoryErrors[keyof GetProjectRepositoryErrors];
+
+export type GetProjectRepositoryResponses = {
+    /**
+     * Repository binding found
+     */
+    200: ProjectRepository;
+};
+
+export type GetProjectRepositoryResponse = GetProjectRepositoryResponses[keyof GetProjectRepositoryResponses];
+
+export type EnsureProjectRepositoryData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/repository';
+};
+
+export type EnsureProjectRepositoryErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type EnsureProjectRepositoryError = EnsureProjectRepositoryErrors[keyof EnsureProjectRepositoryErrors];
+
+export type EnsureProjectRepositoryResponses = {
+    /**
+     * Repository binding ensured
+     */
+    200: ProjectRepository;
+};
+
+export type EnsureProjectRepositoryResponse = EnsureProjectRepositoryResponses[keyof EnsureProjectRepositoryResponses];
+
+export type RetryProjectRepositoryReconciliationData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/repository/reconcile';
+};
+
+export type RetryProjectRepositoryReconciliationErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type RetryProjectRepositoryReconciliationError = RetryProjectRepositoryReconciliationErrors[keyof RetryProjectRepositoryReconciliationErrors];
+
+export type RetryProjectRepositoryReconciliationResponses = {
+    /**
+     * Repository reconciliation requested
+     */
+    200: ProjectRepository;
+};
+
+export type RetryProjectRepositoryReconciliationResponse = RetryProjectRepositoryReconciliationResponses[keyof RetryProjectRepositoryReconciliationResponses];
+
+export type EnsureProjectBuildData = {
+    body: EnsureProjectBuildRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/builds';
+};
+
+export type EnsureProjectBuildErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type EnsureProjectBuildError = EnsureProjectBuildErrors[keyof EnsureProjectBuildErrors];
+
+export type EnsureProjectBuildResponses = {
+    /**
+     * Existing or newly queued project build
+     */
+    200: ProjectBuild;
+};
+
+export type EnsureProjectBuildResponse = EnsureProjectBuildResponses[keyof EnsureProjectBuildResponses];
+
+export type GetProjectCommitStatusData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Exact Git commit OID already resolved by the caller.
+         */
+        commitOid: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/status/{commitOid}';
+};
+
+export type GetProjectCommitStatusErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectCommitStatusError = GetProjectCommitStatusErrors[keyof GetProjectCommitStatusErrors];
+
+export type GetProjectCommitStatusResponses = {
+    /**
+     * Server state for the requested commit
+     */
+    200: ProjectCommitStatus;
+};
+
+export type GetProjectCommitStatusResponse = GetProjectCommitStatusResponses[keyof GetProjectCommitStatusResponses];
+
+export type GetProjectBuildData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Canonical build recipe digest.
+         */
+        buildRecipeDigest: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/builds/{buildRecipeDigest}';
+};
+
+export type GetProjectBuildErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectBuildError = GetProjectBuildErrors[keyof GetProjectBuildErrors];
+
+export type GetProjectBuildResponses = {
+    /**
+     * Project build found
+     */
+    200: ProjectBuild;
+};
+
+export type GetProjectBuildResponse = GetProjectBuildResponses[keyof GetProjectBuildResponses];
+
+export type CreateProjectPreviewData = {
+    body: CreateProjectPreviewRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/previews';
+};
+
+export type CreateProjectPreviewErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateProjectPreviewError = CreateProjectPreviewErrors[keyof CreateProjectPreviewErrors];
+
+export type CreateProjectPreviewResponses = {
+    /**
+     * Pending-retention project preview
+     */
+    200: ProjectPreview;
+};
+
+export type CreateProjectPreviewResponse = CreateProjectPreviewResponses[keyof CreateProjectPreviewResponses];
+
+export type PublishProjectReleaseData = {
+    body: PublishProjectReleaseRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/releases';
+};
+
+export type PublishProjectReleaseErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type PublishProjectReleaseError = PublishProjectReleaseErrors[keyof PublishProjectReleaseErrors];
+
+export type PublishProjectReleaseResponses = {
+    /**
+     * Pending-retention project release
+     */
+    200: ProjectRelease;
+};
+
+export type PublishProjectReleaseResponse = PublishProjectReleaseResponses[keyof PublishProjectReleaseResponses];
+
+export type GetCurrentProjectReleaseData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/releases/current';
+};
+
+export type GetCurrentProjectReleaseErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetCurrentProjectReleaseError = GetCurrentProjectReleaseErrors[keyof GetCurrentProjectReleaseErrors];
+
+export type GetCurrentProjectReleaseResponses = {
+    /**
+     * Current active project release
+     */
+    200: ProjectRelease;
+};
+
+export type GetCurrentProjectReleaseResponse = GetCurrentProjectReleaseResponses[keyof GetCurrentProjectReleaseResponses];
+
+export type GetProjectBySlugData = {
     body?: never;
     path: {
         /**
@@ -3873,44 +4080,751 @@ export type GetGameBySlugData = {
          */
         slug: string;
     };
-    query?: {
-        /**
-         * Include soft-deleted games in the lookup. Defaults to false.
-         */
-        includeDeleted?: boolean;
-    };
-    url: '/api/games/slug/{slug}';
+    query?: never;
+    url: '/api/projects/slug/{slug}';
 };
 
-export type GetGameBySlugErrors = {
+export type GetProjectBySlugErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type GetGameBySlugError = GetGameBySlugErrors[keyof GetGameBySlugErrors];
+export type GetProjectBySlugError = GetProjectBySlugErrors[keyof GetProjectBySlugErrors];
 
-export type GetGameBySlugResponses = {
+export type GetProjectBySlugResponses = {
     /**
-     * Successfully retrieved game
+     * Project found
      */
-    200: Game;
+    200: Project;
 };
 
-export type GetGameBySlugResponse = GetGameBySlugResponses[keyof GetGameBySlugResponses];
+export type GetProjectBySlugResponse = GetProjectBySlugResponses[keyof GetProjectBySlugResponses];
+
+export type CreateGameRevisionData = {
+    body: CreateGameRevisionRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/revisions';
+};
+
+export type CreateGameRevisionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateGameRevisionError = CreateGameRevisionErrors[keyof CreateGameRevisionErrors];
+
+export type CreateGameRevisionResponses = {
+    /**
+     * Existing identical revision returned
+     */
+    200: GameRevision;
+    /**
+     * Revision created and canonical head advanced
+     */
+    201: GameRevision;
+};
+
+export type CreateGameRevisionResponse = CreateGameRevisionResponses[keyof CreateGameRevisionResponses];
+
+export type GetProjectRevisionSourcesData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Portable authored revision digest
+         */
+        revisionDigest: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/revisions/{revisionDigest}/sources';
+};
+
+export type GetProjectRevisionSourcesErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectRevisionSourcesError = GetProjectRevisionSourcesErrors[keyof GetProjectRevisionSourcesErrors];
+
+export type GetProjectRevisionSourcesResponses = {
+    /**
+     * Revision source files retrieved successfully
+     */
+    200: ProjectRevisionSourcesResponse;
+};
+
+export type GetProjectRevisionSourcesResponse = GetProjectRevisionSourcesResponses[keyof GetProjectRevisionSourcesResponses];
+
+export type CreateProjectSourceBlobUploadSessionData = {
+    body: CreateSourceBlobUploadSessionRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/source-blobs/upload-sessions';
+};
+
+export type CreateProjectSourceBlobUploadSessionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateProjectSourceBlobUploadSessionError = CreateProjectSourceBlobUploadSessionErrors[keyof CreateProjectSourceBlobUploadSessionErrors];
+
+export type CreateProjectSourceBlobUploadSessionResponses = {
+    /**
+     * Upload session created
+     */
+    201: SourceBlobUploadSession;
+};
+
+export type CreateProjectSourceBlobUploadSessionResponse = CreateProjectSourceBlobUploadSessionResponses[keyof CreateProjectSourceBlobUploadSessionResponses];
+
+export type QueueProjectRevisionCompileData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Portable authored revision digest
+         */
+        revisionDigest: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/revisions/{revisionDigest}/compile';
+};
+
+export type QueueProjectRevisionCompileErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type QueueProjectRevisionCompileError = QueueProjectRevisionCompileErrors[keyof QueueProjectRevisionCompileErrors];
+
+export type QueueProjectRevisionCompileResponses = {
+    /**
+     * Compile job accepted
+     */
+    202: QueueCompiledResultJobResponse;
+};
+
+export type QueueProjectRevisionCompileResponse = QueueProjectRevisionCompileResponses[keyof QueueProjectRevisionCompileResponses];
+
+export type GetLatestProjectCompiledResultData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: {
+        /**
+         * If true, only return results where success=true and uiStorageKey is present
+         */
+        successOnly?: boolean;
+    };
+    url: '/api/projects/{projectId}/compiled-results/latest';
+};
+
+export type GetLatestProjectCompiledResultErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetLatestProjectCompiledResultError = GetLatestProjectCompiledResultErrors[keyof GetLatestProjectCompiledResultErrors];
+
+export type GetLatestProjectCompiledResultResponses = {
+    /**
+     * Latest compiled result found
+     */
+    200: CompiledResult;
+};
+
+export type GetLatestProjectCompiledResultResponse = GetLatestProjectCompiledResultResponses[keyof GetLatestProjectCompiledResultResponses];
+
+export type ListProjectCompiledResultsData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: {
+        /**
+         * Maximum number of results to return. Default is 10.
+         */
+        limit?: number;
+    };
+    url: '/api/projects/{projectId}/compiled-results';
+};
+
+export type ListProjectCompiledResultsErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type ListProjectCompiledResultsError = ListProjectCompiledResultsErrors[keyof ListProjectCompiledResultsErrors];
+
+export type ListProjectCompiledResultsResponses = {
+    /**
+     * Compiled results retrieved successfully
+     */
+    200: ListCompiledResultsResponse;
+};
+
+export type ListProjectCompiledResultsResponse = ListProjectCompiledResultsResponses[keyof ListProjectCompiledResultsResponses];
+
+export type GetProjectCompiledResultData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+        /**
+         * Unique identifier for the compiled result
+         */
+        compiledResultId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/compiled-results/{compiledResultId}';
+};
+
+export type GetProjectCompiledResultErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectCompiledResultError = GetProjectCompiledResultErrors[keyof GetProjectCompiledResultErrors];
+
+export type GetProjectCompiledResultResponses = {
+    /**
+     * Compiled result found
+     */
+    200: CompiledResult;
+};
+
+export type GetProjectCompiledResultResponse = GetProjectCompiledResultResponses[keyof GetProjectCompiledResultResponses];
+
+export type UploadProjectInitialProjectionData = {
+    body: UploadInitialProjectionRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/preview/initial-projection';
+};
+
+export type UploadProjectInitialProjectionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type UploadProjectInitialProjectionError = UploadProjectInitialProjectionErrors[keyof UploadProjectInitialProjectionErrors];
+
+export type UploadProjectInitialProjectionResponses = {
+    /**
+     * Initial projection uploaded successfully
+     */
+    204: void;
+};
+
+export type UploadProjectInitialProjectionResponse = UploadProjectInitialProjectionResponses[keyof UploadProjectInitialProjectionResponses];
+
+export type QueueProjectPreviewScreenshotData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/preview/screenshot';
+};
+
+export type QueueProjectPreviewScreenshotErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type QueueProjectPreviewScreenshotError = QueueProjectPreviewScreenshotErrors[keyof QueueProjectPreviewScreenshotErrors];
+
+export type QueueProjectPreviewScreenshotResponses = {
+    /**
+     * Preview screenshot job queued
+     */
+    202: PreviewScreenshotJobResponse;
+};
+
+export type QueueProjectPreviewScreenshotResponse = QueueProjectPreviewScreenshotResponses[keyof QueueProjectPreviewScreenshotResponses];
+
+export type FetchProjectPreviewImageData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/preview/image';
+};
+
+export type FetchProjectPreviewImageErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type FetchProjectPreviewImageError = FetchProjectPreviewImageErrors[keyof FetchProjectPreviewImageErrors];
+
+export type FetchProjectPreviewImageResponses = {
+    /**
+     * Preview image retrieved successfully
+     */
+    200: Blob | File;
+};
+
+export type FetchProjectPreviewImageResponse = FetchProjectPreviewImageResponses[keyof FetchProjectPreviewImageResponses];
+
+export type EnsureProjectDevCompileData = {
+    body: EnsureDevCompileRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/dev-compiles/ensure';
+};
+
+export type EnsureProjectDevCompileErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type EnsureProjectDevCompileError = EnsureProjectDevCompileErrors[keyof EnsureProjectDevCompileErrors];
+
+export type EnsureProjectDevCompileResponses = {
+    /**
+     * Existing dev compile reused or cache miss reported
+     */
+    200: EnsureDevCompileResponse;
+    /**
+     * Dev compile job accepted
+     */
+    202: EnsureDevCompileResponse;
+};
+
+export type EnsureProjectDevCompileResponse = EnsureProjectDevCompileResponses[keyof EnsureProjectDevCompileResponses];
+
+export type CreateProjectSessionData = {
+    body: CreateSessionRequest;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/sessions';
+};
+
+export type CreateProjectSessionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateProjectSessionError = CreateProjectSessionErrors[keyof CreateProjectSessionErrors];
+
+export type CreateProjectSessionResponses = {
+    /**
+     * Game session created successfully
+     */
+    201: CreateSessionResponse;
+};
+
+export type CreateProjectSessionResponse = CreateProjectSessionResponses[keyof CreateProjectSessionResponses];
+
+export type DownloadProjectSourcesData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/download';
+};
+
+export type DownloadProjectSourcesErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type DownloadProjectSourcesError = DownloadProjectSourcesErrors[keyof DownloadProjectSourcesErrors];
+
+export type DownloadProjectSourcesResponses = {
+    /**
+     * ZIP archive containing source files
+     */
+    200: Blob | File;
+};
+
+export type DownloadProjectSourcesResponse = DownloadProjectSourcesResponses[keyof DownloadProjectSourcesResponses];
+
+export type GetProjectSourcesData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/sources';
+};
+
+export type GetProjectSourcesErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectSourcesError = GetProjectSourcesErrors[keyof GetProjectSourcesErrors];
+
+export type GetProjectSourcesResponses = {
+    /**
+     * Source files retrieved successfully
+     */
+    200: GameSourcesResponse;
+};
+
+export type GetProjectSourcesResponse = GetProjectSourcesResponses[keyof GetProjectSourcesResponses];
+
+export type GetProjectActiveJobData = {
+    body?: never;
+    path: {
+        /**
+         * Portable project lineage identifier
+         */
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/jobs/active';
+};
+
+export type GetProjectActiveJobErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetProjectActiveJobError = GetProjectActiveJobErrors[keyof GetProjectActiveJobErrors];
+
+export type GetProjectActiveJobResponses = {
+    /**
+     * Active job status (null if no active job)
+     */
+    200: ActiveJobResponse;
+};
+
+export type GetProjectActiveJobResponse = GetProjectActiveJobResponses[keyof GetProjectActiveJobResponses];
 
 export type QueryWorkshopRulebookData = {
     body?: never;
@@ -3928,19 +4842,19 @@ export type QueryWorkshopRulebookErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type QueryWorkshopRulebookError = QueryWorkshopRulebookErrors[keyof QueryWorkshopRulebookErrors];
@@ -3954,931 +4868,269 @@ export type QueryWorkshopRulebookResponses = {
 
 export type QueryWorkshopRulebookResponse = QueryWorkshopRulebookResponses[keyof QueryWorkshopRulebookResponses];
 
-export type FindManifestsData = {
+export type GetJobData = {
     body?: never;
     path: {
         /**
-         * Unique identifier for the game
+         * Unique identifier for any async job
          */
-        gameId: string;
+        jobId: string;
     };
-    query: {
-        /**
-         * Maximum number of manifests to return (default: 10, max: 100)
-         */
-        limit?: number;
-        /**
-         * Filter to only return manifests for a specific rule
-         */
-        ruleId: string;
-    };
-    url: '/api/games/{gameId}/manifests';
+    query?: never;
+    url: '/api/jobs/{jobId}';
 };
 
-export type FindManifestsErrors = {
+export type GetJobErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type FindManifestsError = FindManifestsErrors[keyof FindManifestsErrors];
+export type GetJobError = GetJobErrors[keyof GetJobErrors];
 
-export type FindManifestsResponses = {
+export type GetJobResponses = {
     /**
-     * Manifests retrieved successfully
+     * Job details
      */
-    200: FindManifestsResponse;
+    200: JobDetailResponse;
 };
 
-export type FindManifestsResponse2 = FindManifestsResponses[keyof FindManifestsResponses];
+export type GetJobResponse = GetJobResponses[keyof GetJobResponses];
 
-export type SaveManifestData = {
-    body: SaveManifestRequest;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/manifests';
-};
-
-export type SaveManifestErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type SaveManifestError = SaveManifestErrors[keyof SaveManifestErrors];
-
-export type SaveManifestResponses = {
-    /**
-     * Manifest saved successfully
-     */
-    201: SaveManifestResponse;
-};
-
-export type SaveManifestResponse2 = SaveManifestResponses[keyof SaveManifestResponses];
-
-export type GetManifestData = {
+export type GetJobEventBatchData = {
     body?: never;
     path: {
         /**
-         * Unique identifier for the manifest
+         * Unique identifier for any async job
          */
-        manifestId: string;
-    };
-    query?: never;
-    url: '/api/manifests/{manifestId}';
-};
-
-export type GetManifestErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetManifestError = GetManifestErrors[keyof GetManifestErrors];
-
-export type GetManifestResponses = {
-    /**
-     * Manifest retrieved successfully
-     */
-    200: GameManifestDto;
-};
-
-export type GetManifestResponse = GetManifestResponses[keyof GetManifestResponses];
-
-export type GetLatestCompiledResultData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
+        jobId: string;
     };
     query?: {
         /**
-         * If true, only return results where success=true and uiStorageKey is present
+         * Opaque cursor from the previous job event batch.
          */
-        successOnly?: boolean;
-    };
-    url: '/api/games/{gameId}/compiled-results/latest';
-};
-
-export type GetLatestCompiledResultErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetLatestCompiledResultError = GetLatestCompiledResultErrors[keyof GetLatestCompiledResultErrors];
-
-export type GetLatestCompiledResultResponses = {
-    /**
-     * Latest compiled result found
-     */
-    200: CompiledResult;
-};
-
-export type GetLatestCompiledResultResponse = GetLatestCompiledResultResponses[keyof GetLatestCompiledResultResponses];
-
-export type ListCompiledResultsData = {
-    body?: never;
-    path: {
+        afterCursor?: string;
         /**
-         * Unique identifier for the game
+         * Maximum time to hold the request before returning an empty batch.
          */
-        gameId: string;
+        waitMs?: number;
     };
-    query?: {
-        /**
-         * Maximum number of results to return. Default is 10.
-         */
-        limit?: number;
-        /**
-         * Optional authoring state ID to limit results to a single authored head.
-         */
-        authoringStateId?: string;
-    };
-    url: '/api/games/{gameId}/compiled-results';
+    url: '/api/jobs/{jobId}/event-batches';
 };
 
-export type ListCompiledResultsErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type ListCompiledResultsError = ListCompiledResultsErrors[keyof ListCompiledResultsErrors];
-
-export type ListCompiledResultsResponses = {
-    /**
-     * Compiled results retrieved successfully
-     */
-    200: ListCompiledResultsResponse;
-};
-
-export type ListCompiledResultsResponse2 = ListCompiledResultsResponses[keyof ListCompiledResultsResponses];
-
-export type QueueCompiledResultJobData = {
-    body: QueueCompiledResultJobRequest;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/compiled-results';
-};
-
-export type QueueCompiledResultJobErrors = {
+export type GetJobEventBatchErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type QueueCompiledResultJobError = QueueCompiledResultJobErrors[keyof QueueCompiledResultJobErrors];
+export type GetJobEventBatchError = GetJobEventBatchErrors[keyof GetJobEventBatchErrors];
 
-export type QueueCompiledResultJobResponses = {
+export type GetJobEventBatchResponses = {
     /**
-     * Compile job accepted
+     * Job event batch
      */
-    202: QueueCompiledResultJobResponse;
+    200: JobEventBatchResponse;
 };
 
-export type QueueCompiledResultJobResponse2 = QueueCompiledResultJobResponses[keyof QueueCompiledResultJobResponses];
+export type GetJobEventBatchResponse = GetJobEventBatchResponses[keyof GetJobEventBatchResponses];
 
-export type GetCompiledResultData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-        /**
-         * Unique identifier for the compiled result
-         */
-        compiledResultId: string;
-    };
+export type CreateGameRunData = {
+    body: CreateGameRunRequest;
+    path?: never;
     query?: never;
-    url: '/api/games/{gameId}/compiled-results/{compiledResultId}';
+    url: '/api/runs';
 };
 
-export type GetCompiledResultErrors = {
+export type CreateGameRunErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
-     * Resource not found
+     * Conflict - version mismatch or resource state conflict
      */
-    404: ErrorResponse;
+    409: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type GetCompiledResultError = GetCompiledResultErrors[keyof GetCompiledResultErrors];
+export type CreateGameRunError = CreateGameRunErrors[keyof CreateGameRunErrors];
 
-export type GetCompiledResultResponses = {
+export type CreateGameRunResponses = {
     /**
-     * Compiled result found
+     * Game build run accepted
      */
-    200: CompiledResult;
+    202: CreateGameRunResponse;
 };
 
-export type GetCompiledResultResponse = GetCompiledResultResponses[keyof GetCompiledResultResponses];
+export type CreateGameRunResponse2 = CreateGameRunResponses[keyof CreateGameRunResponses];
 
-export type DownloadGameSourcesData = {
+export type CancelGameRunData = {
     body?: never;
     path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
+        jobId: string;
     };
     query?: never;
-    url: '/api/games/{gameId}/download';
+    url: '/api/runs/{jobId}/cancel';
 };
 
-export type DownloadGameSourcesErrors = {
+export type CancelGameRunErrors = {
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type DownloadGameSourcesError = DownloadGameSourcesErrors[keyof DownloadGameSourcesErrors];
+export type CancelGameRunError = CancelGameRunErrors[keyof CancelGameRunErrors];
 
-export type DownloadGameSourcesResponses = {
+export type CancelGameRunResponses = {
     /**
-     * ZIP archive containing source files
+     * Game build run cancellation accepted
      */
-    200: Blob | File;
+    202: unknown;
 };
 
-export type DownloadGameSourcesResponse = DownloadGameSourcesResponses[keyof DownloadGameSourcesResponses];
-
-export type GetGameSourcesData = {
+export type AcceptGameRunData = {
     body?: never;
     path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
+        jobId: string;
     };
-    query?: {
-        /**
-         * Optional authoring state ID to fetch sources from. If not provided, uses the current authoring head.
-         */
-        authoringStateId?: string;
-    };
-    url: '/api/games/{gameId}/sources';
+    query?: never;
+    url: '/api/runs/{jobId}/accept';
 };
 
-export type GetGameSourcesErrors = {
+export type AcceptGameRunErrors = {
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
+    /**
+     * Conflict - version mismatch or resource state conflict
+     */
+    409: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type GetGameSourcesError = GetGameSourcesErrors[keyof GetGameSourcesErrors];
+export type AcceptGameRunError = AcceptGameRunErrors[keyof AcceptGameRunErrors];
 
-export type GetGameSourcesResponses = {
+export type AcceptGameRunResponses = {
     /**
-     * Source files retrieved successfully
+     * Agent build result accept queued
      */
-    200: GameSourcesResponse;
+    202: AcceptGameRunResponse;
 };
 
-export type GetGameSourcesResponse = GetGameSourcesResponses[keyof GetGameSourcesResponses];
+export type AcceptGameRunResponse2 = AcceptGameRunResponses[keyof AcceptGameRunResponses];
 
-export type ScaffoldGameSourcesV3Data = {
-    body: DynamicScaffoldRequest;
+export type CreateProjectSessionFromReducerSnapshotData = {
+    body: CreateSessionFromReducerSnapshotRequest;
     path: {
         /**
-         * Unique identifier for the game
+         * Portable project lineage identifier
          */
-        gameId: string;
+        projectId: string;
     };
     query?: never;
-    url: '/api/games/{gameId}/scaffold/v3';
+    url: '/api/projects/{projectId}/sessions/from-reducer-snapshot';
 };
 
-export type ScaffoldGameSourcesV3Errors = {
+export type CreateProjectSessionFromReducerSnapshotErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type ScaffoldGameSourcesV3Error = ScaffoldGameSourcesV3Errors[keyof ScaffoldGameSourcesV3Errors];
+export type CreateProjectSessionFromReducerSnapshotError = CreateProjectSessionFromReducerSnapshotErrors[keyof CreateProjectSessionFromReducerSnapshotErrors];
 
-export type ScaffoldGameSourcesV3Responses = {
+export type CreateProjectSessionFromReducerSnapshotResponses = {
     /**
-     * Dynamic scaffolding completed successfully
+     * Session materialized successfully
      */
-    200: DynamicScaffoldResponse;
+    200: HostSessionSnapshot;
 };
 
-export type ScaffoldGameSourcesV3Response = ScaffoldGameSourcesV3Responses[keyof ScaffoldGameSourcesV3Responses];
-
-export type CreateSourceRevisionData = {
-    body: CreateSourceRevisionRequest;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/source-revisions';
-};
-
-export type CreateSourceRevisionErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Base source revision does not match the current head revision
-     */
-    409: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type CreateSourceRevisionError = CreateSourceRevisionErrors[keyof CreateSourceRevisionErrors];
-
-export type CreateSourceRevisionResponses = {
-    /**
-     * Source revision created
-     */
-    201: SourceRevision;
-};
-
-export type CreateSourceRevisionResponse = CreateSourceRevisionResponses[keyof CreateSourceRevisionResponses];
-
-export type GetAuthoringHeadData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/authoring/head';
-};
-
-export type GetAuthoringHeadErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetAuthoringHeadError = GetAuthoringHeadErrors[keyof GetAuthoringHeadErrors];
-
-export type GetAuthoringHeadResponses = {
-    /**
-     * Current authoring head found
-     */
-    200: AuthoringState;
-};
-
-export type GetAuthoringHeadResponse = GetAuthoringHeadResponses[keyof GetAuthoringHeadResponses];
-
-export type CreateAuthoringStateData = {
-    body: CreateAuthoringStateRequest;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/authoring/states';
-};
-
-export type CreateAuthoringStateErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Base authoring state does not match the current head
-     */
-    409: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type CreateAuthoringStateError = CreateAuthoringStateErrors[keyof CreateAuthoringStateErrors];
-
-export type CreateAuthoringStateResponses = {
-    /**
-     * Authoring state created and promoted to head
-     */
-    201: AuthoringState;
-};
-
-export type CreateAuthoringStateResponse = CreateAuthoringStateResponses[keyof CreateAuthoringStateResponses];
-
-export type CreateSourceRevisionBundleData = {
-    body: Blob | File;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/source-revisions/bundle';
-};
-
-export type CreateSourceRevisionBundleErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Base source revision does not match the current head revision
-     */
-    409: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type CreateSourceRevisionBundleError = CreateSourceRevisionBundleErrors[keyof CreateSourceRevisionBundleErrors];
-
-export type CreateSourceRevisionBundleResponses = {
-    /**
-     * Source revision created
-     */
-    201: SourceRevision;
-};
-
-export type CreateSourceRevisionBundleResponse = CreateSourceRevisionBundleResponses[keyof CreateSourceRevisionBundleResponses];
-
-export type GetGameScriptsData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query: {
-        /**
-         * The manifest ID to get compiled scripts for
-         */
-        manifestId: string;
-    };
-    url: '/api/games/{gameId}/scripts';
-};
-
-export type GetGameScriptsErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetGameScriptsError = GetGameScriptsErrors[keyof GetGameScriptsErrors];
-
-export type GetGameScriptsResponses = {
-    /**
-     * Game scripts retrieved successfully
-     */
-    200: GameScriptsResponse;
-};
-
-export type GetGameScriptsResponse = GetGameScriptsResponses[keyof GetGameScriptsResponses];
-
-export type GetAgentChatContextData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/agent-chat-context';
-};
-
-export type GetAgentChatContextErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetAgentChatContextError = GetAgentChatContextErrors[keyof GetAgentChatContextErrors];
-
-export type GetAgentChatContextResponses = {
-    /**
-     * Agent chat context retrieved successfully
-     */
-    200: AgentChatContextResponse;
-};
-
-export type GetAgentChatContextResponse = GetAgentChatContextResponses[keyof GetAgentChatContextResponses];
-
-export type GetActiveJobData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/jobs/active';
-};
-
-export type GetActiveJobErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetActiveJobError = GetActiveJobErrors[keyof GetActiveJobErrors];
-
-export type GetActiveJobResponses = {
-    /**
-     * Active job status (null if no active job)
-     */
-    200: ActiveJobResponse;
-};
-
-export type GetActiveJobResponse = GetActiveJobResponses[keyof GetActiveJobResponses];
-
-export type ListGameRulesData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: {
-        /**
-         * Maximum number of rules to return (default: 10, max: 100)
-         */
-        limit?: number;
-    };
-    url: '/api/games/{gameId}/rules';
-};
-
-export type ListGameRulesErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type ListGameRulesError = ListGameRulesErrors[keyof ListGameRulesErrors];
-
-export type ListGameRulesResponses = {
-    /**
-     * Game rules retrieved successfully
-     */
-    200: ListGameRulesResponse;
-};
-
-export type ListGameRulesResponse2 = ListGameRulesResponses[keyof ListGameRulesResponses];
-
-export type CreateGameRuleData = {
-    body: CreateGameRuleRequest;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/rules';
-};
-
-export type CreateGameRuleErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type CreateGameRuleError = CreateGameRuleErrors[keyof CreateGameRuleErrors];
-
-export type CreateGameRuleResponses = {
-    /**
-     * Game rule created successfully
-     */
-    201: CreateGameRuleResponse;
-};
-
-export type CreateGameRuleResponse2 = CreateGameRuleResponses[keyof CreateGameRuleResponses];
-
-export type GetLatestGameRuleData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/rules/latest';
-};
-
-export type GetLatestGameRuleErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetLatestGameRuleError = GetLatestGameRuleErrors[keyof GetLatestGameRuleErrors];
-
-export type GetLatestGameRuleResponses = {
-    /**
-     * Latest game rule retrieved successfully
-     */
-    200: GameRule;
-};
-
-export type GetLatestGameRuleResponse = GetLatestGameRuleResponses[keyof GetLatestGameRuleResponses];
-
-export type GetGameRuleData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game rule
-         */
-        ruleId: string;
-    };
-    query?: never;
-    url: '/api/rules/{ruleId}';
-};
-
-export type GetGameRuleErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetGameRuleError = GetGameRuleErrors[keyof GetGameRuleErrors];
-
-export type GetGameRuleResponses = {
-    /**
-     * Game rule retrieved successfully
-     */
-    200: GameRule;
-};
-
-export type GetGameRuleResponse = GetGameRuleResponses[keyof GetGameRuleResponses];
-
-export type CreateSessionData = {
-    body: CreateSessionRequest;
-    path: {
-        /**
-         * Unique identifier for the game
-         */
-        gameId: string;
-    };
-    query?: never;
-    url: '/api/games/{gameId}/sessions';
-};
-
-export type CreateSessionErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type CreateSessionError = CreateSessionErrors[keyof CreateSessionErrors];
-
-export type CreateSessionResponses = {
-    /**
-     * Session created successfully
-     */
-    201: CreateSessionResponse;
-};
-
-export type CreateSessionResponse2 = CreateSessionResponses[keyof CreateSessionResponses];
+export type CreateProjectSessionFromReducerSnapshotResponse = CreateProjectSessionFromReducerSnapshotResponses[keyof CreateProjectSessionFromReducerSnapshotResponses];
 
 export type GetSessionByShortCodeData = {
     body?: never;
@@ -4888,7 +5140,12 @@ export type GetSessionByShortCodeData = {
          */
         shortCode: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Optional controlled player to include in the selected-perspective gameplay snapshot.
+         */
+        playerId?: string;
+    };
     url: '/api/sessions/code/{shortCode}';
 };
 
@@ -4896,15 +5153,15 @@ export type GetSessionByShortCodeErrors = {
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type GetSessionByShortCodeError = GetSessionByShortCodeErrors[keyof GetSessionByShortCodeErrors];
@@ -4913,58 +5170,12 @@ export type GetSessionByShortCodeResponses = {
     /**
      * Session found successfully
      */
-    200: SessionStatus;
+    200: HostSessionSnapshot;
 };
 
 export type GetSessionByShortCodeResponse = GetSessionByShortCodeResponses[keyof GetSessionByShortCodeResponses];
 
-export type GetSessionStatusData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-    };
-    query?: never;
-    url: '/api/sessions/{sessionId}/status';
-};
-
-export type GetSessionStatusErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetSessionStatusError = GetSessionStatusErrors[keyof GetSessionStatusErrors];
-
-export type GetSessionStatusResponses = {
-    /**
-     * Session status retrieved successfully
-     */
-    200: SessionStatus;
-};
-
-export type GetSessionStatusResponse = GetSessionStatusResponses[keyof GetSessionStatusResponses];
-
-export type SubscribeToSessionEventsData = {
+export type GetSessionSnapshotData = {
     body?: never;
     path: {
         /**
@@ -4974,49 +5185,48 @@ export type SubscribeToSessionEventsData = {
     };
     query?: {
         /**
-         * Last message ID received; server replays events with ID > lastMessageId
+         * Optional controlled player to include in the selected-perspective gameplay snapshot.
          */
-        lastMessageId?: number;
+        playerId?: string;
     };
-    url: '/api/sessions/{sessionId}/events';
+    url: '/api/sessions/{sessionId}/snapshot';
 };
 
-export type SubscribeToSessionEventsErrors = {
+export type GetSessionSnapshotErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type SubscribeToSessionEventsError = SubscribeToSessionEventsErrors[keyof SubscribeToSessionEventsErrors];
+export type GetSessionSnapshotError = GetSessionSnapshotErrors[keyof GetSessionSnapshotErrors];
 
-export type SubscribeToSessionEventsResponses = {
+export type GetSessionSnapshotResponses = {
     /**
-     * Server-Sent Events stream. Each event contains a JSON-serialized GameMessage.
-     *
+     * Session snapshot retrieved successfully
      */
-    200: GameMessage;
+    200: HostSessionSnapshot;
 };
 
-export type SubscribeToSessionEventsResponse = SubscribeToSessionEventsResponses[keyof SubscribeToSessionEventsResponses];
+export type GetSessionSnapshotResponse = GetSessionSnapshotResponses[keyof GetSessionSnapshotResponses];
 
-export type SubscribeToGameLogsData = {
+export type GetSessionLobbyEventBatchData = {
     body?: never;
     path: {
         /**
@@ -5024,48 +5234,64 @@ export type SubscribeToGameLogsData = {
          */
         sessionId: string;
     };
-    query?: {
+    query: {
         /**
-         * Last log ID received (for reconnection/replay)
+         * Latest lobby message cursor received by the client.
          */
-        lastLogId?: number;
+        afterCursor?: number;
+        /**
+         * Maximum time to hold the request before returning an empty batch.
+         */
+        waitMs?: number;
+        /**
+         * Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
+         */
+        clientId: string;
+        /**
+         * Optional caller label for diagnostics, such as `play-page` or `session-play-panel`.
+         */
+        clientSource?: string;
     };
-    url: '/api/sessions/{sessionId}/logs';
+    url: '/api/sessions/{sessionId}/event-batches';
 };
 
-export type SubscribeToGameLogsErrors = {
+export type GetSessionLobbyEventBatchErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
+    /**
+     * Too many requests or live connections
+     */
+    429: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type SubscribeToGameLogsError = SubscribeToGameLogsErrors[keyof SubscribeToGameLogsErrors];
+export type GetSessionLobbyEventBatchError = GetSessionLobbyEventBatchErrors[keyof GetSessionLobbyEventBatchErrors];
 
-export type SubscribeToGameLogsResponses = {
+export type GetSessionLobbyEventBatchResponses = {
     /**
-     * SSE connection established
+     * Lobby session event batch
      */
-    200: LogMessageDto;
+    200: HostSessionEventBatchResponse;
 };
 
-export type SubscribeToGameLogsResponse = SubscribeToGameLogsResponses[keyof SubscribeToGameLogsResponses];
+export type GetSessionLobbyEventBatchResponse = GetSessionLobbyEventBatchResponses[keyof GetSessionLobbyEventBatchResponses];
 
 export type StartGameData = {
     body?: never;
@@ -5083,23 +5309,23 @@ export type StartGameErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type StartGameError = StartGameErrors[keyof StartGameErrors];
@@ -5108,106 +5334,66 @@ export type StartGameResponses = {
     /**
      * Game started successfully
      */
-    200: StartGameResponse;
+    200: HostSessionSnapshot;
 };
 
-export type StartGameResponse2 = StartGameResponses[keyof StartGameResponses];
+export type StartGameResponse = StartGameResponses[keyof StartGameResponses];
 
-export type SubmitActionData = {
-    body: SubmitActionRequest;
+export type CreateGameplayCapabilityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
+         */
+        'X-Dreamboard-Browser-Origin'?: string;
+    };
     path: {
         /**
          * Unique identifier for the game session
          */
         sessionId: string;
-    };
-    query?: never;
-    url: '/api/sessions/{sessionId}/actions';
-};
-
-export type SubmitActionErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type SubmitActionError = SubmitActionErrors[keyof SubmitActionErrors];
-
-export type SubmitActionResponses = {
-    /**
-     * Action submitted successfully
-     */
-    200: SubmitActionResponse;
-};
-
-export type SubmitActionResponse2 = SubmitActionResponses[keyof SubmitActionResponses];
-
-export type ValidateActionData = {
-    body: ValidateActionRequest;
-    path: {
         /**
-         * Unique identifier for the game session
+         * Unique identifier for the player (e.g., 'player-1')
          */
-        sessionId: string;
+        playerId: string;
     };
     query?: never;
-    url: '/api/sessions/{sessionId}/validate-action';
+    url: '/api/sessions/{sessionId}/players/{playerId}/gameplay-capability';
 };
 
-export type ValidateActionErrors = {
+export type CreateGameplayCapabilityErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type ValidateActionError = ValidateActionErrors[keyof ValidateActionErrors];
+export type CreateGameplayCapabilityError = CreateGameplayCapabilityErrors[keyof CreateGameplayCapabilityErrors];
 
-export type ValidateActionResponses = {
+export type CreateGameplayCapabilityResponses = {
     /**
-     * Validation result returned successfully
+     * Gameplay capability issued successfully
      */
-    200: ValidateActionResponse;
+    200: GameplayCapabilityResponse;
 };
 
-export type ValidateActionResponse2 = ValidateActionResponses[keyof ValidateActionResponses];
+export type CreateGameplayCapabilityResponse = CreateGameplayCapabilityResponses[keyof CreateGameplayCapabilityResponses];
 
 export type AddSeatData = {
     body?: never;
@@ -5225,23 +5411,23 @@ export type AddSeatErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type AddSeatError = AddSeatErrors[keyof AddSeatErrors];
@@ -5275,23 +5461,23 @@ export type RemoveSeatErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type RemoveSeatError = RemoveSeatErrors[keyof RemoveSeatErrors];
@@ -5325,23 +5511,23 @@ export type UpdateSeatErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type UpdateSeatError = UpdateSeatErrors[keyof UpdateSeatErrors];
@@ -5375,19 +5561,19 @@ export type AssignSeatErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type AssignSeatError = AssignSeatErrors[keyof AssignSeatErrors];
@@ -5400,52 +5586,6 @@ export type AssignSeatResponses = {
 };
 
 export type AssignSeatResponse = AssignSeatResponses[keyof AssignSeatResponses];
-
-export type RestoreHistoryData = {
-    body: RestoreHistoryRequest;
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-    };
-    query?: never;
-    url: '/api/sessions/{sessionId}/history/restore';
-};
-
-export type RestoreHistoryErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type RestoreHistoryError = RestoreHistoryErrors[keyof RestoreHistoryErrors];
-
-export type RestoreHistoryResponses = {
-    /**
-     * Game state restored successfully
-     */
-    200: RestoreHistoryResponse;
-};
-
-export type RestoreHistoryResponse2 = RestoreHistoryResponses[keyof RestoreHistoryResponses];
 
 export type UnassignSeatData = {
     body?: never;
@@ -5467,23 +5607,23 @@ export type UnassignSeatErrors = {
     /**
      * Bad request - invalid input parameters
      */
-    400: ErrorResponse;
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
 export type UnassignSeatError = UnassignSeatErrors[keyof UnassignSeatErrors];
@@ -5497,464 +5637,537 @@ export type UnassignSeatResponses = {
 
 export type UnassignSeatResponse = UnassignSeatResponses[keyof UnassignSeatResponses];
 
-export type StreamConversationData = {
+export type GetProjectUiBundleData = {
     body?: never;
     path: {
         /**
-         * Unique identifier for the conversation
+         * Portable project lineage identifier
          */
-        conversationId: string;
+        projectId: string;
     };
     query?: never;
-    url: '/api/conversations/{conversationId}/stream';
+    url: '/api/projects/{projectId}/ui-bundle';
 };
 
-export type StreamConversationErrors = {
+export type GetProjectUiBundleErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
     /**
      * Unauthorized - authentication required
      */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type StreamConversationError = StreamConversationErrors[keyof StreamConversationErrors];
-
-export type StreamConversationResponses = {
-    /**
-     * SSE stream of MessageEvent objects
-     */
-    200: AgentProgressEvent;
-};
-
-export type StreamConversationResponse = StreamConversationResponses[keyof StreamConversationResponses];
-
-export type CancelConversationJobData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the conversation
-         */
-        conversationId: string;
-    };
-    query?: never;
-    url: '/api/conversations/{conversationId}/cancel';
-};
-
-export type CancelConversationJobErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
+    401: ProblemDetails;
     /**
      * Forbidden - insufficient permissions
      */
-    403: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type CancelConversationJobError = CancelConversationJobErrors[keyof CancelConversationJobErrors];
-
-export type CancelConversationJobResponses = {
-    /**
-     * Job cancelled successfully (or no active job)
-     */
-    204: void;
-};
-
-export type CancelConversationJobResponse = CancelConversationJobResponses[keyof CancelConversationJobResponses];
-
-export type ListConversationsData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * Filter conversations by game ID
-         */
-        gameId: string;
-        /**
-         * Maximum number of conversations to return
-         */
-        limit?: number;
-    };
-    url: '/api/conversations';
-};
-
-export type ListConversationsErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type ListConversationsError = ListConversationsErrors[keyof ListConversationsErrors];
-
-export type ListConversationsResponses = {
-    /**
-     * Successfully retrieved conversations
-     */
-    200: ConversationsListResponse;
-};
-
-export type ListConversationsResponse = ListConversationsResponses[keyof ListConversationsResponses];
-
-export type DeleteConversationData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the conversation
-         */
-        conversationId: string;
-    };
-    query?: never;
-    url: '/api/conversations/{conversationId}';
-};
-
-export type DeleteConversationErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
+    403: ProblemDetails;
     /**
      * Resource not found
      */
-    404: ErrorResponse;
+    404: ProblemDetails;
     /**
      * Internal server error
      */
-    500: ErrorResponse;
+    500: ProblemDetails;
 };
 
-export type DeleteConversationError = DeleteConversationErrors[keyof DeleteConversationErrors];
+export type GetProjectUiBundleError = GetProjectUiBundleErrors[keyof GetProjectUiBundleErrors];
 
-export type DeleteConversationResponses = {
-    /**
-     * Conversation deleted successfully
-     */
-    204: void;
-};
-
-export type DeleteConversationResponse = DeleteConversationResponses[keyof DeleteConversationResponses];
-
-export type GetJobData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for any agent job
-         */
-        jobId: string;
-    };
-    query?: never;
-    url: '/api/jobs/{jobId}';
-};
-
-export type GetJobErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type GetJobError = GetJobErrors[keyof GetJobErrors];
-
-export type GetJobResponses = {
-    /**
-     * Job details
-     */
-    200: JobDetailResponse;
-};
-
-export type GetJobResponse = GetJobResponses[keyof GetJobResponses];
-
-export type SendSandboxMessageData = {
-    body: SendSandboxMessageRequest;
-    path: {
-        /**
-         * Unique identifier for the conversation
-         */
-        conversationId: string;
-    };
-    query?: never;
-    url: '/api/conversations/{conversationId}/sandbox/messages';
-};
-
-export type SendSandboxMessageErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type SendSandboxMessageError = SendSandboxMessageErrors[keyof SendSandboxMessageErrors];
-
-export type SendSandboxMessageResponses = {
-    /**
-     * Message sent successfully
-     */
-    200: SendSandboxMessageResponse;
-};
-
-export type SendSandboxMessageResponse2 = SendSandboxMessageResponses[keyof SendSandboxMessageResponses];
-
-export type AbortSandboxSessionData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the conversation
-         */
-        conversationId: string;
-    };
-    query?: never;
-    url: '/api/conversations/{conversationId}/sandbox/abort';
-};
-
-export type AbortSandboxSessionErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type AbortSandboxSessionError = AbortSandboxSessionErrors[keyof AbortSandboxSessionErrors];
-
-export type AbortSandboxSessionResponses = {
-    /**
-     * Abort signal sent successfully
-     */
-    204: void;
-};
-
-export type AbortSandboxSessionResponse = AbortSandboxSessionResponses[keyof AbortSandboxSessionResponses];
-
-export type SandboxChatData = {
-    body: SandboxChatRequest;
-    path?: never;
-    query?: never;
-    url: '/api/sandbox/chat';
-};
-
-export type SandboxChatErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type SandboxChatError = SandboxChatErrors[keyof SandboxChatErrors];
-
-export type SandboxChatResponses = {
-    /**
-     * Message sent, sandbox session active
-     */
-    200: SandboxChatResponse;
-};
-
-export type SandboxChatResponse2 = SandboxChatResponses[keyof SandboxChatResponses];
-
-export type SandboxAbortData = {
-    body: SandboxAbortRequest;
-    path?: never;
-    query?: never;
-    url: '/api/sandbox/abort';
-};
-
-export type SandboxAbortErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type SandboxAbortError = SandboxAbortErrors[keyof SandboxAbortErrors];
-
-export type SandboxAbortResponses = {
-    /**
-     * Sandbox session aborted successfully
-     */
-    204: void;
-};
-
-export type SandboxAbortResponse = SandboxAbortResponses[keyof SandboxAbortResponses];
-
-export type ReceiveSandboxWebhookEventData = {
-    body: SandboxWebhookEventPayload;
-    path: {
-        /**
-         * Unique identifier for the agent job
-         */
-        jobId: string;
-    };
-    query?: never;
-    url: '/api/webhooks/sandbox/{jobId}/event';
-};
-
-export type ReceiveSandboxWebhookEventErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type ReceiveSandboxWebhookEventError = ReceiveSandboxWebhookEventErrors[keyof ReceiveSandboxWebhookEventErrors];
-
-export type ReceiveSandboxWebhookEventResponses = {
-    /**
-     * Event received successfully
-     */
-    204: void;
-};
-
-export type ReceiveSandboxWebhookEventResponse = ReceiveSandboxWebhookEventResponses[keyof ReceiveSandboxWebhookEventResponses];
-
-export type ReceiveSandboxWebhookCompleteData = {
-    body: SandboxWebhookCompletePayload;
-    path: {
-        /**
-         * Unique identifier for the agent job
-         */
-        jobId: string;
-    };
-    query?: never;
-    url: '/api/webhooks/sandbox/{jobId}/complete';
-};
-
-export type ReceiveSandboxWebhookCompleteErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type ReceiveSandboxWebhookCompleteError = ReceiveSandboxWebhookCompleteErrors[keyof ReceiveSandboxWebhookCompleteErrors];
-
-export type ReceiveSandboxWebhookCompleteResponses = {
-    /**
-     * Completion received successfully
-     */
-    204: void;
-};
-
-export type ReceiveSandboxWebhookCompleteResponse = ReceiveSandboxWebhookCompleteResponses[keyof ReceiveSandboxWebhookCompleteResponses];
-
-export type FetchUiBundleData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * ID of the game to fetch the UI bundle for
-         */
-        gameId: string;
-    };
-    url: '/api/ui-bundles/fetch';
-};
-
-export type FetchUiBundleErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ErrorResponse;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ErrorResponse;
-    /**
-     * Resource not found
-     */
-    404: ErrorResponse;
-    /**
-     * Internal server error
-     */
-    500: ErrorResponse;
-};
-
-export type FetchUiBundleError = FetchUiBundleErrors[keyof FetchUiBundleErrors];
-
-export type FetchUiBundleResponses = {
+export type GetProjectUiBundleResponses = {
     /**
      * HTML content of the UI bundle
      */
     200: string;
 };
 
-export type FetchUiBundleResponse = FetchUiBundleResponses[keyof FetchUiBundleResponses];
+export type GetProjectUiBundleResponse = GetProjectUiBundleResponses[keyof GetProjectUiBundleResponses];
+
+export type GetSessionUiBundleData = {
+    body?: never;
+    path: {
+        /**
+         * Unique identifier for the game session
+         */
+        sessionId: string;
+    };
+    query?: never;
+    url: '/api/sessions/{sessionId}/ui-bundle';
+};
+
+export type GetSessionUiBundleErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetSessionUiBundleError = GetSessionUiBundleErrors[keyof GetSessionUiBundleErrors];
+
+export type GetSessionUiBundleResponses = {
+    /**
+     * HTML content of the UI bundle
+     */
+    200: string;
+};
+
+export type GetSessionUiBundleResponse = GetSessionUiBundleResponses[keyof GetSessionUiBundleResponses];
+
+export type ListDemoGamesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/demo-games';
+};
+
+export type ListDemoGamesErrors = {
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type ListDemoGamesError = ListDemoGamesErrors[keyof ListDemoGamesErrors];
+
+export type ListDemoGamesResponses = {
+    /**
+     * Successfully retrieved demo games
+     */
+    200: Array<DemoGameSummary>;
+};
+
+export type ListDemoGamesResponse = ListDemoGamesResponses[keyof ListDemoGamesResponses];
+
+export type GetDemoGameData = {
+    body?: never;
+    path: {
+        /**
+         * Demo game slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/demo-games/{slug}';
+};
+
+export type GetDemoGameErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetDemoGameError = GetDemoGameErrors[keyof GetDemoGameErrors];
+
+export type GetDemoGameResponses = {
+    /**
+     * Successfully retrieved demo game metadata
+     */
+    200: DemoGameDetails;
+};
+
+export type GetDemoGameResponse = GetDemoGameResponses[keyof GetDemoGameResponses];
+
+export type GetDemoGameThumbnailData = {
+    body?: never;
+    path: {
+        /**
+         * Demo game slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/demo-games/{slug}/thumbnail';
+};
+
+export type GetDemoGameThumbnailErrors = {
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetDemoGameThumbnailError = GetDemoGameThumbnailErrors[keyof GetDemoGameThumbnailErrors];
+
+export type GetDemoGameThumbnailResponses = {
+    /**
+     * Successfully retrieved demo thumbnail
+     */
+    200: Blob | File;
+};
+
+export type GetDemoGameThumbnailResponse = GetDemoGameThumbnailResponses[keyof GetDemoGameThumbnailResponses];
+
+export type CreateDemoGameSessionData = {
+    /**
+     * Optional deterministic demo-session creation inputs.
+     */
+    body?: CreateDemoSessionRequest;
+    path: {
+        /**
+         * Demo game slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/demo-games/{slug}/sessions';
+};
+
+export type CreateDemoGameSessionErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateDemoGameSessionError = CreateDemoGameSessionErrors[keyof CreateDemoGameSessionErrors];
+
+export type CreateDemoGameSessionResponses = {
+    /**
+     * Demo session created successfully
+     */
+    201: DemoSessionResponse;
+};
+
+export type CreateDemoGameSessionResponse = CreateDemoGameSessionResponses[keyof CreateDemoGameSessionResponses];
+
+export type GetDemoSessionByShortCodeData = {
+    body?: never;
+    path: {
+        /**
+         * Memorable short code for the demo session.
+         */
+        shortCode: string;
+    };
+    query?: {
+        /**
+         * Optional controlled player to include in the selected-perspective gameplay snapshot.
+         */
+        playerId?: string;
+    };
+    url: '/api/demo/sessions/code/{shortCode}';
+};
+
+export type GetDemoSessionByShortCodeErrors = {
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetDemoSessionByShortCodeError = GetDemoSessionByShortCodeErrors[keyof GetDemoSessionByShortCodeErrors];
+
+export type GetDemoSessionByShortCodeResponses = {
+    /**
+     * Demo session found successfully
+     */
+    200: HostSessionSnapshot;
+};
+
+export type GetDemoSessionByShortCodeResponse = GetDemoSessionByShortCodeResponses[keyof GetDemoSessionByShortCodeResponses];
+
+export type GetDemoSessionSnapshotData = {
+    body?: never;
+    path: {
+        /**
+         * Unique identifier for the game session
+         */
+        sessionId: string;
+    };
+    query?: {
+        /**
+         * Optional controlled player to include in the selected-perspective gameplay snapshot.
+         */
+        playerId?: string;
+    };
+    url: '/api/demo/sessions/{sessionId}/snapshot';
+};
+
+export type GetDemoSessionSnapshotErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetDemoSessionSnapshotError = GetDemoSessionSnapshotErrors[keyof GetDemoSessionSnapshotErrors];
+
+export type GetDemoSessionSnapshotResponses = {
+    /**
+     * Demo session snapshot retrieved successfully
+     */
+    200: HostSessionSnapshot;
+};
+
+export type GetDemoSessionSnapshotResponse = GetDemoSessionSnapshotResponses[keyof GetDemoSessionSnapshotResponses];
+
+export type GetDemoSessionLobbyEventBatchData = {
+    body?: never;
+    path: {
+        /**
+         * Unique identifier for the game session
+         */
+        sessionId: string;
+    };
+    query: {
+        /**
+         * Latest lobby message cursor received by the client.
+         */
+        afterCursor?: number;
+        /**
+         * Maximum time to hold the request before returning an empty batch.
+         */
+        waitMs?: number;
+        /**
+         * Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
+         */
+        clientId: string;
+        /**
+         * Optional caller label for diagnostics, such as `play-page` or `session-play-panel`.
+         */
+        clientSource?: string;
+    };
+    url: '/api/demo/sessions/{sessionId}/event-batches';
+};
+
+export type GetDemoSessionLobbyEventBatchErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Too many requests or live connections
+     */
+    429: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type GetDemoSessionLobbyEventBatchError = GetDemoSessionLobbyEventBatchErrors[keyof GetDemoSessionLobbyEventBatchErrors];
+
+export type GetDemoSessionLobbyEventBatchResponses = {
+    /**
+     * Demo lobby session event batch
+     */
+    200: HostSessionEventBatchResponse;
+};
+
+export type GetDemoSessionLobbyEventBatchResponse = GetDemoSessionLobbyEventBatchResponses[keyof GetDemoSessionLobbyEventBatchResponses];
+
+export type StartDemoGameData = {
+    body?: never;
+    path: {
+        /**
+         * Unique identifier for the game session
+         */
+        sessionId: string;
+    };
+    query?: never;
+    url: '/api/demo/sessions/{sessionId}/start';
+};
+
+export type StartDemoGameErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type StartDemoGameError = StartDemoGameErrors[keyof StartDemoGameErrors];
+
+export type StartDemoGameResponses = {
+    /**
+     * Demo game started successfully
+     */
+    200: HostSessionSnapshot;
+};
+
+export type StartDemoGameResponse = StartDemoGameResponses[keyof StartDemoGameResponses];
+
+export type CreateDemoGameplayCapabilityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
+         */
+        'X-Dreamboard-Browser-Origin'?: string;
+    };
+    path: {
+        /**
+         * Unique identifier for the game session
+         */
+        sessionId: string;
+        /**
+         * Unique identifier for the player (e.g., 'player-1')
+         */
+        playerId: string;
+    };
+    query?: never;
+    url: '/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability';
+};
+
+export type CreateDemoGameplayCapabilityErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden - insufficient permissions
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type CreateDemoGameplayCapabilityError = CreateDemoGameplayCapabilityErrors[keyof CreateDemoGameplayCapabilityErrors];
+
+export type CreateDemoGameplayCapabilityResponses = {
+    /**
+     * Demo gameplay capability issued successfully
+     */
+    200: GameplayCapabilityResponse;
+};
+
+export type CreateDemoGameplayCapabilityResponse = CreateDemoGameplayCapabilityResponses[keyof CreateDemoGameplayCapabilityResponses];
+
+export type FetchDemoUiBundleData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Demo session whose catalog revision provides the UI bundle.
+         */
+        sessionId: string;
+    };
+    url: '/api/demo/ui-bundles/fetch';
+};
+
+export type FetchDemoUiBundleErrors = {
+    /**
+     * Bad request - invalid input parameters
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized - authentication required
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found
+     */
+    404: ProblemDetails;
+    /**
+     * Internal server error
+     */
+    500: ProblemDetails;
+};
+
+export type FetchDemoUiBundleError = FetchDemoUiBundleErrors[keyof FetchDemoUiBundleErrors];
+
+export type FetchDemoUiBundleResponses = {
+    /**
+     * HTML content of the UI bundle
+     */
+    200: string;
+};
+
+export type FetchDemoUiBundleResponse = FetchDemoUiBundleResponses[keyof FetchDemoUiBundleResponses];

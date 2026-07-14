@@ -1,24 +1,61 @@
 import crypto from "node:crypto";
 import { defineCommand } from "citty";
 import consola from "consola";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { startCliAuthServer, openBrowser } from "../auth/auth-server.js";
-import { DEFAULT_LOGIN_TIMEOUT_MS, ENVIRONMENT_CONFIGS } from "../constants.js";
+import { startOAuthCallbackServer, openBrowser } from "../auth/auth-server.js";
 import {
+  buildClerkAuthorizationUrl,
+  createPkcePair,
+  exchangeClerkOAuthCode,
+} from "../auth/clerk-oauth.js";
+import { createUserSessionManager } from "../auth/user-session-manager.js";
+import { DEFAULT_LOGIN_TIMEOUT_MS } from "../constants.js";
+import {
+  getGlobalAuthPath,
   getGlobalConfigPath,
   loadGlobalConfig,
   saveGlobalConfig,
 } from "../config/global-config.js";
+import {
+  getActiveCredentialBackendName,
+  getStoredSession,
+} from "../config/credential-store.js";
+import { getAuthTokenExpiry, resolveConfig } from "../config/resolve.js";
 import { parseAuthCommandArgs } from "../flags.js";
-import { IS_PUBLISHED_BUILD, PUBLISHED_ENVIRONMENT } from "../build-target.js";
+import {
+  CAN_SELECT_ENVIRONMENT,
+  IS_PUBLISHED_BUILD,
+  PUBLISHED_ENVIRONMENT,
+} from "../build-target.js";
+import { runGitCredentialHelper } from "../services/git/git-credential-helper.js";
+
+const PUBLISHED_AUTH_ACTIONS = new Set(["login", "logout", "status"]);
 
 async function loginWithBrowser(
-  webBaseUrl: string,
+  config: ReturnType<typeof resolveConfig>,
   quiet: boolean,
-): Promise<{ token: string; refreshToken: string | undefined }> {
+): Promise<{
+  token: string;
+  refreshToken: string;
+  expiresAt?: string;
+  tokenUrl: string;
+}> {
   const state = crypto.randomUUID();
-  const server = await startCliAuthServer(state, DEFAULT_LOGIN_TIMEOUT_MS);
-  const loginUrl = `${webBaseUrl.replace(/\/$/, "")}/cli-login?port=${server.port}&state=${state}`;
+  const pkce = createPkcePair();
+  const server = await startOAuthCallbackServer(
+    state,
+    DEFAULT_LOGIN_TIMEOUT_MS,
+  );
+  const loginUrl = buildClerkAuthorizationUrl({
+    config: {
+      issuer: config.clerkOAuthIssuer,
+      clientId: config.clerkOAuthClientId,
+      tokenUrl: config.clerkOAuthTokenUrl,
+      scope: config.clerkOAuthScope,
+    },
+    redirectUri: server.redirectUri,
+    state,
+    codeChallenge: pkce.challenge,
+  }).toString();
 
   if (!quiet) {
     consola.info("Opening browser for login...");
@@ -32,194 +69,332 @@ async function loginWithBrowser(
   }
 
   try {
-    const { token, refreshToken } = await server.waitForToken;
-    return { token, refreshToken: refreshToken ?? undefined };
+    const { code } = await server.waitForCode;
+    const tokenResponse = await exchangeClerkOAuthCode({
+      config: {
+        issuer: config.clerkOAuthIssuer,
+        clientId: config.clerkOAuthClientId,
+        tokenUrl: config.clerkOAuthTokenUrl,
+      },
+      code,
+      redirectUri: server.redirectUri,
+      codeVerifier: pkce.verifier,
+    });
+    return {
+      token: tokenResponse.accessToken,
+      refreshToken: tokenResponse.refreshToken,
+      expiresAt: tokenResponse.expiresAt,
+      tokenUrl: tokenResponse.tokenUrl,
+    };
   } finally {
     server.close();
   }
 }
 
-export default defineCommand({
-  meta: { name: "auth", description: "Manage stored Dreamboard sessions" },
-  args: {
-    action: {
-      type: "positional",
-      description: IS_PUBLISHED_BUILD
-        ? "Action: clear | login"
-        : "Action: set | clear | login | env",
-      required: true,
-    },
-    ...(IS_PUBLISHED_BUILD
-      ? {}
-      : {
-          tokenValue: {
-            type: "positional" as const,
-            description: "Token value (for set) or environment name (for env)",
-            required: false,
-          },
-          token: {
-            type: "string" as const,
-            description: "Auth token (alternative)",
-          },
-          jwt: {
-            type: "boolean" as const,
-            description: "Print auth token JSON to stdout",
-          },
-          env: {
-            type: "string" as const,
-            description: "Environment: local | dev | prod",
-          },
-        }),
-  },
-  async run({ args }) {
-    const parsedArgs = parseAuthCommandArgs(args);
-    const action = parsedArgs.action;
-    const config = await loadGlobalConfig();
+async function runAuthAction(rawArgs: unknown): Promise<void> {
+  const parsedArgs = parseAuthCommandArgs(rawArgs);
+  const action = parsedArgs.action;
+  const globalConfig = await loadGlobalConfig();
 
-    if (IS_PUBLISHED_BUILD && action !== "login" && action !== "clear") {
+  if (action === "git-credential") {
+    await runGitCredentialHelper();
+    return;
+  }
+
+  if (
+    IS_PUBLISHED_BUILD &&
+    !PUBLISHED_AUTH_ACTIONS.has(action) &&
+    !(CAN_SELECT_ENVIRONMENT && action === "env")
+  ) {
+    throw new Error(
+      "The published Dreamboard CLI supports auth login, logout, and status.",
+    );
+  }
+
+  if (action === "env") {
+    if (!CAN_SELECT_ENVIRONMENT) {
       throw new Error(
-        "The published Dreamboard CLI only supports browser login and logout. Use `dreamboard login` or `dreamboard logout`.",
+        "The published Dreamboard CLI is production-only and does not support switching environments.",
       );
     }
-
-    if (action === "env") {
-      if (IS_PUBLISHED_BUILD) {
-        throw new Error(
-          "The published Dreamboard CLI is production-only and does not support switching environments.",
-        );
-      }
-      const environment = parsedArgs.tokenValue ?? parsedArgs.env;
-      if (!environment) {
-        throw new Error("Usage: dreamboard auth env <local|dev|prod>");
-      }
-      if (!["local", "dev", "prod"].includes(environment)) {
-        throw new Error(
-          `Invalid environment '${environment}'. Valid options: local, dev, prod`,
-        );
-      }
-      await saveGlobalConfig({ ...config, environment: environment as any });
-      consola.success(`Environment set to '${environment}'.`);
-      return;
+    const environment = parsedArgs.tokenValue ?? parsedArgs.env;
+    if (!environment) {
+      throw new Error("Usage: dreamboard auth env <local|staging|prod>");
     }
-
-    if (action === "set") {
-      if (IS_PUBLISHED_BUILD) {
-        throw new Error(
-          "Direct JWT injection is not supported in the published Dreamboard CLI. Use `dreamboard login` so the CLI can store a refreshable session.",
-        );
-      }
-      const token = parsedArgs.tokenValue ?? parsedArgs.token ?? "";
-      if (!token) throw new Error("Usage: dreamboard auth set <token>");
-      await saveGlobalConfig({ ...config, authToken: token });
-      consola.success("Auth token saved.");
-      return;
-    }
-
-    if (action === "clear") {
-      await saveGlobalConfig({
-        ...config,
-        authToken: undefined,
-        refreshToken: undefined,
-      });
-      consola.success(
-        `Stored Dreamboard session cleared from ${getGlobalConfigPath()}.`,
+    if (!["local", "staging", "prod"].includes(environment)) {
+      throw new Error(
+        `Invalid environment '${environment}'. Valid options: local, staging, prod`,
       );
-      return;
     }
+    await saveGlobalConfig({
+      ...globalConfig,
+      environment: environment as any,
+    });
+    consola.success(`Environment set to '${environment}'.`);
+    return;
+  }
 
-    if (action === "login") {
-      const shouldPrintJwt = !IS_PUBLISHED_BUILD && parsedArgs.jwt === true;
-      const environment = IS_PUBLISHED_BUILD
-        ? PUBLISHED_ENVIRONMENT
-        : parsedArgs.env || config.environment || "dev";
-      const envConfig = ENVIRONMENT_CONFIGS[environment];
+  if (action === "set") {
+    if (IS_PUBLISHED_BUILD) {
+      throw new Error(
+        "Direct JWT injection is not supported in the published Dreamboard CLI. Use `dreamboard auth login` so the CLI can store a refreshable session.",
+      );
+    }
+    const token = parsedArgs.tokenValue ?? parsedArgs.token ?? "";
+    if (!token) throw new Error("Usage: dreamboard auth set <token>");
 
-      const supabaseUrl = envConfig?.supabaseUrl;
-      const supabaseAnonKey = envConfig?.supabaseAnonKey;
+    // `auth set` is the power-user "paste a JWT" path. It has no refresh
+    // token by construction, so establish an explicit access-only session.
+    const config = resolveConfig(
+      globalConfig,
+      { env: parsedArgs.env },
+      undefined,
+      await getStoredSession(),
+    );
+    await createUserSessionManager(config).establishAccessOnlySession(token);
+    consola.success(`Auth token saved to ${getGlobalAuthPath()}.`);
+    return;
+  }
 
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error(
-          `Missing Supabase config for environment '${environment}'. Check ENVIRONMENT_CONFIGS in constants.ts.`,
-        );
-      }
+  if (action === "logout") {
+    const config = resolveConfig(
+      globalConfig,
+      { env: parsedArgs.env },
+      undefined,
+      await getStoredSession(),
+    );
+    await createUserSessionManager(config).logout();
+    consola.success(
+      `Stored Dreamboard session cleared from ${getGlobalAuthPath()}.`,
+    );
+    return;
+  }
 
-      const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
-      let accessToken = config.authToken;
-      let refreshToken = config.refreshToken;
-      let didRefreshStoredSession = false;
+  if (action === "login") {
+    const shouldPrintJwt = !IS_PUBLISHED_BUILD && parsedArgs.jwt === true;
+    const environment = !CAN_SELECT_ENVIRONMENT
+      ? PUBLISHED_ENVIRONMENT
+      : parsedArgs.env ||
+        globalConfig.environment ||
+        (IS_PUBLISHED_BUILD ? PUBLISHED_ENVIRONMENT : "staging");
 
-      if (accessToken) {
-        if (refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
+    const storedSession = await getStoredSession();
+    const resolvedConfig = resolveConfig(
+      globalConfig,
+      { env: environment },
+      undefined,
+      storedSession,
+    );
+    const sessionManager = createUserSessionManager(resolvedConfig);
+    const existingStatus = await sessionManager.inspectSession();
 
-          if (error) {
-            throw new Error(
-              `Stored session refresh failed: ${error.message}. Run 'dreamboard auth clear' and retry 'dreamboard auth login'.`,
-            );
-          }
-
-          accessToken = data.session?.access_token ?? accessToken;
-          refreshToken = data.session?.refresh_token ?? refreshToken;
-          didRefreshStoredSession = true;
-        }
-      } else {
-        const browserLogin = await loginWithBrowser(
-          envConfig.webBaseUrl,
-          shouldPrintJwt,
-        );
-        accessToken = browserLogin.token;
-        refreshToken = browserLogin.refreshToken;
-      }
-
-      if (!accessToken) {
-        throw new Error("Login completed but no access token was returned.");
-      }
-
-      await saveGlobalConfig({
-        ...config,
-        authToken: accessToken,
-        refreshToken: refreshToken,
-        environment: environment as any,
-      });
-
+    if (existingStatus.kind === "active") {
       if (shouldPrintJwt) {
+        const current = await getStoredSession();
         process.stdout.write(
           `${JSON.stringify(
             {
-              token: accessToken,
-              refreshToken: refreshToken ?? null,
+              token: current?.accessToken ?? existingStatus.apiToken.token,
+              refreshToken: current?.refreshToken ?? null,
               environment,
             },
             null,
             2,
           )}\n`,
         );
-        return;
-      }
-
-      if (config.authToken && didRefreshStoredSession) {
+      } else if (existingStatus.repaired) {
         consola.success(
-          `Stored auth session refreshed and saved to ${getGlobalConfigPath()}.`,
-        );
-      } else if (config.authToken) {
-        consola.success(
-          `Stored auth token found. Session data remains in ${getGlobalConfigPath()}.`,
+          `Stored Dreamboard session repaired and saved to ${getGlobalAuthPath()}`,
         );
       } else {
         consola.success(
-          `Browser login successful. Session saved to ${getGlobalConfigPath()}.`,
+          `Stored Dreamboard session is active in ${getGlobalAuthPath()}`,
         );
       }
       return;
     }
 
-    throw new Error(
-      IS_PUBLISHED_BUILD
-        ? "Usage:\n  dreamboard auth clear\n  dreamboard auth login"
-        : "Usage:\n  dreamboard auth clear\n  dreamboard auth login [--env <local|dev|prod>] [--jwt]\n  dreamboard auth set <token>\n  dreamboard auth env <local|dev|prod>",
+    if (
+      existingStatus.kind === "degraded" ||
+      existingStatus.kind === "invalid"
+    ) {
+      consola.warn(existingStatus.message);
+    }
+
+    const browserLogin = await loginWithBrowser(resolvedConfig, shouldPrintJwt);
+    await saveGlobalConfig({
+      ...globalConfig,
+      environment: environment as any,
+    });
+    await sessionManager.establishRefreshableSession({
+      clerkAccessToken: browserLogin.token,
+      refreshToken: browserLogin.refreshToken,
+      clerkAccessExpiresAt: browserLogin.expiresAt,
+      clerkOAuthIssuer: resolvedConfig.clerkOAuthIssuer,
+      clerkOAuthClientId: resolvedConfig.clerkOAuthClientId,
+      clerkOAuthTokenUrl: browserLogin.tokenUrl,
+      environment,
+    });
+
+    if (shouldPrintJwt) {
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            token: browserLogin.token,
+            refreshToken: browserLogin.refreshToken,
+            environment,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      return;
+    }
+
+    consola.success(
+      `Browser login successful. Session saved to ${getGlobalAuthPath()}`,
     );
+    return;
+  }
+
+  if (action === "status") {
+    const storedSession = await getStoredSession();
+    const resolvedConfig = resolveConfig(
+      globalConfig,
+      { env: parsedArgs.env },
+      undefined,
+      storedSession,
+    );
+    const environment = resolvedConfig.environment;
+    const status =
+      await createUserSessionManager(resolvedConfig).inspectSession();
+    const backendName = await getActiveCredentialBackendName();
+
+    consola.log(`Environment: ${environment}`);
+    consola.log(
+      `Credential backend: ${backendName}${
+        backendName === "keychain"
+          ? " (OS keychain via @napi-rs/keyring)"
+          : ` (${getGlobalAuthPath()})`
+      }`,
+    );
+    consola.log(`Config path: ${getGlobalConfigPath()}`);
+
+    if (status.kind === "none") {
+      consola.log("Session state: none");
+      consola.warn("No Dreamboard session found.");
+      return;
+    }
+
+    if (status.kind === "degraded") {
+      consola.log("Session state: degraded (refreshable)");
+      consola.warn(
+        `Stored Dreamboard session is refreshable but currently API-unusable: ${status.message}`,
+      );
+      return;
+    }
+
+    if (status.kind === "invalid") {
+      consola.log(`Session state: invalid (${status.sessionKind})`);
+      consola.warn(status.message);
+      return;
+    }
+
+    consola.log(`Session state: active (${status.sessionKind})`);
+    const authTokenExpiry =
+      status.apiToken.expiresAt !== undefined
+        ? new Date(status.apiToken.expiresAt)
+        : getAuthTokenExpiry(status.apiToken.token);
+    if (authTokenExpiry && Number.isFinite(authTokenExpiry.getTime())) {
+      consola.log(
+        `Dreamboard API token expires at: ${authTokenExpiry.toISOString()} (active)`,
+      );
+    } else {
+      consola.log("Dreamboard API token expiry: unavailable");
+    }
+
+    consola.success(
+      status.repaired
+        ? "Dreamboard session was repaired and is active."
+        : "Dreamboard session is active.",
+    );
+    return;
+  }
+
+  throw new Error(
+    IS_PUBLISHED_BUILD
+      ? "Usage:\n  dreamboard auth login\n  dreamboard auth logout\n  dreamboard auth status"
+      : "Usage:\n  dreamboard auth login [--env <local|staging|prod>] [--jwt]\n  dreamboard auth logout\n  dreamboard auth set <token>\n  dreamboard auth env <local|staging|prod>\n  dreamboard auth status [--env <local|staging|prod>]",
+  );
+}
+
+function defineAuthActionCommand(options: {
+  name: string;
+  description: string;
+  action: ReturnType<typeof parseAuthCommandArgs>["action"];
+  args?: any;
+  hidden?: boolean;
+}) {
+  return defineCommand({
+    meta: {
+      name: options.name,
+      description: options.description,
+      hidden: options.hidden,
+    },
+    args: options.args ?? {},
+    async run({ args }) {
+      await runAuthAction({ ...args, action: options.action });
+    },
+  });
+}
+
+export default defineCommand({
+  meta: { name: "auth", description: "Manage stored Dreamboard sessions" },
+  subCommands: {
+    login: defineAuthActionCommand({
+      name: "login",
+      description: "Open browser login and store a refreshable session",
+      action: "login",
+      args: CAN_SELECT_ENVIRONMENT
+        ? {
+            env: {
+              type: "string" as const,
+              description: "Environment: local | staging | prod",
+            },
+            ...(IS_PUBLISHED_BUILD
+              ? {}
+              : {
+                  jwt: {
+                    type: "boolean" as const,
+                    description: "Print auth token JSON to stdout",
+                  },
+                }),
+          }
+        : {},
+    }),
+    logout: defineAuthActionCommand({
+      name: "logout",
+      description: "Clear the stored Dreamboard session",
+      action: "logout",
+    }),
+    status: defineAuthActionCommand({
+      name: "status",
+      description: "Show stored Dreamboard session status",
+      action: "status",
+      args: CAN_SELECT_ENVIRONMENT
+        ? {
+            env: {
+              type: "string" as const,
+              description: "Environment: local | staging | prod",
+            },
+          }
+        : {},
+    }),
+    "git-credential": defineAuthActionCommand({
+      name: "git-credential",
+      description: "Resolve Git credentials for Dreamboard remotes",
+      action: "git-credential",
+      hidden: true,
+    }),
   },
 });

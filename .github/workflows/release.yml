@@ -1,36 +1,41 @@
-name: Release CLI
+name: Release authoring packages
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Git tag to create. Must match v<packageVersion>."
+        description: "Git tag to create. Must match v<CLI version>."
         required: true
         type: string
       npm_tag:
-        description: "npm dist-tag to publish under"
+        description: "npm dist-tag to assign after exact-version verification"
         required: true
-        default: beta
+        default: alpha
         type: choice
         options:
+          - alpha
           - beta
           - latest
+      resume_existing:
+        description: "Resume a partial release only when existing package integrity matches this candidate"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
-  group: release-cli
+  group: release-authoring-packages
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish npm package
+  verify:
+    name: Build and verify immutable candidate
     runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      contents: write
-      id-token: write
+    outputs:
+      release_tag: ${{ steps.release_meta.outputs.release_tag }}
+      npm_tag: ${{ steps.release_meta.outputs.npm_tag }}
+      package_version: ${{ steps.release_meta.outputs.package_version }}
     env:
-      NODE_VERSION: "24"
-      DEFAULT_BRANCH: "main"
+      DEFAULT_BRANCH: main
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -45,74 +50,167 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: "24"
           cache: pnpm
           registry-url: https://registry.npmjs.org
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Stage publish package
-        run: pnpm pack:publish
+      - name: Build and verify package candidate
+        run: pnpm verify:package
+
+      - name: Validate exact registry state
+        run: |
+          expectation=unpublished
+          if [ "${{ inputs.resume_existing }}" = "true" ]; then
+            expectation=resume
+          fi
+          pnpm candidate:registry -- --expect "$expectation"
 
       - name: Validate release metadata
         id: release_meta
         run: |
-          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ]; then
-            echo "Releases must run from ${DEFAULT_BRANCH}, got ${GITHUB_REF_NAME}." >&2
+          npm_tag="${{ inputs.npm_tag }}"
+          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ] && [ "${npm_tag}" != "alpha" ]; then
+            echo "Releases from ${GITHUB_REF_NAME} must use the alpha npm tag." >&2
             exit 1
           fi
 
-          package_version="$(node -p "require('./apps/dreamboard-cli/.publish/package/package.json').version")"
+          package_version="$(jq -r '.releaseSet.packages.cli.version' build/release-candidate/receipt.json)"
           expected_tag="v${package_version}"
           release_tag="${{ inputs.release_tag }}"
-          npm_tag="${{ inputs.npm_tag }}"
-
           if [ "${release_tag}" != "${expected_tag}" ]; then
-            echo "Release tag ${release_tag} does not match expected tag ${expected_tag}." >&2
+            echo "Release tag ${release_tag} does not match ${expected_tag}." >&2
             exit 1
           fi
-
           if gh release view "${release_tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             echo "GitHub release ${release_tag} already exists." >&2
             exit 1
           fi
 
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "npm_tag=$npm_tag" >> "$GITHUB_OUTPUT"
-          echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "npm_tag=${npm_tag}" >> "$GITHUB_OUTPUT"
+          echo "package_version=${package_version}" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Publish to npm
-        run: |
-          npm publish apps/dreamboard-cli/.publish/package \
-            --tag "${{ steps.release_meta.outputs.npm_tag }}"
+      - name: Upload verified candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: authoring-release-candidate
+          path: build/release-candidate
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Create GitHub Release
+  publish:
+    name: Publish verified tarballs
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Download verified candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: authoring-release-candidate
+          path: build/release-candidate
+
+      - name: Revalidate candidate and registry state
+        run: |
+          expectation=unpublished
+          if [ "${{ inputs.resume_existing }}" = "true" ]; then
+            expectation=resume
+          fi
+          node scripts/check-authoring-release-candidate-registry.ts \
+            --candidate build/release-candidate/receipt.json \
+            --expect "$expectation"
+
+      - name: Publish dev-host then CLI
+        run: |
+          set -euo pipefail
+
+          publish_candidate() {
+            key="$1"
+            name="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .name' build/release-candidate/receipt.json)"
+            version="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .version' build/release-candidate/receipt.json)"
+            file="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .file' build/release-candidate/receipt.json)"
+            expected_integrity="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .integrity' build/release-candidate/receipt.json)"
+
+            if existing_integrity="$(npm view "${name}@${version}" dist.integrity --json 2>/dev/null | jq -r '.')"; then
+              if [ "${{ inputs.resume_existing }}" != "true" ]; then
+                echo "${name}@${version} already exists; refusing a normal release." >&2
+                exit 1
+              fi
+              if [ "$existing_integrity" != "$expected_integrity" ]; then
+                echo "${name}@${version} exists with different integrity." >&2
+                exit 1
+              fi
+              echo "Resuming after verified existing ${name}@${version}."
+              return
+            fi
+
+            npm publish "build/release-candidate/${file}" \
+              --tag "${{ needs.verify.outputs.npm_tag }}" \
+              --provenance
+          }
+
+          publish_candidate devHost
+          publish_candidate cli
+
+      - name: Verify published integrity
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if node scripts/check-authoring-release-candidate-registry.ts \
+              --candidate build/release-candidate/receipt.json \
+              --expect published; then
+              exit 0
+            fi
+            if [ "$attempt" = "6" ]; then
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Create GitHub release
         run: |
           release_args=(
-            "${{ steps.release_meta.outputs.release_tag }}"
+            "${{ needs.verify.outputs.release_tag }}"
             --repo "${GITHUB_REPOSITORY}"
             --target "${GITHUB_SHA}"
-            --title "${{ steps.release_meta.outputs.release_tag }}"
+            --title "${{ needs.verify.outputs.release_tag }}"
             --generate-notes
           )
-
-          if [ "${{ steps.release_meta.outputs.npm_tag }}" = "beta" ]; then
+          if [ "${{ needs.verify.outputs.npm_tag }}" != "latest" ]; then
             release_args+=(--prerelease)
           fi
-
-          gh release create "${release_args[@]}"
+          gh release create "${release_args[@]}" \
+            build/release-candidate/*.tgz \
+            build/release-candidate/receipt.json
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Job summary
         run: |
           {
-            echo "Published \`dreamboard@${{ steps.release_meta.outputs.package_version }}\`"
-            echo
-            echo "- release tag: \`${{ steps.release_meta.outputs.release_tag }}\`"
-            echo "- npm tag: \`${{ steps.release_meta.outputs.npm_tag }}\`"
-            echo "- branch: \`${GITHUB_REF_NAME}\`"
+            echo "Published verified authoring candidate"
+            echo "- CLI: \`@dreamboard-games/cli@${{ needs.verify.outputs.package_version }}\`"
+            echo "- release tag: \`${{ needs.verify.outputs.release_tag }}\`"
+            echo "- npm tag: \`${{ needs.verify.outputs.npm_tag }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

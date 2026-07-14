@@ -1,58 +1,134 @@
 {
-  "name": "@dreamboard/api-client",
-  "version": "0.1.0",
+  "name": "@dreamboard-games/api-client",
+  "version": "0.3.0-alpha.4",
   "description": "Public Dreamboard API client and event types",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamboard-games/dreamboard.git"
+  },
+  "homepage": "http://dreamboard.games/",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "dreamboard-source": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./client.gen": {
-      "types": "./src/client.gen.ts",
-      "import": "./src/client.gen.ts"
+      "dreamboard-source": "./src/client.gen.ts",
+      "bun": "./src/client.gen.ts",
+      "types": "./dist/client.gen.d.ts",
+      "import": "./dist/client.gen.js",
+      "default": "./dist/client.gen.js"
+    },
+    "./types.gen": {
+      "dreamboard-source": "./src/types.gen.ts",
+      "bun": "./src/types.gen.ts",
+      "types": "./dist/types.gen.d.ts",
+      "import": "./dist/types.gen.js",
+      "default": "./dist/types.gen.js"
     },
     "./react-query": {
-      "types": "./src/@tanstack/react-query.gen.ts",
-      "import": "./src/@tanstack/react-query.gen.ts"
+      "dreamboard-source": "./src/@tanstack/react-query.gen.ts",
+      "bun": "./src/@tanstack/react-query.gen.ts",
+      "types": "./dist/@tanstack/react-query.gen.d.ts",
+      "import": "./dist/@tanstack/react-query.gen.js",
+      "default": "./dist/@tanstack/react-query.gen.js"
+    },
+    "./problem-types": {
+      "dreamboard-source": "./src/generated/problem-types.gen.ts",
+      "bun": "./src/generated/problem-types.gen.ts",
+      "types": "./dist/generated/problem-types.gen.d.ts",
+      "import": "./dist/generated/problem-types.gen.js",
+      "default": "./dist/generated/problem-types.gen.js"
     },
     "./storage-paths": {
-      "types": "./src/storage-paths.ts",
-      "import": "./src/storage-paths.ts"
+      "dreamboard-source": "./src/storage-paths.ts",
+      "bun": "./src/storage-paths.ts",
+      "types": "./dist/storage-paths.d.ts",
+      "import": "./dist/storage-paths.js",
+      "default": "./dist/storage-paths.js"
     },
     "./source-revisions": {
-      "types": "./src/source-revisions.ts",
-      "import": "./src/source-revisions.ts"
+      "dreamboard-source": "./src/source-revisions.ts",
+      "bun": "./src/source-revisions.ts",
+      "types": "./dist/source-revisions.d.ts",
+      "import": "./dist/source-revisions.js",
+      "default": "./dist/source-revisions.js"
+    },
+    "./game-revisions": {
+      "dreamboard-source": "./src/game-revisions.ts",
+      "bun": "./src/game-revisions.ts",
+      "types": "./dist/game-revisions.d.ts",
+      "import": "./dist/game-revisions.js",
+      "default": "./dist/game-revisions.js"
+    },
+    "./zod.gen": {
+      "dreamboard-source": "./src/zod.gen.ts",
+      "bun": "./src/zod.gen.ts",
+      "types": "./dist/zod.gen.d.ts",
+      "import": "./dist/zod.gen.js",
+      "default": "./dist/zod.gen.js"
     }
   },
   "typesVersions": {
     "*": {
       "client.gen": [
-        "./src/client.gen.ts"
+        "./dist/client.gen.d.ts"
+      ],
+      "types.gen": [
+        "./dist/types.gen.d.ts"
+      ],
+      "problem-types": [
+        "./dist/generated/problem-types.gen.d.ts"
       ],
       "react-query": [
-        "./src/@tanstack/react-query.gen.ts"
+        "./dist/@tanstack/react-query.gen.d.ts"
       ],
       "storage-paths": [
-        "./src/storage-paths.ts"
+        "./dist/storage-paths.d.ts"
       ],
       "source-revisions": [
-        "./src/source-revisions.ts"
+        "./dist/source-revisions.d.ts"
+      ],
+      "game-revisions": [
+        "./dist/game-revisions.d.ts"
+      ],
+      "zod.gen": [
+        "./dist/zod.gen.d.ts"
       ]
     }
   },
   "scripts": {
-    "sync:private-openapi": "bun run scripts/sync-private-openapi.ts",
-    "build": "bun run scripts/generate.ts",
-    "generate": "bun run scripts/generate.ts"
+    "authoring:candidate": "node scripts/build-authoring-candidate.mjs",
+    "check": "pnpm run check:contract-source && pnpm run check:generated && pnpm run build",
+    "build": "tsc -b",
+    "generate": "bun run scripts/generate.ts --write",
+    "check:generated": "bun run scripts/generate.ts --check",
+    "check:contract-source": "bun run scripts/check-contract-source.ts"
   },
+  "files": [
+    "dist",
+    "src"
+  ],
   "dependencies": {
-    "@tanstack/react-query": "^5.90.16"
+    "@tanstack/react-query": "^5.101.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@dreamboard/typescript-config": "workspace:*",
-    "@hey-api/openapi-ts": "^0.90.2"
+    "@hey-api/openapi-ts": "^0.90.10",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "zod": "4.4.3"
   }
 }

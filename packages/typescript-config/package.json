@@ -1,6 +1,9 @@
 {
   "name": "@dreamboard/typescript-config",
   "version": "0.0.0",
+  "scripts": {
+    "check": "node -e \"for (const file of ['base.json','nextjs.json','react-library.json','vite.json']) JSON.parse(require('node:fs').readFileSync(file, 'utf8'))\""
+  },
   "private": true,
   "license": "PROPRIETARY",
   "publishConfig": {

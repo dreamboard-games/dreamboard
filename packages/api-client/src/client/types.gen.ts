@@ -2,10 +2,6 @@
 
 import type { Auth } from '../core/auth.gen.js';
 import type {
-  ServerSentEventsOptions,
-  ServerSentEventsResult,
-} from '../core/serverSentEvents.gen.js';
-import type {
   Client as CoreClient,
   Config as CoreConfig,
 } from '../core/types.gen.js';
@@ -72,15 +68,7 @@ export interface RequestOptions<
 > extends Config<{
       responseStyle: TResponseStyle;
       throwOnError: ThrowOnError;
-    }>,
-    Pick<
-      ServerSentEventsOptions<TData>,
-      | 'onSseError'
-      | 'onSseEvent'
-      | 'sseDefaultRetryDelay'
-      | 'sseMaxRetryAttempts'
-      | 'sseMaxRetryDelay'
-    > {
+    }> {
   /**
    * Any body that you want to add to your request.
    *
@@ -164,15 +152,6 @@ type MethodFn = <
   options: Omit<RequestOptions<TData, TResponseStyle, ThrowOnError>, 'method'>,
 ) => RequestResult<TData, TError, ThrowOnError, TResponseStyle>;
 
-type SseFn = <
-  TData = unknown,
-  TError = unknown,
-  ThrowOnError extends boolean = false,
-  TResponseStyle extends ResponseStyle = 'fields',
->(
-  options: Omit<RequestOptions<TData, TResponseStyle, ThrowOnError>, 'method'>,
-) => Promise<ServerSentEventsResult<TData, TError>>;
-
 type RequestFn = <
   TData = unknown,
   TError = unknown,
@@ -197,13 +176,7 @@ type BuildUrlFn = <
   options: TData & Options<TData>,
 ) => string;
 
-export type Client = CoreClient<
-  RequestFn,
-  Config,
-  MethodFn,
-  BuildUrlFn,
-  SseFn
-> & {
+export type Client = CoreClient<RequestFn, Config, MethodFn, BuildUrlFn> & {
   interceptors: Middleware<Request, Response, unknown, ResolvedRequestOptions>;
 };
 

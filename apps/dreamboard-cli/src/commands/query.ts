@@ -1,14 +1,15 @@
-import { queryWorkshopRulebook } from "@dreamboard/api-client";
+import { queryWorkshopRulebook } from "@dreamboard-games/api-client";
 import { defineCommand } from "citty";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import { loadGlobalConfig } from "../config/global-config.js";
+import { getStoredSession } from "../config/credential-store.js";
 import {
   configureClient,
   requireAuth,
   resolveConfig,
 } from "../config/resolve.js";
 import { parseQueryCommandArgs } from "../flags.js";
-import { formatApiError } from "../utils/errors.js";
+import { toDreamboardApiError } from "../utils/errors.js";
 
 export default defineCommand({
   meta: {
@@ -25,7 +26,16 @@ export default defineCommand({
   },
   async run({ args }) {
     const parsedArgs = parseQueryCommandArgs(args);
-    const config = resolveConfig(await loadGlobalConfig(), parsedArgs);
+    const [globalConfig, storedSession] = await Promise.all([
+      loadGlobalConfig(),
+      getStoredSession(),
+    ]);
+    const config = resolveConfig(
+      globalConfig,
+      parsedArgs,
+      undefined,
+      storedSession,
+    );
     requireAuth(config);
     await configureClient(config);
 
@@ -36,12 +46,10 @@ export default defineCommand({
     });
 
     if (!data) {
-      throw new Error(
-        formatApiError(
-          error,
-          response,
-          `Failed to query rulebook for '${parsedArgs.title}'`,
-        ),
+      throw toDreamboardApiError(
+        error,
+        response,
+        `Failed to query rulebook for '${parsedArgs.title}'`,
       );
     }
 

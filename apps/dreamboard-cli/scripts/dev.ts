@@ -16,7 +16,7 @@ if (projectCommands.has(args[0] ?? "")) {
   if (!hasProjectConfig(invokedCwd)) {
     const candidates = findProjectCandidates(invokedCwd);
     if (candidates.length === 1) {
-      spawnCwd = candidates[0];
+      spawnCwd = candidates[0]!;
     } else if (candidates.length > 1) {
       // eslint-disable-next-line no-console
       console.error(
@@ -46,8 +46,10 @@ if (isProd) {
   env.DREAMBOARD_API_BASE_URL ??= "https://api.dreamboard.games";
   env.DREAMBOARD_WEB_BASE_URL ??= "https://dreamboard.games";
 } else {
-  env.DREAMBOARD_API_BASE_URL ??= "http://localhost:8080";
-  env.DREAMBOARD_WEB_BASE_URL ??= "http://localhost:5173";
+  const environment = explicitEnvironment(args) ?? "local";
+  const defaults = environmentDefaults(environment);
+  env.DREAMBOARD_API_BASE_URL ??= defaults.apiBaseUrl;
+  env.DREAMBOARD_WEB_BASE_URL ??= defaults.webBaseUrl;
 }
 
 const bunPath = process.execPath;
@@ -83,4 +85,45 @@ function findProjectCandidates(dir: string): string[] {
     return [];
   }
   return results;
+}
+
+function explicitEnvironment(args: string[]): string | null {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--env") {
+      return normalizeEnvironment(args[index + 1]);
+    }
+    if (arg?.startsWith("--env=")) {
+      return normalizeEnvironment(arg.slice("--env=".length));
+    }
+  }
+  return null;
+}
+
+function normalizeEnvironment(value: string | undefined): string | null {
+  return value === "local" || value === "staging" || value === "prod"
+    ? value
+    : null;
+}
+
+function environmentDefaults(environment: string): {
+  apiBaseUrl: string;
+  webBaseUrl: string;
+} {
+  if (environment === "staging") {
+    return {
+      apiBaseUrl: "https://api-staging.dreamboard.games",
+      webBaseUrl: "https://staging.dreamboard.games",
+    };
+  }
+  if (environment === "prod") {
+    return {
+      apiBaseUrl: "https://api.dreamboard.games",
+      webBaseUrl: "https://dreamboard.games",
+    };
+  }
+  return {
+    apiBaseUrl: "http://localhost:8080",
+    webBaseUrl: "http://localhost:5173",
+  };
 }

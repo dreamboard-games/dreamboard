@@ -1,6 +1,7 @@
 node_modules
 .turbo
 dist
+build
 .publish
 *.tgz
 .cursor
@@ -10,3 +11,5 @@ CLAUDE.md
 __pycache__/
 *.pyc
 .DS_Store
+.dreamboard-dev/
+.idea/

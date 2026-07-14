@@ -1,4 +1,4 @@
-# Dreamboard CLI Observe/Act Multiplayer Loop Design
+# Dreamboard Observe/Act Multiplayer Loop Design
 
 ## Status
 
@@ -10,7 +10,7 @@ Proposed
 
 ## Owner
 
-Dreamboard CLI
+Dreamboard
 
 ## Problem Statement
 
@@ -21,16 +21,17 @@ Current behavior is concentrated in:
 1. `apps/dreamboard-cli/src/commands/run.ts`
 2. `apps/dreamboard-cli/src/ui/playwright-runner.ts`
 
-SSE is already available and strongly typed through the public generated API client:
+Live gameplay observation is available through the supported session runtime and
+Gameplay Authority transport:
 
 1. `packages/api-client/src/types.gen.ts`
-2. `packages/api-client/serverSentEvents.ts`
-3. `apps/backend/src/main/kotlin/routes/sessions/GameSessionEventsController.kt`
+2. `packages/ui-host-runtime/src/session-live-runtime.ts`
+3. Gameplay Authority WebSocket frames
 
 ## Requirements From Product Direction
 
-1. No in-process `agent.decide` callback inside CLI.
-2. Main loop is external (coding agent or operator repeatedly invokes CLI).
+1. No in-process `agent.decide` callback inside Dreamboard.
+2. Main loop is external (coding agent or operator repeatedly invokes Dreamboard).
 3. Multiplayer must be first-class.
 4. Agent should only be asked to act when `YOUR_TURN` is received.
 5. `playerId` must be explicit in turn context.
@@ -44,7 +45,7 @@ SSE is already available and strongly typed through the public generated API cli
 
 ## Current State Context
 
-## CLI command
+## Dreamboard command
 
 `apps/dreamboard-cli/src/commands/run.ts` currently:
 
@@ -55,35 +56,40 @@ SSE is already available and strongly typed through the public generated API cli
 5. Runs scenario if `--scenario` exists.
 6. Otherwise idles.
 
-## SSE in CLI
+## Historical live-session event flow
 
-`apps/dreamboard-cli/src/ui/playwright-runner.ts` currently:
+This section described the pre-hard-cut event-stream implementation. The current
+Dreamboard runtime uses protocol-neutral live-session transport names, with
+started gameplay state and logs delivered over the Gameplay Authority WebSocket
+and lobby observation delivered through backend event-batch polling.
 
-1. Has `listenToSessionEvents(sessionId, signal, onEventType)`.
-2. Emits only event type string to callback.
-3. Drops event payload for downstream logic.
-4. Uses loose cast `(event as { type?: string })`.
+`apps/dreamboard-cli/src/ui/playwright-runner.ts` should consume the current
+live-session runtime surface instead of reintroducing a transport-specific
+helper.
 
 ## Backend event guarantees
 
-`apps/backend/src/main/kotlin/routes/sessions/GameSessionEventsController.kt`:
+The current backend and authority split guarantees:
 
-1. Sends bootstrap `GAME_STARTED` at gameplay connection start.
-2. Streams user-addressed messages with SSE `id`.
-3. Supports replay via `lastMessageId`.
+1. initial session bootstrap arrives through ordinary backend HTTP;
+2. lobby-visible updates are available through session event-batch polling; and
+3. started gameplay state and logs are available through the player-scoped
+   Gameplay Authority WebSocket.
 
-This is enough to implement resumable observe/act loops without server changes.
+This is enough to implement resumable observe/act loops without restoring the
+deleted event-stream routes.
 
 ## Proposed User Workflow
 
 External coding agent loop:
 
 1. Run `dreamboard run --resume`.
-2. CLI blocks on SSE and exits when `YOUR_TURN` (or `GAME_ENDED`/timeout).
-3. CLI writes typed turn context file with `playerId` candidates and `gameState`.
+2. Dreamboard blocks on the live-session transport and exits when `YOUR_TURN`
+   (or `GAME_ENDED`/timeout).
+3. Dreamboard writes typed turn context file with `playerId` candidates and `gameState`.
 4. Coding agent reads turn context and updates scenario file.
 5. Run `dreamboard run --resume --scenario <file>`.
-6. CLI validates turn ownership and executes scenario steps.
+6. Dreamboard validates turn ownership and executes scenario steps.
 7. Repeat.
 
 ## High-Level Architecture
@@ -92,7 +98,7 @@ External coding agent loop:
 flowchart TD
   A["External coding agent loop"] --> B["dreamboard run --resume"]
   B --> C["Attach/create session + open page"]
-  C --> D["Subscribe typed SSE stream"]
+  C --> D["Subscribe typed live-session stream"]
   D --> E{"Event == YOUR_TURN?"}
   E -- "No" --> D
   E -- "Yes" --> F["Write latest-your-turn.json (typed payload + playerIds)"]
@@ -109,7 +115,8 @@ flowchart TD
 Keep only one `run` behavior:
 
 1. Ensure session exists (`--resume` default true, create if missing).
-2. Subscribe to SSE and wait until stop condition (`YOUR_TURN` by default).
+2. Subscribe to live-session updates and wait until stop condition (`YOUR_TURN`
+   by default).
 3. Persist typed context artifacts.
 4. If `--scenario` is provided, execute all steps in the scenario file.
 5. Exit with run summary.
@@ -146,9 +153,9 @@ New module:
 
 Responsibilities:
 
-1. Subscribe with `subscribeToSessionEvents`.
+1. Observe gameplay events through the supported session runtime observation API.
 2. Receive `GameMessage` payloads (no untyped cast).
-3. Capture SSE metadata via `onSseEvent` to retain `eventId`.
+3. Capture session runtime event metadata to retain cursor/event identity.
 4. Print compact event lines for agent visibility.
 5. Append NDJSON event logs.
 
@@ -311,7 +318,8 @@ None required.
 
 ## Backend changes that may help later
 
-1. Add explicit event index to payload body (currently only SSE metadata has ID).
+1. Add explicit event index to payload body when a future observer needs
+   cross-process cursor handoff.
 2. Add server-side action trace correlation ID for easier loop debugging.
 
 ## Error Handling and Recovery

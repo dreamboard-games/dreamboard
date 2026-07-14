@@ -1,9 +1,9 @@
 ---
 title: "Quickstart"
-description: "Install Dreamboard CLI, create a game, and iterate on manifest-driven scaffolding."
+description: "Install Dreamboard, create a game, and iterate on manifest-driven scaffolding."
 ---
 
-Install the CLI:
+Install Dreamboard:
 
 ```bash
 npm install -g dreamboard
@@ -12,13 +12,13 @@ npm install -g dreamboard
 Log in:
 
 ```bash
-dreamboard login
+dreamboard auth login
 ```
 
-Create a game:
+Create a project:
 
 ```bash
-dreamboard new my-game --description "A trick-taking card game"
+dreamboard project create my-game --description "A trick-taking card game"
 cd my-game
 ```
 
@@ -28,37 +28,72 @@ Edit `rule.md` and `manifest.json`. Use
 [Manifest authoring](/docs/reference/manifest-authoring) for the manifest
 schema.
 
-Regenerate scaffolded files from your authored source:
+Commit and push your authored source with Git:
 
 ```bash
-dreamboard sync
+git add .
+git commit -m "Create my game"
+git push -u origin main
 ```
 
-Compile the current authored head:
+Check server state for the pushed commit:
 
 ```bash
-dreamboard compile
+dreamboard project status --commit HEAD --wait
 ```
 
-Run the game locally:
+Verify the exact commit:
 
 ```bash
-dreamboard run
+dreamboard verify --commit HEAD
 ```
 
-Start a local server to play the compiled game
+Author reducer proof in `test/scenarios/*.scenario.ts`. The test family returns
+one JSON envelope by default:
+
+```bash
+# Observe the node after every `given` command.
+dreamboard test inspect test/scenarios/first-turn.scenario.ts \
+  --perspective player:0
+
+# Enumerate accepted next commands, then copy one candidates[].command to source.
+dreamboard test explore test/scenarios/first-turn.scenario.ts \
+  --perspective player:0 --limit 50 --max-evaluations 5000
+
+# Replay the authored scenario and run its assertions.
+dreamboard test --scenario test/scenarios/first-turn.scenario.ts
+```
+
+Inspection and exploration require `player:<zero-based-seat>` or `spectator`.
+Use `--at setup|given:<n>|when:<n>` to select a prefix. For reducer-owned
+randomness, compare at most 64 inclusive safe-integer seeds with
+`--seed-range <start>:<end>`, check one using `--seed <n>`, then persist the
+selected number in `scenario.setup.seed`.
+
+Start a local server to play the project:
 
 ```bash
 dreamboard dev
 ```
 
+To open an authored prefix instead, use:
+
+```bash
+dreamboard dev --from-scenario test/scenarios/first-turn.scenario.ts --at given:2
+```
+
 Useful follow-up commands:
 
-- `dreamboard pull` reconciles authored changes when the remote has advanced.
-- `dreamboard status` compares local and remote state.
-- `dreamboard clone <game-slug>` pulls an existing game into a local workspace.
+- `dreamboard project clone <project>` clones an existing project repository.
+- `dreamboard test` replays scenarios and returns a stable JSON result.
+- `dreamboard test inspect <path> --perspective <value>` observes one replay
+  node.
+- `dreamboard test explore <path> --perspective <value>` returns canonical
+  commands to copy into the scenario.
+- `dreamboard build --commit HEAD` creates a server build for a pushed commit.
+- `dreamboard preview --commit HEAD` creates a preview for a pushed commit.
 
-For a concise command reference, see [CLI](/docs/reference/cli).
+For a concise command reference, see [Dreamboard command reference](/docs/reference/cli).
 
 For a full walkthrough, continue with
 [Building your first game](/docs/tutorials/building-your-first-game).
