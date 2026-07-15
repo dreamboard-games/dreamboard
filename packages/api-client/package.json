@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/api-client",
-  "version": "0.3.0-alpha.6",
+  "version": "0.3.0-alpha.7",
   "description": "Public Dreamboard API client and event types",
   "repository": {
     "type": "git",

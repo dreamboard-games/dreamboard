@@ -1,6 +1,6 @@
 {
   "name": "dreamboard-cli",
-  "version": "0.1.30-alpha.48",
+  "version": "0.1.30-alpha.49",
   "description": "Design board games with AI and turn ideas into playable digital prototypes.",
   "repository": {
     "type": "git",
@@ -52,7 +52,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@dreamboard-games/sdk": "0.4.0-alpha.12",
+    "@dreamboard-games/sdk": "0.4.0-alpha.13",
     "@types/bun": "latest",
     "@types/node": "^24.12.4",
     "playwright": "^1.60.0",
