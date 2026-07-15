@@ -3,7 +3,7 @@ import { isAlphaReleaseVersion } from "../build-target.js";
 import { assertPublicRuntimeFlags } from "./resolve.js";
 
 test("published alpha versions are environment-selectable", () => {
-  expect(isAlphaReleaseVersion("0.1.30-alpha.31")).toBe(true);
+  expect(isAlphaReleaseVersion("0.1.30-alpha.999")).toBe(true);
   expect(isAlphaReleaseVersion("1.0.0-beta.1")).toBe(false);
   expect(isAlphaReleaseVersion("1.0.0")).toBe(false);
 });
