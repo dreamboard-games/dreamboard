@@ -149,6 +149,25 @@ test("removes stale Dreamboard registry configuration", async () => {
   }
 });
 
+test("preserves unrelated npm configuration when removing the stale Dreamboard registry", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
+  const npmrcPath = path.join(tempRoot, ".npmrc");
+
+  try {
+    await Bun.write(
+      npmrcPath,
+      "registry=https://registry.example.com/\n@dreamboard-games:registry=http://127.0.0.1:4873\n//registry.example.com/:_authToken=${NPM_TOKEN}\n",
+    );
+    await scaffoldStaticWorkspace(tempRoot, "update");
+
+    expect(await Bun.file(npmrcPath).text()).toBe(
+      "registry=https://registry.example.com/\n//registry.example.com/:_authToken=${NPM_TOKEN}\n",
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("fails compile preflight when ui scaffold files are missing", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "db-static-scaffold-"));
   const missingFilePath = path.join(tempRoot, "ui", "index.tsx");

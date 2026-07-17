@@ -212,7 +212,27 @@ async function writeFrameworkStaticFiles(
   for (const entry of await getDynamicStaticEntries(projectRoot, mode)) {
     await writeWorkspaceTextFile(projectRoot, entry.targetPath, entry.content);
   }
-  await removeWorkspacePath(projectRoot, ".npmrc", { force: true });
+  await removeRetiredDreamboardRegistry(projectRoot);
+}
+
+async function removeRetiredDreamboardRegistry(
+  projectRoot: string,
+): Promise<void> {
+  const existing = await readWorkspaceTextFileIfExists(projectRoot, ".npmrc");
+  if (existing === null) return;
+
+  const updated = existing.replace(
+    /^[ \t]*@dreamboard-games:registry[ \t]*=[^\r\n]*(?:\r\n|\n|\r|$)/gm,
+    "",
+  );
+  if (updated === existing) return;
+
+  if (updated.trim().length === 0) {
+    await removeWorkspacePath(projectRoot, ".npmrc");
+    return;
+  }
+
+  await writeWorkspaceTextFile(projectRoot, ".npmrc", updated);
 }
 
 async function writeTestReadme(projectRoot: string): Promise<void> {
