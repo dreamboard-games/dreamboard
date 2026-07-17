@@ -15,7 +15,6 @@ export {
 export { parseConfigFlags } from "./flags.js";
 export { loadManifest, writeSnapshot } from "./services/project/local-files.js";
 export { materializeWorkspaceProject } from "./services/project/materialize-workspace.js";
-export { shortHash } from "./services/project/local-maintainer-registry-shared.js";
 export { setLatestCompileAttempt } from "./services/project/project-state.js";
 export { applyWorkspaceCodegen } from "./services/project/workspace-codegen.js";
 export { configurePlaywrightBrowsersPath } from "./ui/playwright-runner.js";

@@ -44,11 +44,10 @@ The `project create` command already has distinct operational phases in
 1. load global config and stored session;
 2. resolve config and require auth;
 3. configure the API client;
-4. prepare the local maintainer package snapshot;
-5. resolve backend deployment and owner identity;
-6. ensure the remote project;
-7. ensure and poll the project repository; and
-8. scaffold the local workspace and configure Git origin.
+4. resolve backend deployment and owner identity;
+5. ensure the remote project;
+6. ensure and poll the project repository; and
+7. scaffold the local workspace and configure Git origin.
 
 The generated API client in `packages/api-client/src/client/client.gen.ts`
 returns an object with `response: undefined` when `fetch` throws before an HTTP
@@ -143,13 +142,12 @@ Resolution: Retry project creation after repository provisioning recovers. If th
    message, step, environment, API URL when useful, request ID, and resolution.
 3. Harden API result normalization so `response === undefined` always becomes a
    transport problem instead of leaking to code that expects `response.status`.
-4. Update `apps/dreamboard-cli/src/commands/project-create.ts` to wrap:
-   local maintainer snapshot preparation, backend identity lookup, project
-   ensure, repository ensure, repository polling, scaffold, and Git origin setup.
+4. Update `apps/dreamboard-cli/src/commands/project-create.ts` to wrap backend
+   identity lookup, project ensure, repository ensure, repository polling,
+   scaffold, and Git origin setup.
 5. Add focused tests that simulate:
    fetch throwing before response;
    backend `ProblemDetails` with 401/409/422/500;
-   local maintainer helper failure;
    repository timeout; and
    fatal output not containing `undefined is not an object`.
 6. Verify with the existing CLI lane:
@@ -166,7 +164,6 @@ Resolution: Retry project creation after repository provisioning recovers. If th
 | Slug/project conflict | HTTP 409 or slug conflict problem type | Choose another slug or clone the existing project. |
 | Validation failure | HTTP 400/422 | Fix the validation details returned by the backend. |
 | Repository provisioning failure | terminal repository state or timeout | Retry after provisioning recovers; avoid creating duplicate projects. |
-| Local maintainer setup failure | local snapshot helper spawn/parse failure | Install source-checkout tooling or switch to a published/remote package path. |
 | Unexpected CLI bug | uncategorized exception | Show concise failure plus debug instructions; keep stack out of default output. |
 
 ## Machine Output
@@ -197,9 +194,6 @@ environments, API URLs, repository provisioning, or auth login wording.
    stable?
 4. Should debug stack traces be gated by `DREAMBOARD_CLI_DEBUG=1`,
    `--verbose`, or both?
-5. Should the local maintainer package snapshot phase be skipped automatically
-   for remote environments, or is the current API-base-url driven behavior the
-   intended source-checkout path?
 
 ## Recommended First Patch
 

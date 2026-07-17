@@ -1,19 +1,12 @@
 import path from "node:path";
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
-import type {
-  AgentMaintainerPackageSourceV1,
-  LocalMaintainerRegistryConfig,
-  ProjectConfig,
-} from "../../types.js";
+import type { ProjectConfig } from "../../types.js";
 import { ensureDir } from "../../utils/fs.js";
 import { writeManifest, writeRule, writeSnapshot } from "./local-files.js";
 import { scaffoldStaticWorkspace } from "./static-scaffold.js";
 import { applyWorkspaceCodegen } from "./workspace-codegen.js";
 import { installWorkspaceDependencies } from "./workspace-dependencies.js";
-import {
-  updateProjectAuthoringState,
-  updateProjectLocalMaintainerRegistry,
-} from "./project-state.js";
+import { updateProjectAuthoringState } from "./project-state.js";
 import { updateProjectState } from "../../config/project-config.js";
 
 export type MaterializeWorkspaceProjectInput = {
@@ -33,8 +26,6 @@ export type MaterializeWorkspaceProjectInput = {
   sourceRevisionId?: string;
   sourceTreeHash?: string;
   manifestContentHash?: string;
-  localMaintainerRegistry?: LocalMaintainerRegistryConfig | null;
-  maintainerPackageSource?: AgentMaintainerPackageSourceV1 | null;
   installDependencies?: boolean;
   agentManaged?: boolean;
   workspacePrepared?: boolean;
@@ -47,14 +38,11 @@ export async function materializeWorkspaceProject(
   input: MaterializeWorkspaceProjectInput,
 ): Promise<ProjectConfig> {
   const targetDir = path.resolve(input.targetDir);
-  const localMaintainerRegistry = resolveLocalMaintainerRegistry(input);
   await ensureDir(targetDir);
   await writeManifest(targetDir, input.manifest);
   await writeRule(targetDir, input.ruleText);
 
-  await scaffoldStaticWorkspace(targetDir, "new", {
-    localMaintainerRegistry,
-  });
+  await scaffoldStaticWorkspace(targetDir, "new");
   if (input.installDependencies ?? true) {
     await installWorkspaceDependencies(targetDir);
     await applyWorkspaceCodegen({
@@ -78,13 +66,9 @@ export async function materializeWorkspaceProject(
           manifestContentHash: input.manifestContentHash,
         })
       : baseConfig;
-  const projectConfig = updateProjectLocalMaintainerRegistry(
-    authoringConfig,
-    localMaintainerRegistry ?? undefined,
-  );
-  await updateProjectState(targetDir, projectConfig);
+  await updateProjectState(targetDir, authoringConfig);
   await writeSnapshot(targetDir);
-  return projectConfig;
+  return authoringConfig;
 }
 
 function baseProjectConfig(
@@ -105,41 +89,5 @@ function baseProjectConfig(
     apiBaseUrl: input.apiBaseUrl,
     webBaseUrl: input.webBaseUrl,
     environmentManifest: input.environmentManifest,
-  };
-}
-
-function resolveLocalMaintainerRegistry(
-  input: MaterializeWorkspaceProjectInput,
-): LocalMaintainerRegistryConfig | null | undefined {
-  if (input.localMaintainerRegistry) {
-    return input.localMaintainerRegistry;
-  }
-
-  const source = input.maintainerPackageSource;
-  if (!source) {
-    return input.localMaintainerRegistry;
-  }
-  return localMaintainerRegistryFromSource(source);
-}
-
-export function localMaintainerRegistryFromSource(
-  source: AgentMaintainerPackageSourceV1,
-): LocalMaintainerRegistryConfig {
-  if (source.version !== 1) {
-    throw new Error(
-      `Unsupported maintainer package source version: ${String(source.version)}`,
-    );
-  }
-  return {
-    registryUrl: source.registryUrl,
-    snapshotId: source.snapshotId,
-    fingerprint: source.fingerprint,
-    publishedAt: source.publishedAt,
-    packages: {
-      ...(source.apiClientVersion
-        ? { "@dreamboard-games/api-client": source.apiClientVersion }
-        : {}),
-      "@dreamboard-games/sdk": source.sdkVersion,
-    },
   };
 }

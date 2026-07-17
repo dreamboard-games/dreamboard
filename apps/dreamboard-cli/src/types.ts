@@ -16,33 +16,6 @@ export type GlobalConfig = {
   credentialBackend?: CredentialBackendPreference;
 };
 
-export type LocalMaintainerSdkPackageName =
-  | "@dreamboard-games/api-client"
-  | "@dreamboard-games/sdk";
-
-export type LocalMaintainerRegistryPackages = {
-  "@dreamboard-games/api-client"?: string;
-  "@dreamboard-games/sdk": string;
-};
-
-export type AgentMaintainerPackageSourceV1 = {
-  version: 1;
-  registryUrl: string;
-  snapshotId: string;
-  fingerprint: string;
-  publishedAt: string;
-  sdkVersion: string;
-  apiClientVersion?: string;
-};
-
-export type LocalMaintainerRegistryConfig = {
-  registryUrl: string;
-  snapshotId: string;
-  fingerprint: string;
-  publishedAt: string;
-  packages: LocalMaintainerRegistryPackages;
-};
-
 export type ProjectPendingSyncPhase =
   | "source_revision_created"
   | "game_revision_created";
@@ -106,7 +79,6 @@ export type ProjectEnvironmentBindingV1 = {
   environment?: Environment;
   authoring?: ProjectAuthoringState;
   compile?: ProjectCompileState;
-  localMaintainerRegistry?: LocalMaintainerRegistryConfig;
   apiBaseUrl?: string;
   webBaseUrl?: string;
   environmentManifest?: Record<string, unknown>;

@@ -2,10 +2,7 @@ import { readFile } from "node:fs/promises";
 import consola from "consola";
 import type { GameTopologyManifest } from "@dreamboard-games/sdk/types";
 import type { ConfigFlags } from "../flags.js";
-import type {
-  AgentMaintainerPackageSourceV1,
-  ProjectConfig,
-} from "../types.js";
+import type { ProjectConfig } from "../types.js";
 import { resolveProjectContext } from "../config/resolve.js";
 import { assertCompilerPortableDependencies } from "../services/project/dependency-portability.js";
 import type { MaterializeWorkspaceProjectInput } from "../services/project/materialize-workspace.js";
@@ -26,7 +23,6 @@ type PreparedWorkspaceManifestV2 = {
     webBaseUrl: string;
     [key: string]: unknown;
   };
-  maintainerPackageSource?: AgentMaintainerPackageSourceV1;
   [key: string]: unknown;
 };
 type MaterializePreparedWorkspaceInputV2 = {
@@ -174,7 +170,6 @@ function normalizeMaterializePreparedWorkspaceInput(
     ruleText: optionalString(input.ruleText) ?? "",
     jobId: optionalString(input.jobId) ?? optionalString(prepared.jobId),
     environmentManifest,
-    maintainerPackageSource: prepared.maintainerPackageSource,
   };
 }
 
@@ -206,9 +201,6 @@ function assertPreparedWorkspaceV2(
       apiBaseUrl,
       webBaseUrl,
     },
-    maintainerPackageSource: prepared.maintainerPackageSource as
-      | AgentMaintainerPackageSourceV1
-      | undefined,
   };
 }
 
@@ -256,7 +248,7 @@ async function verifyAgentWorkspace(rawMode: string, args: string[]) {
   const parsedFlags = parseConfigArgs(args);
   const { projectRoot, projectConfig } =
     await resolveProjectContext(parsedFlags);
-  await assertCompilerPortableDependencies({ projectRoot, projectConfig });
+  await assertCompilerPortableDependencies({ projectRoot });
 
   if (requestedMode === "preflight") {
     consola.success("Agent workspace preflight passed.");
@@ -325,20 +317,16 @@ async function runCloudLocalVerification(
     { applyWorkspaceCodegen },
     { reconcileWorkspaceDependencies },
     { assertReducerContractPreflight },
-    { getProjectLocalMaintainerRegistry },
   ] = await Promise.all([
     import("../services/project/static-scaffold.js"),
     import("../services/project/local-files.js"),
     import("../services/project/workspace-codegen.js"),
     import("../services/project/workspace-dependencies.js"),
     import("../services/project/reducer-contract-preflight.js"),
-    import("../services/project/project-state.js"),
   ]);
 
   consola.start("Refreshing static scaffold...");
-  await scaffoldStaticWorkspace(projectRoot, "update", {
-    localMaintainerRegistry: getProjectLocalMaintainerRegistry(projectConfig),
-  });
+  await scaffoldStaticWorkspace(projectRoot, "update");
 
   consola.start("Applying workspace codegen...");
   const manifest = await loadManifest(projectRoot);

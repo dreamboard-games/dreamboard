@@ -20,7 +20,6 @@ import {
 } from "../services/api/index.js";
 import { configureWorkspaceGitOrigin } from "../services/git/workspace-origin.js";
 import { materializeWorkspaceProject } from "../services/project/materialize-workspace.js";
-import { ensureLocalMaintainerSnapshot } from "../services/project/local-maintainer-registry.js";
 import { ProjectCreateOperation } from "../services/project/project-create-operation.js";
 
 const DEFAULT_REPOSITORY_WAIT_TIMEOUT_MS = 120_000;
@@ -105,11 +104,6 @@ export default defineCommand({
     });
     requireAuth(config);
     await operation.run("configure_client", () => configureClient(config));
-    const localMaintainerRegistry = await operation.run(
-      "prepare_local_packages",
-      () => ensureLocalMaintainerSnapshot(config.apiBaseUrl),
-    );
-
     const identity = await operation.run("resolve_identity", () =>
       loadRemoteProjectIdentity(),
     );
@@ -179,7 +173,6 @@ export default defineCommand({
         webBaseUrl: config.webBaseUrl,
         manifest: blankManifest,
         ruleText: "",
-        localMaintainerRegistry,
       }),
     );
     await operation.markConfirmed("workspaceState");

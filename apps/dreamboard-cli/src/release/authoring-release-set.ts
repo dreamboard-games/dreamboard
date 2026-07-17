@@ -12,7 +12,7 @@ export type AuthoringReleaseCandidateV1 = AuthoringReleasePackageV1 & {
 export type AuthoringReleaseSetV1 = {
   schemaVersion: 1;
   releaseSetId: string;
-  channel: "public" | "maintainer-local";
+  channel: "public";
   packages: {
     cli: AuthoringReleasePackageV1;
     sdk: AuthoringReleasePackageV1;
@@ -30,9 +30,8 @@ export type AuthoringReleaseSetV1 = {
     generatedArtifacts: 1;
   };
   registry: {
-    kind: "public-npm" | "maintainer-local";
-    portable: boolean;
-    receiptPath?: string;
+    kind: "public-npm";
+    portable: true;
   };
   candidates?: Partial<
     Record<"sdk" | "apiClient" | "devHost", AuthoringReleaseCandidateV1>

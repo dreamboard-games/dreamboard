@@ -54,7 +54,7 @@ test("test command returns one semantic scenario result", async () => {
 
   expect(calls).toEqual([
     "resolve:false",
-    "portable:prod:/workspace",
+    "portable:/workspace",
     "workspace:/workspace",
     "run:/workspace:test/scenarios/first.scenario.ts",
   ]);
@@ -265,7 +265,7 @@ function projectDeps(calls: string[] = []): TestCommandDeps {
       } as any;
     },
     assertPortableDependencies: async (options) => {
-      calls.push(`portable:${options.environment}:${options.projectRoot}`);
+      calls.push(`portable:${options.projectRoot}`);
     },
     assertTestingWorkspace: async (projectRoot) => {
       calls.push(`workspace:${projectRoot}`);

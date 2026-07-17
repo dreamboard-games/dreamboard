@@ -52,17 +52,7 @@ import {
 } from "../services/api/index.js";
 import { resolveRemoteProject } from "../services/project/remote-project.js";
 import { runLocalTypecheck } from "../services/project/local-typecheck.js";
-import {
-  didLocalMaintainerSnapshotChange,
-  ensureLocalMaintainerSnapshot,
-  isLocalMaintainerRegistryEnabled,
-} from "../services/project/local-maintainer-registry.js";
-import { assertReleaseEnvironmentPortableDependencies } from "../services/project/dependency-portability.js";
-import {
-  getProjectLocalMaintainerRegistry,
-  updateProjectLocalMaintainerRegistry,
-} from "../services/project/project-state.js";
-import { updateProjectState } from "../config/project-config.js";
+import { assertCompilerPortableDependencies } from "../services/project/dependency-portability.js";
 import { scaffoldStaticWorkspace } from "../services/project/static-scaffold.js";
 import { applyWorkspaceCodegen } from "../services/project/workspace-codegen.js";
 import { reconcileWorkspaceDependencies } from "../services/project/workspace-dependencies.js";
@@ -842,59 +832,13 @@ async function ensureDevCompiledResult(options: {
   debug: boolean;
   startupTimings: DevStartupTimingCollector;
 }): Promise<CompiledResult> {
-  await assertReleaseEnvironmentPortableDependencies({
+  await assertCompilerPortableDependencies({
     projectRoot: options.projectRoot,
-    projectConfig: options.projectConfig,
-    environment: options.env,
   });
-  const localMaintainerEnabled = isLocalMaintainerRegistryEnabled(
-    options.config.apiBaseUrl,
-  );
-  const existingLocalMaintainerRegistry = getProjectLocalMaintainerRegistry(
-    options.projectConfig,
-  );
-  if (!localMaintainerEnabled && existingLocalMaintainerRegistry) {
-    await updateProjectState(
-      options.projectRoot,
-      updateProjectLocalMaintainerRegistry(options.projectConfig, undefined),
-    );
-  }
-  const refreshedLocalMaintainerRegistry = localMaintainerEnabled
-    ? await runLoggedStep("Checking local SDK snapshot...", () =>
-        ensureLocalMaintainerSnapshot(options.config.apiBaseUrl),
-      )
-    : await ensureLocalMaintainerSnapshot(options.config.apiBaseUrl);
-  const localMaintainerRegistry =
-    refreshedLocalMaintainerRegistry ??
-    (localMaintainerEnabled ? (existingLocalMaintainerRegistry ?? null) : null);
-  if (refreshedLocalMaintainerRegistry) {
-    if (
-      didLocalMaintainerSnapshotChange(
-        existingLocalMaintainerRegistry,
-        refreshedLocalMaintainerRegistry,
-      )
-    ) {
-      await updateProjectState(
-        options.projectRoot,
-        updateProjectLocalMaintainerRegistry(
-          options.projectConfig,
-          refreshedLocalMaintainerRegistry,
-        ),
-      );
-      consola.info("Local SDK snapshot refreshed.");
-    } else {
-      consola.info("Using existing local SDK snapshot.");
-    }
-  } else if (localMaintainerRegistry) {
-    consola.info("Using workspace-pinned local SDK snapshot.");
-  }
 
   await runLoggedStep(
     "Refreshing static scaffold...",
-    () =>
-      scaffoldStaticWorkspace(options.projectRoot, "update", {
-        localMaintainerRegistry,
-      }),
+    () => scaffoldStaticWorkspace(options.projectRoot, "update"),
     {
       collector: options.startupTimings,
       phase: "refreshScaffold",
@@ -1001,7 +945,6 @@ async function ensureDevCompiledResult(options: {
     files: localFiles,
     manifest,
     ruleText,
-    localMaintainerRegistry,
     backendVersion,
     workspacePackageJson,
   });
@@ -1127,7 +1070,6 @@ function computeDevFingerprint(input: {
   files: Record<string, string>;
   manifest: unknown;
   ruleText: string;
-  localMaintainerRegistry: unknown;
   backendVersion: unknown;
   workspacePackageJson: unknown;
 }): string {
@@ -1137,7 +1079,6 @@ function computeDevFingerprint(input: {
       env: input.env,
       manifest: input.manifest,
       ruleText: input.ruleText,
-      localMaintainerRegistry: input.localMaintainerRegistry,
       backendVersion: input.backendVersion,
       workspacePackageJson: input.workspacePackageJson,
     }),

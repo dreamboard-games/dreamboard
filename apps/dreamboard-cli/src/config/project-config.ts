@@ -35,7 +35,6 @@ function normalizeProjectBinding(
     environment: config.environment,
     authoring: config.authoring,
     compile: config.compile,
-    localMaintainerRegistry: config.localMaintainerRegistry,
     apiBaseUrl: config.apiBaseUrl,
     webBaseUrl: config.webBaseUrl,
     environmentManifest: config.environmentManifest,
