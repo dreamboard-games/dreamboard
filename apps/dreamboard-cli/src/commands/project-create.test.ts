@@ -2,7 +2,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
-import { AUTHORING_RELEASE_SET } from "../release/authoring-release-set.js";
 
 const tempHomes: string[] = [];
 const originalHome = process.env.HOME;
@@ -94,18 +93,6 @@ mock.module("../services/git/workspace-origin.js", () => ({
   configureWorkspaceGitOrigin,
 }));
 
-mock.module("../services/project/local-maintainer-registry.js", () => ({
-  ensureLocalMaintainerSnapshot: async () => ({
-    registryUrl: "https://registry.npmjs.org/",
-    snapshotId: "public",
-    fingerprint: "public",
-    publishedAt: "2026-06-16T00:00:00.000Z",
-    packages: {
-      "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
-    },
-  }),
-}));
-
 const createCommand = (await import("./project-create.ts")).default;
 
 beforeEach(async () => {
@@ -192,9 +179,6 @@ test("project create command materializes a project-bound workspace", async () =
     remoteHeadDigest?: string;
     apiBaseUrl: string;
     webBaseUrl: string;
-    localMaintainerRegistry?: {
-      packages: Record<string, string>;
-    };
   };
   expect(materializeArgs.targetDir.endsWith("/test-game")).toBe(true);
   expect(materializeArgs.projectId).toBe("project-uuid-2");
@@ -204,9 +188,6 @@ test("project create command materializes a project-bound workspace", async () =
   expect(materializeArgs.remoteHeadDigest).toBe("revision-digest-1");
   expect(materializeArgs.apiBaseUrl).toBe("https://api.example.com");
   expect(materializeArgs.webBaseUrl).toBe("https://web.example.com");
-  expect(materializeArgs.localMaintainerRegistry?.packages).toEqual({
-    "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
-  });
   expect(configureWorkspaceGitOrigin).toHaveBeenCalledWith({
     projectRoot: materializeArgs.targetDir,
     cloneUrl: "https://git.example.com/project-1.git",

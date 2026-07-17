@@ -4,7 +4,6 @@ import path from "node:path";
 import { afterEach, expect, test } from "bun:test";
 import {
   assertCompilerPortableDependencies,
-  assertReleaseEnvironmentPortableDependencies,
   buildSourceDependencyProfile,
 } from "./dependency-portability.js";
 import { AUTHORING_RELEASE_SET } from "../../release/authoring-release-set.js";
@@ -34,7 +33,7 @@ test("dependency profile tracks public Dreamboard packages only", async () => {
   });
 });
 
-test("compiler portability rejects unsupported @dreamboard package dependencies", async () => {
+test("compiler portability rejects unsupported @dreamboard dependencies", async () => {
   const projectRoot = await createProject({
     dependencies: {
       "@dreamboard/app-sdk": "0.1.0",
@@ -46,7 +45,7 @@ test("compiler portability rejects unsupported @dreamboard package dependencies"
   ).rejects.toThrow("The @dreamboard/* package namespace is not supported");
 });
 
-test("release portability rejects unsupported @dreamboard package dependencies before release proof", async () => {
+test("compiler portability rejects unsupported @dreamboard dev dependencies", async () => {
   const projectRoot = await createProject({
     devDependencies: {
       "@dreamboard/ui-sdk": "0.1.0",
@@ -54,40 +53,24 @@ test("release portability rejects unsupported @dreamboard package dependencies b
   });
 
   await expect(
-    assertReleaseEnvironmentPortableDependencies({
-      projectRoot,
-      environment: "staging",
-    }),
+    assertCompilerPortableDependencies({ projectRoot }),
   ).rejects.toThrow("Repin to the public @dreamboard-games/* packages");
 });
 
-test("release portability ignores stale local snapshot state when packages are public", async () => {
+test("compiler portability rejects retired local snapshots", async () => {
   const projectRoot = await createProject({
     dependencies: {
-      "@dreamboard-games/sdk": AUTHORING_RELEASE_SET.packages.sdk.version,
+      "@dreamboard-games/sdk":
+        "0.3.0-alpha.1-local.20260614T104617Z.7984c37368ec",
     },
   });
 
-  const profile = await assertReleaseEnvironmentPortableDependencies({
-    projectRoot,
-    environment: "staging",
-    projectConfig: {
-      schemaVersion: 1,
-      localMaintainerRegistry: {
-        registryUrl: "http://127.0.0.1:4873",
-        snapshotId: "stale",
-        fingerprint: "stale",
-        publishedAt: "",
-        packages: {
-          "@dreamboard-games/sdk":
-            "0.3.0-alpha.1-local.20260614T104617Z.7984c37368ec",
-        },
-      },
-    },
-  });
-
-  expect(profile.dreamboardRegistryUrl).toBeUndefined();
-  expect(profile.localSnapshotId).toBeUndefined();
+  await expect(
+    assertCompilerPortableDependencies({ projectRoot }),
+  ).rejects.toThrow("Local Dreamboard package snapshots are no longer supported");
+  await expect(
+    assertCompilerPortableDependencies({ projectRoot }),
+  ).rejects.toThrow("Publish a public alpha package");
 });
 
 async function createProject(packageJson: unknown): Promise<string> {

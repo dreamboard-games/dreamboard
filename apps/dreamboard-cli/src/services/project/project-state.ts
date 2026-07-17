@@ -1,18 +1,10 @@
 import type {
-  LocalMaintainerRegistryConfig,
-  LocalMaintainerRegistryPackages,
-  LocalMaintainerSdkPackageName,
   ProjectAuthoringState,
   ProjectCompileAttempt,
   ProjectCompileState,
   ProjectConfig,
   ProjectPendingAuthoringSync,
 } from "../../types.js";
-
-const LOCAL_MAINTAINER_SDK_PACKAGE_NAMES = [
-  "@dreamboard-games/api-client",
-  "@dreamboard-games/sdk",
-] as const satisfies readonly LocalMaintainerSdkPackageName[];
 
 export function getProjectAuthoringState(
   projectConfig: ProjectConfig,
@@ -30,12 +22,6 @@ export function getProjectCompileState(
   projectConfig: ProjectConfig,
 ): ProjectCompileState {
   return projectConfig.compile ?? {};
-}
-
-export function getProjectLocalMaintainerRegistry(
-  projectConfig: ProjectConfig,
-): LocalMaintainerRegistryConfig | undefined {
-  return projectConfig.localMaintainerRegistry;
 }
 
 export function updateProjectAuthoringState(
@@ -139,36 +125,5 @@ export function clearProjectCompileState(
   return {
     ...projectConfig,
     compile: {},
-  };
-}
-
-export function updateProjectLocalMaintainerRegistry(
-  projectConfig: ProjectConfig,
-  localMaintainerRegistry: LocalMaintainerRegistryConfig | undefined,
-): ProjectConfig {
-  return {
-    ...projectConfig,
-    localMaintainerRegistry: sanitizeProjectLocalMaintainerRegistry(
-      localMaintainerRegistry,
-    ),
-  };
-}
-
-export function sanitizeProjectLocalMaintainerRegistry(
-  localMaintainerRegistry: LocalMaintainerRegistryConfig | undefined,
-): LocalMaintainerRegistryConfig | undefined {
-  if (!localMaintainerRegistry) return undefined;
-
-  const packages: Partial<LocalMaintainerRegistryPackages> = {};
-  for (const packageName of LOCAL_MAINTAINER_SDK_PACKAGE_NAMES) {
-    const version = localMaintainerRegistry.packages[packageName];
-    if (version) {
-      packages[packageName] = version;
-    }
-  }
-
-  return {
-    ...localMaintainerRegistry,
-    packages: packages as LocalMaintainerRegistryPackages,
   };
 }

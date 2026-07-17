@@ -9,7 +9,6 @@ import {
   PROJECT_CONFIG_FILE,
   PROJECT_DIR_NAME,
 } from "../../constants.js";
-import type { LocalMaintainerRegistryConfig } from "../../types.js";
 import { ensureDir } from "../../utils/fs.js";
 import { materializeManifest } from "./manifest-authoring.js";
 import { isDynamicSeedPath } from "./scaffold-ownership.js";
@@ -32,9 +31,6 @@ type StaticScaffoldMode = "new" | "update";
 type StaticAssetEntry = {
   targetPath: string;
   content: string;
-};
-type StaticScaffoldOptions = {
-  localMaintainerRegistry?: LocalMaintainerRegistryConfig | null;
 };
 type RootPackageJsonShape = {
   private?: boolean;
@@ -117,9 +113,8 @@ const SHARED_DEV_DEPENDENCIES = {
 export async function scaffoldStaticWorkspace(
   projectRoot: string,
   mode: StaticScaffoldMode,
-  options: StaticScaffoldOptions = {},
 ): Promise<void> {
-  await writeFrameworkStaticFiles(projectRoot, mode, options);
+  await writeFrameworkStaticFiles(projectRoot, mode);
   await ensureDreamboardGitignore(projectRoot);
   await writeManifestTypecheckTsconfig(projectRoot);
 
@@ -196,7 +191,6 @@ export async function assertCliStaticScaffoldComplete(
 async function writeFrameworkStaticFiles(
   projectRoot: string,
   mode: StaticScaffoldMode,
-  options: StaticScaffoldOptions,
 ): Promise<void> {
   const assetEntries = await getStaticAssetEntries();
 
@@ -215,17 +209,10 @@ async function writeFrameworkStaticFiles(
     await writeWorkspaceTextFile(projectRoot, entry.targetPath, entry.content);
   }
 
-  for (const entry of await getDynamicStaticEntries(
-    projectRoot,
-    mode,
-    options,
-  )) {
+  for (const entry of await getDynamicStaticEntries(projectRoot, mode)) {
     await writeWorkspaceTextFile(projectRoot, entry.targetPath, entry.content);
   }
-
-  if (!options.localMaintainerRegistry) {
-    await removeWorkspacePath(projectRoot, ".npmrc", { force: true });
-  }
+  await removeWorkspacePath(projectRoot, ".npmrc", { force: true });
 }
 
 async function writeTestReadme(projectRoot: string): Promise<void> {
@@ -421,27 +408,17 @@ async function getStaticAssetEntries(): Promise<StaticAssetEntry[]> {
 async function getDynamicStaticEntries(
   projectRoot: string,
   mode: StaticScaffoldMode,
-  options: StaticScaffoldOptions = {},
 ): Promise<StaticAssetEntry[]> {
-  const entries: StaticAssetEntry[] = [
+  return [
     {
       targetPath: "package.json",
-      content: await buildRootPackageJson(projectRoot, mode, options),
+      content: await buildRootPackageJson(projectRoot, mode),
     },
     {
       targetPath: "ui/package.json",
       content: buildUiPackageJson(),
     },
   ];
-
-  if (options.localMaintainerRegistry) {
-    entries.push({
-      targetPath: ".npmrc",
-      content: buildWorkspaceNpmrc(options.localMaintainerRegistry.registryUrl),
-    });
-  }
-
-  return entries;
 }
 
 async function getExpectedStaticEntries(
@@ -485,9 +462,8 @@ async function walkFiles(rootDir: string): Promise<string[]> {
 async function buildRootPackageJson(
   projectRoot: string,
   mode: StaticScaffoldMode,
-  options: StaticScaffoldOptions,
 ): Promise<string> {
-  const dreamboardPackageRanges = resolveDreamboardPackageRanges(options);
+  const dreamboardPackageRanges = resolveDreamboardPackageRanges();
   const existingPackageJson =
     mode === "update" &&
     (await workspacePathExists(projectRoot, "package.json"))
@@ -525,9 +501,7 @@ async function buildRootPackageJson(
   return `${JSON.stringify(nextPackageJson, null, 2)}\n`;
 }
 
-function resolveDreamboardPackageRanges(
-  options: StaticScaffoldOptions,
-): Record<
+function resolveDreamboardPackageRanges(): Record<
   | "@dreamboard-games/api-client"
   | "@dreamboard-games/dev-host"
   | "@dreamboard-games/sdk",
@@ -535,14 +509,10 @@ function resolveDreamboardPackageRanges(
 > {
   return {
     "@dreamboard-games/api-client":
-      options.localMaintainerRegistry?.packages[
-        "@dreamboard-games/api-client"
-      ] ?? AUTHORING_RELEASE_SET.packages.apiClient.version,
+      AUTHORING_RELEASE_SET.packages.apiClient.version,
     "@dreamboard-games/dev-host":
       AUTHORING_RELEASE_SET.packages.devHost.version,
-    "@dreamboard-games/sdk":
-      options.localMaintainerRegistry?.packages["@dreamboard-games/sdk"] ??
-      SDK_DEPENDENCY_RANGES["@dreamboard-games/sdk"],
+    "@dreamboard-games/sdk": SDK_DEPENDENCY_RANGES["@dreamboard-games/sdk"],
   };
 }
 
@@ -564,10 +534,6 @@ function mergePnpmConfig(
       ...dreamboardPackageRanges,
     },
   };
-}
-
-function buildWorkspaceNpmrc(registryUrl: string): string {
-  return `@dreamboard-games:registry=${registryUrl}\n`;
 }
 
 function buildUiPackageJson(): string {

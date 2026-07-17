@@ -23,10 +23,7 @@ const sourcePackage = JSON.parse(
 };
 
 const releaseDevHostVersion = AUTHORING_RELEASE_SET.packages.devHost.version;
-if (
-  sourcePackage.version !== releaseDevHostVersion &&
-  !releaseDevHostVersion.startsWith(`${sourcePackage.version}-local.`)
-) {
+if (sourcePackage.version !== releaseDevHostVersion) {
   throw new Error("Dev-host package version does not match release set.");
 }
 const releaseSdkVersion = AUTHORING_RELEASE_SET.packages.sdk.version;

@@ -187,16 +187,6 @@ if (
 }
 
 const sdkVersion = requireExactVersion("@dreamboard-games/sdk", cliSdkVersion);
-const channel =
-  process.env.AUTHORING_RELEASE_CHANNEL === "maintainer-local"
-    ? "maintainer-local"
-    : "public";
-const registryReceiptPath = stringValue(process.env.AUTHORING_REGISTRY_RECEIPT);
-if (channel === "maintainer-local" && !registryReceiptPath) {
-  throw new Error(
-    "AUTHORING_REGISTRY_RECEIPT is required for maintainer-local release sets.",
-  );
-}
 const candidates = Object.fromEntries(
   (
     await Promise.all([
@@ -247,17 +237,12 @@ const packageVersions = {
         devHostPackage.version,
     ),
 };
-if (channel === "public") {
-  for (const [name, version] of Object.entries(packageVersions)) {
-    requirePublicVersion(name, version);
-  }
-  if (registryReceiptPath) {
-    throw new Error("Public release sets must not include a registry receipt.");
-  }
+for (const [name, version] of Object.entries(packageVersions)) {
+  requirePublicVersion(name, version);
 }
 const releaseSetWithoutId: Omit<AuthoringReleaseSetV1, "releaseSetId"> = {
   schemaVersion: 1,
-  channel,
+  channel: "public",
   packages: {
     cli: {
       name: "@dreamboard-games/cli",
@@ -287,9 +272,8 @@ const releaseSetWithoutId: Omit<AuthoringReleaseSetV1, "releaseSetId"> = {
     generatedArtifacts: 1,
   },
   registry: {
-    kind: channel === "public" ? "public-npm" : "maintainer-local",
-    portable: channel === "public",
-    ...(registryReceiptPath ? { receiptPath: registryReceiptPath } : {}),
+    kind: "public-npm",
+    portable: true,
   },
   ...(Object.keys(candidates).length > 0 ? { candidates } : {}),
   packageManager: requireExactPackageManager(rootPackage.packageManager),

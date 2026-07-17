@@ -7,10 +7,7 @@ import { defineCommand, type CommandDef } from "citty";
 import { CONFIG_FLAG_ARGS } from "../command-args.js";
 import { resolveProjectContext } from "../config/resolve.js";
 import { parseConfigFlags, type ConfigFlags } from "../flags.js";
-import {
-  assertCompilerPortableDependencies,
-  assertReleaseEnvironmentPortableDependencies,
-} from "../services/project/dependency-portability.js";
+import { assertCompilerPortableDependencies } from "../services/project/dependency-portability.js";
 import {
   findReducerNativeTestingWorkspace,
   isReducerNativeTestingWorkspace,
@@ -116,7 +113,7 @@ export type TestCommandDeps = {
   findTestingWorkspace?: typeof findReducerNativeTestingWorkspace;
   assertLocalPortableDependencies?: typeof assertCompilerPortableDependencies;
   resolveProjectContext?: typeof resolveProjectContext;
-  assertPortableDependencies?: typeof assertReleaseEnvironmentPortableDependencies;
+  assertPortableDependencies?: typeof assertCompilerPortableDependencies;
   assertTestingWorkspace?: typeof assertReducerNativeTestingWorkspace;
   runScenarios?: typeof runReducerNativeScenarios;
 } & TestFamilyServices;
@@ -250,17 +247,12 @@ async function resolveTestingProject(
   }
 
   const parsedFlags = parseConfigFlags(args);
-  const { projectRoot, projectConfig, config } = await (
+  const { projectRoot } = await (
     deps.resolveProjectContext ?? resolveProjectContext
   )(parsedFlags, { requireAuth: false });
   await (
-    deps.assertPortableDependencies ??
-    assertReleaseEnvironmentPortableDependencies
-  )({
-    projectRoot,
-    projectConfig,
-    environment: config.environment,
-  });
+    deps.assertPortableDependencies ?? assertCompilerPortableDependencies
+  )({ projectRoot });
   await (deps.assertTestingWorkspace ?? assertReducerNativeTestingWorkspace)(
     projectRoot,
   );

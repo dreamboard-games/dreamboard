@@ -1,6 +1,5 @@
 import path from "node:path";
-import type { ProjectConfig } from "../../types.js";
-import { readJsonFile, readTextFileIfExists } from "../../utils/fs.js";
+import { readJsonFile } from "../../utils/fs.js";
 
 type PackageJsonWithDeps = {
   packageManager?: string;
@@ -17,8 +16,6 @@ type PackageJsonWithDeps = {
 export type SourceDependencyProfile = {
   kind: "npm-registry";
   packageManager?: string;
-  dreamboardRegistryUrl?: string;
-  localSnapshotId?: string;
   packages: Record<string, string>;
 };
 
@@ -44,30 +41,17 @@ const UNPORTABLE_SPECIFIER_PATTERN = /^(file|link|portal|workspace):/;
 
 export async function buildSourceDependencyProfile(options: {
   projectRoot: string;
-  projectConfig?: ProjectConfig;
 }): Promise<SourceDependencyProfile> {
   const packageJson = await readProjectPackageJson(options.projectRoot);
-  const packages = collectDreamboardPackageSpecifiers(packageJson);
-  const hasLocalSnapshotPackage = Object.values(packages).some((value) =>
-    value.includes("-local."),
-  );
-  const localMaintainerRegistry = hasLocalSnapshotPackage
-    ? options.projectConfig?.localMaintainerRegistry
-    : undefined;
   return {
     kind: "npm-registry",
     packageManager: packageJson.packageManager,
-    dreamboardRegistryUrl:
-      (await readDreamboardRegistryFromNpmrc(options.projectRoot)) ??
-      localMaintainerRegistry?.registryUrl,
-    localSnapshotId: localMaintainerRegistry?.snapshotId,
-    packages,
+    packages: collectDreamboardPackageSpecifiers(packageJson),
   };
 }
 
 export async function assertCompilerPortableDependencies(options: {
   projectRoot: string;
-  projectConfig?: ProjectConfig;
 }): Promise<SourceDependencyProfile> {
   const packageJson = await readProjectPackageJson(options.projectRoot);
   const namespaceProblems = collectUnsupportedDreamboardNamespaces(packageJson);
@@ -93,62 +77,23 @@ export async function assertCompilerPortableDependencies(options: {
   }
 
   const profile = await buildSourceDependencyProfile(options);
-  const hasLocalSnapshotPackage = Object.values(profile.packages).some(
-    (value) => value.includes("-local."),
+  const localPackages = Object.entries(profile.packages).filter(([, version]) =>
+    version.includes("-local."),
   );
-  if (hasLocalSnapshotPackage && !profile.dreamboardRegistryUrl) {
+  if (localPackages.length > 0) {
+    const details = localPackages
+      .map(([name, version]) => `${name}@${version}`)
+      .join(", ");
     throw new Error(
-      "This workspace references local Dreamboard snapshot versions but has no @dreamboard registry configured. Recreate or reclone the workspace with the local registry configuration before building.",
+      [
+        "Local Dreamboard package snapshots are no longer supported.",
+        `Found ${details}.`,
+        "Publish a public alpha package, repin the workspace to that exact version, and rerun the command.",
+      ].join(" "),
     );
   }
 
   return profile;
-}
-
-export async function assertReleaseEnvironmentPortableDependencies(options: {
-  projectRoot: string;
-  projectConfig?: ProjectConfig;
-  environment: string;
-}): Promise<SourceDependencyProfile> {
-  const packageJson = await readProjectPackageJson(options.projectRoot);
-  const namespaceProblems = collectUnsupportedDreamboardNamespaces(packageJson);
-  if (namespaceProblems.length > 0) {
-    throwUnsupportedDreamboardNamespaceError(namespaceProblems);
-  }
-
-  const profile = await buildSourceDependencyProfile(options);
-  if (!isReleaseEnvironment(options.environment)) {
-    return profile;
-  }
-
-  const localPackages = Object.entries(profile.packages).filter(([, version]) =>
-    version.includes("-local."),
-  );
-  const localRegistryUrl = isLocalRegistryUrl(profile.dreamboardRegistryUrl)
-    ? profile.dreamboardRegistryUrl
-    : undefined;
-
-  if (localPackages.length === 0 && !localRegistryUrl) {
-    return profile;
-  }
-
-  const packageDetails = localPackages
-    .map(([name, version]) => `${name}@${version}`)
-    .join(", ");
-  const registryDetails = localRegistryUrl
-    ? `local registry ${localRegistryUrl}`
-    : null;
-  const details = [packageDetails || null, registryDetails]
-    .filter(Boolean)
-    .join("; ");
-
-  throw new Error(
-    [
-      `The ${options.environment} environment does not support local Dreamboard package snapshots.`,
-      `Found ${details}.`,
-      "Publish a public alpha package, repin the workspace to that exact version, and rerun the command.",
-    ].join(" "),
-  );
 }
 
 async function readProjectPackageJson(
@@ -272,38 +217,4 @@ function isPortableDreamboardPackage(packageName: string): boolean {
 
 function isUnsupportedDreamboardNamespace(packageName: string): boolean {
   return packageName.startsWith("@dreamboard/");
-}
-
-function isReleaseEnvironment(environment: string): boolean {
-  return environment === "staging" || environment === "prod";
-}
-
-function isLocalRegistryUrl(rawUrl: string | undefined): boolean {
-  if (!rawUrl) return false;
-  try {
-    const url = new URL(rawUrl);
-    return (
-      url.hostname === "localhost" ||
-      url.hostname === "127.0.0.1" ||
-      url.hostname === "::1" ||
-      url.hostname.endsWith(".local")
-    );
-  } catch {
-    return /localhost|127\.0\.0\.1|\.local\b/.test(rawUrl);
-  }
-}
-
-async function readDreamboardRegistryFromNpmrc(
-  projectRoot: string,
-): Promise<string | undefined> {
-  const npmrc = await readTextFileIfExists(path.join(projectRoot, ".npmrc"));
-  if (!npmrc) return undefined;
-  for (const line of npmrc.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("@dreamboard-games:registry=")) continue;
-    return (
-      trimmed.slice("@dreamboard-games:registry=".length).trim() || undefined
-    );
-  }
-  return undefined;
 }
