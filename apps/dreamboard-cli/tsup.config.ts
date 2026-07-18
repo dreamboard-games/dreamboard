@@ -6,7 +6,11 @@ const packageJson = JSON.parse(
 ) as { version?: string };
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/internal.ts"],
+  entry: {
+    index: "src/index.ts",
+    internal: "src/internal.ts",
+    "authoring-release-set": "src/release/authoring-release-set.ts",
+  },
   format: ["esm"],
   platform: "node",
   target: "node24",
@@ -14,6 +18,11 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   splitting: true,
+  dts: {
+    entry: {
+      "authoring-release-set": "src/release/authoring-release-set.ts",
+    },
+  },
   banner: {
     js: "#!/usr/bin/env node",
   },
