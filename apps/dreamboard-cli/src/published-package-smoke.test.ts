@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   materializeReducerNativeProcessFixture,
   type ReducerNativeProcessFixture,
@@ -74,6 +75,31 @@ afterAll(async () => {
 });
 
 describe("staged published package", () => {
+  test("exports its typed authoring release set", async () => {
+    const packageJson = await Bun.file(
+      path.join(stageRoot, "package.json"),
+    ).json();
+    expect(packageJson.exports["./authoring-release-set"]).toEqual({
+      types: "./dist/authoring-release-set.d.ts",
+      default: "./dist/authoring-release-set.js",
+    });
+    expect(
+      await Bun.file(
+        path.join(stageRoot, "dist", "authoring-release-set.d.ts"),
+      ).exists(),
+    ).toBe(true);
+
+    const releaseSetModule = await import(
+      pathToFileURL(path.join(stageRoot, "dist", "authoring-release-set.js"))
+        .href
+    );
+    const releaseSetJson = await Bun.file(
+      path.join(stageRoot, "release", "authoring-release-set.json"),
+    ).json();
+
+    expect(releaseSetModule.AUTHORING_RELEASE_SET).toEqual(releaseSetJson);
+  });
+
   test("exposes the Phase 8 public command tree", () => {
     const mainHelp = runPublishedCli(["--help"], {});
     const authHelp = runPublishedCli(["auth", "--help"], {});

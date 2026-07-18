@@ -58,6 +58,10 @@ const packageJson: Record<string, unknown> = {
   },
   exports: {
     ".": "./dist/index.js",
+    "./authoring-release-set": {
+      types: "./dist/authoring-release-set.d.ts",
+      default: "./dist/authoring-release-set.js",
+    },
     "./internal": {
       types: "./dist/internal.d.ts",
       default: "./dist/internal.js",

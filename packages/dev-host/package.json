@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/dev-host",
-  "version": "0.1.30-alpha.29",
+  "version": "0.1.30-alpha.33",
   "description": "Project-local Dreamboard development host.",
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@dreamboard-games/api-client": "workspace:*",
-    "@dreamboard-games/sdk": "0.4.0-alpha.10",
+    "@dreamboard-games/sdk": "0.4.0-alpha.14",
     "@dreamboard-games/ui-host-runtime": "0.1.0-alpha.7",
     "@tailwindcss/postcss": "^4.3.0",
     "@vitejs/plugin-react": "^4.7.0",
@@ -61,7 +61,7 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@dreamboard-games/sdk": "0.4.0-alpha.10"
+    "@dreamboard-games/sdk": "0.4.0-alpha.14"
   },
   "publishConfig": {
     "access": "public"
