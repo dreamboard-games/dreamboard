@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ClientGameplayFrameSchema, AuthRefreshFrameSchema } from "./frames.js";
+import {
+  ClientGameplayFrameSchema,
+  AuthRefreshFrameSchema,
+  HistoryRestoreRejectedFrameSchema,
+} from "./frames.js";
 describe("direct gameplay protocol", () => {
   it("accepts credential connect and rejects legacy capability tokens", () => {
     expect(
@@ -48,4 +52,23 @@ describe("direct gameplay protocol", () => {
       }),
     ).toThrow();
   });
+});
+
+it("requires rejection correlation for history restores", () => {
+  const rejection = {
+    type: "history.restoreRejected",
+    errorCode: "forbidden",
+    message: "Permission denied",
+  };
+  expect(HistoryRestoreRejectedFrameSchema.safeParse(rejection).success).toBe(
+    false,
+  );
+  expect(
+    HistoryRestoreRejectedFrameSchema.safeParse({ ...rejection, restoreId: "" })
+      .success,
+  ).toBe(false);
+  expect(
+    HistoryRestoreRejectedFrameSchema.parse({ ...rejection, restoreId: "r1" })
+      .restoreId,
+  ).toBe("r1");
 });

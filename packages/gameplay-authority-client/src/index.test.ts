@@ -450,7 +450,6 @@ describe("gameplay authority client", () => {
       restoreId: "restore-1",
       errorCode: "history-target-not-found",
       message: "History restore target is not durable.",
-      currentGeneration: 0,
       currentVersion: 4,
     });
 
@@ -461,7 +460,7 @@ describe("gameplay authority client", () => {
     });
   });
 
-  test("returns restore rejection frames without restore id", async () => {
+  test("correlates rejection and success to separate pending restores", async () => {
     const factory = createFakeWebSocketFactory();
     const clientPromise = connectGameplayAuthority({
       websocketUrl: WEBSOCKET_URL,
@@ -470,25 +469,35 @@ describe("gameplay authority client", () => {
       playerId: PLAYER_ID,
       webSocketFactory: factory.ctor,
     });
-
     await authenticate(factory);
     const client = await clientPromise;
-    const rejected = client.restoreHistory({
+    const first = client.restoreHistory({
       restoreId: "restore-1",
       targetVersion: 7,
     });
-
+    const second = client.restoreHistory({
+      restoreId: "restore-2",
+      targetVersion: 3,
+    });
     expectSingleSocket(factory).emitJson({
       type: "history.restoreRejected",
-      errorCode: "permission-denied",
-      message: "Only the host can restore history.",
-      currentGeneration: 0,
-      currentVersion: 4,
+      restoreId: "restore-1",
+      errorCode: "history-target-not-found",
+      message: "History restore target is not durable.",
     });
-
-    await expect(rejected).resolves.toMatchObject({
+    await expect(first).resolves.toMatchObject({
       type: "history.restoreRejected",
-      errorCode: "permission-denied",
+      restoreId: "restore-1",
+    });
+    expectSingleSocket(factory).emitJson({
+      type: "history.restored",
+      restoreId: "restore-2",
+      version: 8,
+    });
+    await expect(second).resolves.toEqual({
+      type: "history.restored",
+      restoreId: "restore-2",
+      version: 8,
     });
   });
 

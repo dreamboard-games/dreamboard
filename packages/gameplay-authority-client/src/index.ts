@@ -225,8 +225,7 @@ class WebSocketGameplayAuthorityClient implements GameplayAuthorityClient {
         (candidate.type === "history.restored" &&
           candidate.restoreId === input.restoreId) ||
         (candidate.type === "history.restoreRejected" &&
-          (candidate.restoreId === undefined ||
-            candidate.restoreId === input.restoreId)),
+          candidate.restoreId === input.restoreId),
       this.requestTimeoutMs,
     );
 

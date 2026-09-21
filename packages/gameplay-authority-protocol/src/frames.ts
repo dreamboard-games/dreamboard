@@ -82,7 +82,7 @@ export const HistoryRestoredFrameSchema = z.object({
 
 export const HistoryRestoreRejectedFrameSchema = z.object({
   type: z.literal("history.restoreRejected"),
-  restoreId: z.string().min(1).optional(),
+  restoreId: z.string().min(1),
   errorCode: z.string().min(1),
   message: z.string().min(1),
   currentVersion: z.number().int().nonnegative().optional(),
