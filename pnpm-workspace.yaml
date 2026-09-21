@@ -5,3 +5,6 @@ packages:
   - "packages/cli-core"
   - "packages/dev-host"
   - "packages/typescript-config"
+  - "packages/gameplay-authority-protocol"
+  - "packages/gameplay-authority-client"
+  - "packages/ui-host-runtime"

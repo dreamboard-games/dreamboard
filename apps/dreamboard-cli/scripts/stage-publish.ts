@@ -94,9 +94,9 @@ function buildPublishedDependencies(
   sourceDependencies: Record<string, string>,
 ): Record<string, string> {
   const dependencies = { ...sourceDependencies };
-  if (dependencies["@dreamboard-games/api-client"]?.startsWith("workspace:")) {
-    dependencies["@dreamboard-games/api-client"] =
-      AUTHORING_RELEASE_SET.packages.apiClient.version;
+  for (const entry of Object.values(AUTHORING_RELEASE_SET.packages)) {
+    if (dependencies[entry.name]?.startsWith("workspace:"))
+      dependencies[entry.name] = entry.version;
   }
   delete dependencies["@dreamboard-games/cli-core"];
   delete dependencies["@dreamboard-games/sdk"];

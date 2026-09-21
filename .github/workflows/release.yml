@@ -60,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Chromium for credential isolation proof
+        run: pnpm --dir packages/dev-host exec playwright install --with-deps chromium
+
       - name: Build and verify package candidate
         run: pnpm verify:package
 
@@ -142,7 +145,7 @@ jobs:
             --candidate build/release-candidate/receipt.json \
             --expect "$expectation"
 
-      - name: Publish dev-host then CLI
+      - name: Publish authoring packages in dependency order
         run: |
           set -euo pipefail
 
@@ -171,6 +174,10 @@ jobs:
               --provenance
           }
 
+          publish_candidate apiClient
+          publish_candidate gameplayProtocol
+          publish_candidate gameplayClient
+          publish_candidate uiHostRuntime
           publish_candidate devHost
           publish_candidate cli
 

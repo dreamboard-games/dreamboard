@@ -132,7 +132,7 @@ function assertDevCompiledResultStartable(
 ): CompiledResult {
   const blockers: string[] = [];
   if (!compiledResult.success) blockers.push("compile did not succeed");
-  if (!compiledResult.appStorageKey) blockers.push("missing APP storage key");
+  if (!compiledResult.bundleSha256) blockers.push("missing gameplay bundle hash");
   if (!compiledResult.uiStorageKey) blockers.push("missing UI storage key");
 
   if (blockers.length === 0) {
@@ -804,12 +804,6 @@ async function tryResumeSession(
     return {
       session: null,
       reason: `setup profile changed from ${context.setupProfileId ?? "none"} to ${setupProfileId ?? "none"}`,
-    };
-  }
-  if (context.status === "ended" || context.phase === "ended") {
-    return {
-      session: null,
-      reason: "session has already ended",
     };
   }
 

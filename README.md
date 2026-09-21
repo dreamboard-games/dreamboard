@@ -133,17 +133,18 @@ Run the offline source gate across every active workspace:
 pnpm check
 ```
 
-Build the CLI and dev-host tarballs once, install those exact files in a clean
+Build the six public authoring package tarballs once, install those exact files in a clean
 consumer, and retain their integrity receipt under `build/release-candidate/`:
 
 ```bash
 pnpm verify:package
 ```
 
-`pnpm verify:release` adds an exact npm preflight: SDK and API-client versions
-must exist, while the planned CLI and dev-host versions must not. It never uses
+`pnpm verify:release` adds an exact npm preflight: the SDK version must exist,
+while the planned authoring package versions must not. It never uses
 mutable npm dist-tags as a correctness input. The release workflow uploads the
-verified candidate and publishes the same tarballs in dev-host-then-CLI order.
+verified candidate and publishes the same tarballs in dependency order: API
+client, gameplay protocol, gameplay client, host runtime, dev-host, then CLI.
 An explicit partial-release resume is accepted only when an already-published
 package has the receipt's exact integrity.
 
@@ -155,9 +156,14 @@ not dry-run listings.
 Package-local authoring proof and version checks:
 
 ```bash
-pnpm --dir packages/api-client authoring:candidate
 pnpm --dir apps/dreamboard-cli check:authoring-version-authority
 ```
+
+The development host runs authored UI in an opaque sandboxed iframe. Gameplay
+credentials are available only to the trusted host page through a same-origin
+POST endpoint. Local HTTP and explicitly allowed LAN hosts are supported;
+HTTPS tunnels terminating outside Vite currently fail closed for credential
+refresh because no external-origin configuration exists.
 
 The authority check always reads the source CLI, API-client, and dev-host
 manifests. It therefore rejects an SDK/dev-host peer mismatch even when no

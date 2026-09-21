@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { AUTHORING_RELEASE_SET } from "../apps/dreamboard-cli/src/release/authoring-release-set.ts";
@@ -25,6 +25,25 @@ const devHostRoot = path.join(repoRoot, "packages/dev-host");
 const outputRoot = path.resolve(
   optionValue(process.argv.slice(2), "--out", DEFAULT_CANDIDATE_ROOT),
 );
+
+const sharedPackageDirectories = {
+  apiClient: "api-client",
+  gameplayProtocol: "gameplay-authority-protocol",
+  gameplayClient: "gameplay-authority-client",
+  uiHostRuntime: "ui-host-runtime",
+} as const;
+for (const directory of Object.values(sharedPackageDirectories)) {
+  await run("pnpm", [
+    "--dir",
+    path.join(repoRoot, "packages", directory),
+    "run",
+    "build",
+  ]);
+}
+await run("pnpm", ["--dir", devHostRoot, "run", "build"]);
+for (const directory of Object.values(sharedPackageDirectories)) {
+  await stageSharedPackage(path.join(repoRoot, "packages", directory));
+}
 
 await run("pnpm", ["--dir", cliRoot, "run", "build:published"]);
 await run("pnpm", ["--dir", cliRoot, "run", "build:agent-verifier"]);
@@ -53,6 +72,12 @@ await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });
 
 const packages = await Promise.all([
+  ...Object.entries(sharedPackageDirectories).map(([key, directory]) =>
+    pack(
+      key as CandidatePackageKey,
+      path.join(repoRoot, "packages", directory, ".publish/package"),
+    ),
+  ),
   pack("devHost", path.join(devHostRoot, ".publish/package")),
   pack("cli", path.join(cliRoot, ".publish/package")),
 ]);
@@ -121,4 +146,48 @@ async function run(command: string, args: string[]): Promise<void> {
   });
   if (stdout.trim()) process.stdout.write(stdout);
   if (stderr.trim()) process.stderr.write(stderr);
+}
+
+async function stageSharedPackage(packageRoot: string): Promise<void> {
+  const manifest = JSON.parse(
+    await readFile(path.join(packageRoot, "package.json"), "utf8"),
+  );
+  const stageRoot = path.join(packageRoot, ".publish/package");
+  await rm(stageRoot, { recursive: true, force: true });
+  await mkdir(stageRoot, { recursive: true });
+  for (const directory of manifest.files ?? ["dist"]) {
+    await cp(
+      path.join(packageRoot, directory),
+      path.join(stageRoot, directory),
+      { recursive: true },
+    );
+  }
+  for (const field of ["dependencies", "peerDependencies"]) {
+    for (const entry of Object.values(AUTHORING_RELEASE_SET.packages)) {
+      if (manifest[field]?.[entry.name]?.startsWith("workspace:"))
+        manifest[field][entry.name] = entry.version;
+    }
+    if (
+      Object.values(manifest[field] ?? {}).some((value) =>
+        String(value).startsWith("workspace:"),
+      )
+    ) {
+      throw new Error(
+        `${manifest.name} retains an unpublished workspace dependency`,
+      );
+    }
+  }
+  for (const file of ["README.md", "LICENSE", "UPSTREAM.json"]) {
+    try {
+      await cp(path.join(packageRoot, file), path.join(stageRoot, file));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  delete manifest.scripts;
+  delete manifest.devDependencies;
+  await writeFile(
+    path.join(stageRoot, "package.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
 }

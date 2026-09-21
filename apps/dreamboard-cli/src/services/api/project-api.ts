@@ -1,17 +1,14 @@
 import {
   createProjectSession,
-  createProjectSessionFromReducerSnapshot,
   ensureProject,
   ensureProjectDevCompile,
   getApiVersion,
   getCurrentAuthUser,
   getProjectBySlug,
-  type CreateSessionFromReducerSnapshotRequest,
   type CreateSessionRequest,
   type CreateSessionResponse,
   type EnsureDevCompileRequest,
   type EnsureDevCompileResponse,
-  type HostSessionSnapshot,
   type Project,
 } from "@dreamboard-games/api-client";
 import { toDreamboardApiError } from "../../utils/errors.js";
@@ -120,27 +117,6 @@ export async function createProjectSessionSdk(options: {
 
   if (error || !data) {
     throw toDreamboardApiError(error, response, "Failed to create session");
-  }
-
-  return data;
-}
-
-export async function createProjectSessionFromReducerSnapshotSdk(options: {
-  projectId: string;
-  request: CreateSessionFromReducerSnapshotRequest;
-}): Promise<HostSessionSnapshot> {
-  const { data, error, response } =
-    await createProjectSessionFromReducerSnapshot({
-      path: { projectId: options.projectId },
-      body: options.request,
-    });
-
-  if (error || !data) {
-    throw toDreamboardApiError(
-      error,
-      response,
-      "Failed to create session from reducer snapshot",
-    );
   }
 
   return data;

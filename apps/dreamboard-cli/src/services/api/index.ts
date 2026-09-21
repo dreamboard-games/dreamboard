@@ -5,7 +5,6 @@ export {
   waitForCompiledResultJobSdk,
 } from "./compiled-results-api.js";
 export {
-  createProjectSessionFromReducerSnapshotSdk,
   createProjectSessionSdk,
   ensureProjectDevCompileSdk,
   ensureProjectSdk,

@@ -46,7 +46,7 @@ export async function start(
 
   const server = await createServer({
     root: platform.devHostRoot,
-    appType: "spa",
+    appType: "mpa",
     plugins: [
       createDevHmrGuardPlugin({ projectRoot }),
       react(),

@@ -5,21 +5,33 @@ export const AUTHORING_RELEASE_SET = {
   "schemaVersion": 1,
   "channel": "public",
   "packages": {
+    "gameplayProtocol": {
+      "name": "@dreamboard-games/gameplay-authority-protocol",
+      "version": "0.1.0-alpha.1"
+    },
+    "gameplayClient": {
+      "name": "@dreamboard-games/gameplay-authority-client",
+      "version": "0.1.0-alpha.2"
+    },
+    "uiHostRuntime": {
+      "name": "@dreamboard-games/ui-host-runtime",
+      "version": "0.1.0-alpha.8"
+    },
     "cli": {
       "name": "@dreamboard-games/cli",
-      "version": "0.1.30-alpha.50"
+      "version": "0.1.30-alpha.51"
     },
     "sdk": {
       "name": "@dreamboard-games/sdk",
-      "version": "0.4.0-alpha.14"
+      "version": "0.5.0-alpha.0"
     },
     "apiClient": {
       "name": "@dreamboard-games/api-client",
-      "version": "0.3.0-alpha.7"
+      "version": "0.3.0-alpha.8"
     },
     "devHost": {
       "name": "@dreamboard-games/dev-host",
-      "version": "0.1.30-alpha.33"
+      "version": "0.1.30-alpha.34"
     }
   },
   "protocols": {
@@ -37,5 +49,5 @@ export const AUTHORING_RELEASE_SET = {
     "portable": true
   },
   "packageManager": "pnpm@10.4.1",
-  "releaseSetId": "sha256:7a9fb2ea9aa7143c55fab2c8464067659670da1584ab6f7c302a30b94032bc2a"
+  "releaseSetId": "sha256:76fb8851fc1d1911a086fc457030d680f6863cfadeb79aad97afcff756e3087e"
 } as const satisfies AuthoringReleaseSetV1;

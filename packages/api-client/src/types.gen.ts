@@ -240,13 +240,9 @@ export type Project = {
      */
     public: boolean;
     /**
-     * Artifact object key for the latest generated project preview PNG
+     * Artifact object key for the latest project thumbnail
      */
-    previewStorageKey?: string;
-    /**
-     * Artifact object key for the reducer-native projection used to render previews
-     */
-    initialProjectionKey?: string;
+    thumbnailStorageKey?: string;
     /**
      * Whether an agent build has passed Dreamboard workspace verification for this project
      */
@@ -379,205 +375,6 @@ export type UpdateProjectRequest = {
      */
     public?: boolean;
     metadata?: GameMetadata;
-};
-
-export type ProjectRepositoryProvisioningState = 'REQUESTED' | 'PROVISIONING' | 'READY' | 'ERROR' | 'DELETING' | 'DELETED';
-
-/**
- * Environment-local opaque Git repository binding for a project installation.
- */
-export type ProjectRepository = {
-    /**
-     * Environment-local repository binding identifier. This is not portable project identity.
-     */
-    repoBindingId: string;
-    /**
-     * Git smart-HTTP clone URL for the Dreamboard Git gateway.
-     */
-    cloneUrl: string;
-    /**
-     * Default branch configured for the repository.
-     */
-    defaultBranch: string;
-    /**
-     * Current repository HEAD commit OID when known.
-     */
-    headCommit: string;
-    provisioningState: ProjectRepositoryProvisioningState;
-    /**
-     * Desired repository reconciliation generation.
-     */
-    desiredGeneration: number;
-    /**
-     * Latest Forgejo state generation observed by reconciliation.
-     */
-    observedGeneration: number;
-    /**
-     * Whether retrying reconciliation is allowed for the current state.
-     */
-    retryable: boolean;
-    /**
-     * Stable sanitized reconciliation error code when provisioning is in error.
-     */
-    errorCode?: string;
-};
-
-export type ProjectBuildTargetProfile = 'preview' | 'release';
-
-/**
- * Request to ensure a build exists for one exact observed Git commit.
- */
-export type EnsureProjectBuildRequest = {
-    /**
-     * Exact Git commit OID already pushed to the project repository.
-     */
-    commitOid: string;
-    targetProfile: ProjectBuildTargetProfile;
-};
-
-export type ProjectCompiledArtifactStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
-
-/**
- * Server-derived build recipe and compiled artifact state for one exact Git commit.
- */
-export type ProjectBuild = {
-    buildRecipeId: string;
-    buildRecipeDigest: string;
-    gameRevisionId: string;
-    gitSourceRevisionId: string;
-    commitOid: string;
-    treeOid: string;
-    targetProfile: ProjectBuildTargetProfile;
-    compiledArtifactId: string;
-    compiledArtifactStatus: ProjectCompiledArtifactStatus;
-    compiledArtifactDigest: string | null;
-    storageKey: string | null;
-    workJobId: string | null;
-    /**
-     * Whether this request created the compile work job.
-     */
-    enqueued: boolean;
-};
-
-export type ProjectCommitSourceValidationStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
-
-/**
- * Server observation and validation state for one exact Git source revision.
- */
-export type ProjectCommitSourceStatus = {
-    observed: boolean;
-    gitSourceRevisionId: string | null;
-    treeOid: string | null;
-    refName: string | null;
-    validationStatus: ProjectCommitSourceValidationStatus | null;
-    validationDiagnostics: {
-        [key: string]: unknown;
-    } | null;
-    observedAt: string | null;
-};
-
-/**
- * Materialized game revision linked to an exact Git source revision.
- */
-export type ProjectCommitGameRevisionStatus = {
-    gameRevisionId: string | null;
-    revisionDigest: string | null;
-    sourceTreeHash: string | null;
-};
-
-/**
- * Build recipe and compiled artifact state for a target profile at one exact commit.
- */
-export type ProjectCommitBuildStatus = {
-    targetProfile: ProjectBuildTargetProfile;
-    buildRecipeDigest: string;
-    buildRecipe: {
-        [key: string]: unknown;
-    };
-    buildRecipeId: string | null;
-    compiledArtifactId: string | null;
-    compiledArtifactStatus: ProjectCompiledArtifactStatus | null;
-    compiledArtifactDigest: string | null;
-    storageKey: string | null;
-    diagnostics: {
-        [key: string]: unknown;
-    } | null;
-};
-
-export type ProjectPreviewStatus = 'PENDING_RETENTION' | 'ACTIVE' | 'EXPIRED';
-
-/**
- * Preview aggregate for one exact Git source revision and compiled artifact.
- */
-export type ProjectPreview = {
-    previewId: string;
-    gameRevisionId: string;
-    compiledArtifactId: string;
-    status: ProjectPreviewStatus;
-    sourceRef: string | null;
-    retentionRef: string | null;
-    expiresAt: string;
-    createdAt: string;
-};
-
-export type ProjectReleaseStatus = 'PENDING_RETENTION' | 'ACTIVE' | 'REVOKED';
-
-/**
- * Release membership for a commit-scoped game revision.
- */
-export type ProjectCommitReleaseStatus = {
-    releaseId: string;
-    gameRevisionId: string;
-    compiledArtifactId: string;
-    status: ProjectReleaseStatus;
-    retentionRef: string | null;
-    current: boolean;
-    createdAt: string;
-};
-
-/**
- * Server-owned status aggregate for one exact Git commit.
- */
-export type ProjectCommitStatus = {
-    projectId: string;
-    commitOid: string;
-    source: ProjectCommitSourceStatus;
-    gameRevision: ProjectCommitGameRevisionStatus;
-    builds: Array<ProjectCommitBuildStatus>;
-    previews: Array<ProjectPreview>;
-    releases: Array<ProjectCommitReleaseStatus>;
-};
-
-/**
- * Request to create a preview for one exact observed Git commit.
- */
-export type CreateProjectPreviewRequest = {
-    /**
-     * Exact Git commit OID already pushed to the project repository.
-     */
-    commitOid: string;
-};
-
-/**
- * Request to publish a release for one exact observed Git commit.
- */
-export type PublishProjectReleaseRequest = {
-    /**
-     * Exact Git commit OID already pushed to the project repository.
-     */
-    commitOid: string;
-};
-
-/**
- * Release aggregate for one exact Git source revision and compiled artifact.
- */
-export type ProjectRelease = {
-    releaseId: string;
-    gameRevisionId: string;
-    compiledArtifactId: string;
-    status: ProjectReleaseStatus;
-    retentionRef: string | null;
-    createdAt: string;
 };
 
 /**
@@ -1810,13 +1607,9 @@ export type CompiledResult = {
      */
     diagnostics?: Array<CompilationDiagnostic>;
     /**
-     * Where compiled APP (game logic) artifacts are stored
+     * SHA-256 of the immutable gameplay bundle. Null for failed compilation.
      */
-    appStorageType: CompiledResultStorageType;
-    /**
-     * Key/path for compiled APP artifacts. Null when APP compilation fails.
-     */
-    appStorageKey?: string;
+    bundleSha256: string;
     /**
      * Where compiled UI (frontend) artifacts are stored
      */
@@ -1857,20 +1650,6 @@ export type ListCompiledResultsResponse = {
      * List of compiled results, sorted by creation date (newest first)
      */
     results: Array<CompiledResult>;
-};
-
-export type UploadInitialProjectionRequest = {
-    /**
-     * Reducer-native projection JSON for the preview's initial rendered state
-     */
-    projectionJson: string;
-};
-
-export type PreviewScreenshotJobResponse = {
-    /**
-     * Identifier of the queued preview screenshot job
-     */
-    jobId: string;
 };
 
 /**
@@ -2009,24 +1788,11 @@ export type SessionActorDemoGuest = {
     demoActorSessionId: string;
 };
 
-/**
- * Machine-owned performance run actor for benchmark-created sessions.
- */
-export type SessionActorPerfOperator = {
-    kind: 'PERF_OPERATOR';
-    /**
-     * perf_runs.run_id
-     */
-    perfRunId: string;
-};
-
 export type SessionActor = ({
     kind: 'AUTH_USER';
 } & SessionActorAuthUser) | ({
     kind: 'DEMO_GUEST';
-} & SessionActorDemoGuest) | ({
-    kind: 'PERF_OPERATOR';
-} & SessionActorPerfOperator);
+} & SessionActorDemoGuest);
 
 export type SessionGameSourceUserCompiled = {
     kind: 'USER_COMPILED';
@@ -2202,36 +1968,6 @@ export type JobNumericMetrics = {
 };
 
 /**
- * Status of a user-facing job task
- */
-export type JobTaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-
-/**
- * User-facing task progress for an async job
- */
-export type JobTaskSummary = {
-    /**
-     * Stable task key
-     */
-    taskKey: string;
-    /**
-     * User-facing task title
-     */
-    title: string;
-    status: JobTaskStatus;
-    /**
-     * Latest high-level status for the task
-     */
-    latestStatus?: string;
-    /**
-     * Display order
-     */
-    orderIndex: number;
-    startedAt?: string;
-    completedAt?: string;
-};
-
-/**
  * Detailed information for an async backend job
  */
 export type JobDetailResponse = {
@@ -2286,9 +2022,9 @@ export type JobDetailResponse = {
      */
     agentRunId?: string;
     /**
-     * Ordered user-facing task progress for this job.
+     * Last confirmed activity from the underlying agent run. Null until the agent reports activity.
      */
-    tasks: Array<JobTaskSummary>;
+    agentActivityAt?: string;
     /**
      * App script (compiled result) ID created by this job
      */
@@ -2297,24 +2033,6 @@ export type JobDetailResponse = {
      * Compiled result ID created by this job
      */
     createdCompiledResultId?: string;
-};
-
-/**
- * Bounded long-poll response for async job progress snapshots.
- */
-export type JobEventBatchResponse = {
-    /**
-     * Opaque cursor for the returned job snapshot version.
-     */
-    cursor: string;
-    /**
-     * Current job snapshot when the job changed or the caller has no cursor.
-     */
-    snapshot?: JobDetailResponse;
-    /**
-     * True when no job update arrived before the bounded wait elapsed.
-     */
-    timedOut: boolean;
 };
 
 /**
@@ -2349,86 +2067,7 @@ export type CreateGameRunResponse = {
     projectId: string;
 };
 
-export type AcceptGameRunStatus = 'ACCEPTING' | 'CONFLICTED';
-
-/**
- * Response for an accepted agent build result request.
- */
-export type AcceptGameRunResponse = {
-    status: AcceptGameRunStatus;
-    workJobId?: string;
-};
-
-/**
- * Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
- */
-export type CreateSessionFromReducerSnapshotRequest = {
-    /**
-     * Compiled result ID that produced the reducer bundle used to create the snapshot.
-     */
-    compiledResultId: string;
-    /**
-     * Deterministic RNG seed associated with the generated base.
-     */
-    seed: number;
-    /**
-     * Number of players materialized in the reducer snapshot.
-     */
-    playerCount: number;
-    /**
-     * Authored setup profile associated with the generated base, if any.
-     */
-    setupProfileId?: string;
-    /**
-     * Generated base artifact id used to hydrate the reducer shadow.
-     */
-    baseId: string;
-    /**
-     * Scenario id materialized into this session.
-     */
-    scenarioId: string;
-    /**
-     * Final reducer-native session state after running scenario.when locally.
-     */
-    reducerState: {
-        [key: string]: unknown;
-    };
-    /**
-     * Reducer runtime version corresponding to reducerState.
-     */
-    reducerStateVersion: number;
-    /**
-     * CLI-computed fingerprint diagnostics for the generated base and scenario materialization.
-     */
-    fingerprintMetadata?: {
-        [key: string]: string;
-    };
-};
-
-export type SessionSnapshotPhase = 'lobby' | 'gameplay' | 'ended';
-
-export type HostSessionStatus = 'active' | 'ended';
-
-/**
- * Summary of a game state history entry.
- */
-export type HistoryEntrySummary = {
-    id: string;
-    generation: number;
-    version: number;
-    timestamp: string;
-    description: string;
-    playerId?: string;
-    actionType?: string;
-    isCurrent: boolean;
-};
-
-export type SessionSnapshotHistory = {
-    entries: Array<HistoryEntrySummary>;
-    currentIndex: number;
-    canGoBack: boolean;
-    canGoForward: boolean;
-};
+export type SessionSnapshotPhase = 'lobby' | 'started';
 
 export type HostSessionContext = {
     /**
@@ -2440,7 +2079,6 @@ export type HostSessionContext = {
      */
     shortCode: string;
     phase: SessionSnapshotPhase;
-    status: HostSessionStatus;
     hostActor: SessionActor;
     gameSource: SessionGameSource;
     /**
@@ -2448,10 +2086,13 @@ export type HostSessionContext = {
      */
     setupProfileId?: string;
     /**
+     * Public gameplay websocket endpoint. Connect using the current user or demo credential.
+     */
+    gameplayWebsocketUrl: string;
+    /**
      * Player IDs the authenticated session actor may select.
      */
     switchablePlayerIds: Array<string>;
-    history?: SessionSnapshotHistory;
 };
 
 export type SeatAssignment = {
@@ -2496,504 +2137,9 @@ export type HostLobbyView = {
     setupProfileId?: string;
 };
 
-export type HostLobbySessionSnapshot = {
-    type: 'lobby';
+export type SessionControlSnapshot = {
     context: HostSessionContext;
     lobby: HostLobbyView;
-};
-
-export type SimultaneousPhaseSnapshot = {
-    phaseName: string;
-    interactionId: string;
-    actorIds: Array<string>;
-    sealedPlayerIds: Array<string>;
-    pendingPlayerIds: Array<string>;
-};
-
-export type HostGameplaySharedView = {
-    /**
-     * Player IDs currently active in the game state.
-     */
-    activePlayers: Array<string>;
-    /**
-     * Current reducer-native gameplay phase.
-     */
-    currentPhase: string;
-    /**
-     * Current stage within the phase. Null when the phase has no active stage.
-     */
-    currentStage: string | null;
-    /**
-     * Player IDs this stage currently admits.
-     */
-    stageSeats: Array<string>;
-    /**
-     * Visibility-safe progress metadata for an active simultaneous-player phase.
-     */
-    simultaneousPhase?: SimultaneousPhaseSnapshot | null;
-    /**
-     * JSON-serialized session-scoped static view. Populated on gameplay bootstrap payloads only.
-     */
-    boardStatic?: string | null;
-    /**
-     * Content hash of the session-scoped static view held on the host.
-     */
-    boardStaticHash?: string | null;
-};
-
-/**
- * Draft commit policy consumed by default UI surfaces.
- */
-export type InteractionCommitPolicy = {
-    mode: 'manual' | 'autoWhenReady';
-};
-
-/**
- * Single-value input selection.
- */
-export type SingleInputSelection = {
-    mode: 'single';
-};
-
-/**
- * Multi-value input selection.
- */
-export type ManyInputSelection = {
-    mode: 'many';
-    min: number;
-    max?: number;
-    distinct?: boolean;
-};
-
-export type InputSelection = ({
-    mode: 'single';
-} & SingleInputSelection) | ({
-    mode: 'many';
-} & ManyInputSelection);
-
-export type InputDomain = ({
-    type: 'cardTarget';
-} & CardTargetDomain) | ({
-    type: 'boardTarget';
-} & BoardTargetDomain) | ({
-    type: 'resourceMap';
-} & ResourceMapDomain) | ({
-    type: 'boundedNumber';
-} & BoundedNumberDomain) | ({
-    type: 'choice';
-} & ChoiceDomain) | ({
-    type: 'choiceList';
-} & ChoiceListDomain);
-
-export type InputDomainDependencyCase = {
-    when: {
-        [key: string]: string;
-    };
-    domain: InputDomain;
-};
-
-export type EagerInputDomainDependencies = {
-    mode: 'eager';
-    dependentCases: Array<InputDomainDependencyCase>;
-};
-
-export type ResolvedCardTargetDomain = {
-    type: 'cardTarget';
-    projection: 'resolved';
-    targetKind: 'card';
-    zoneIds: Array<string>;
-    eligibleTargets: Array<string>;
-    selection?: InputSelection;
-    dependencies?: EagerInputDomainDependencies;
-};
-
-export type InputDomainResolver = {
-    interactionKey?: string;
-    inputKey: string;
-};
-
-export type LazyInputDomainDependencies = {
-    mode: 'lazy';
-    dependsOn: Array<string>;
-    resolver: InputDomainResolver;
-};
-
-export type LazyCardTargetDomain = {
-    type: 'cardTarget';
-    projection: 'lazy';
-    targetKind: 'card';
-    zoneIds: Array<string>;
-    selection?: InputSelection;
-    dependencies: LazyInputDomainDependencies;
-};
-
-export type CardTargetDomain = ({
-    projection: 'resolved';
-} & ResolvedCardTargetDomain) | ({
-    projection: 'lazy';
-} & LazyCardTargetDomain);
-
-export type ResolvedBoardTargetDomain = {
-    type: 'boardTarget';
-    projection: 'resolved';
-    targetKind: 'edge' | 'vertex' | 'space' | 'tile';
-    boardId: string;
-    valueKind?: 'board-id' | 'player-board-space';
-    eligibleTargets: Array<string>;
-    selection?: InputSelection;
-    dependencies?: EagerInputDomainDependencies;
-};
-
-export type LazyBoardTargetDomain = {
-    type: 'boardTarget';
-    projection: 'lazy';
-    targetKind: 'edge' | 'vertex' | 'space' | 'tile';
-    boardId: string;
-    valueKind?: 'board-id' | 'player-board-space';
-    selection?: InputSelection;
-    dependencies: LazyInputDomainDependencies;
-};
-
-export type BoardTargetDomain = ({
-    projection: 'resolved';
-} & ResolvedBoardTargetDomain) | ({
-    projection: 'lazy';
-} & LazyBoardTargetDomain);
-
-export type ResourceMapDomainEntry = {
-    resourceId: string;
-    label?: string;
-    icon?: string;
-    min: number;
-    max: number;
-};
-
-export type ResourceMapDomain = {
-    type: 'resourceMap';
-    resources: Array<ResourceMapDomainEntry>;
-    selection?: InputSelection;
-};
-
-export type BoundedNumberDomain = {
-    type: 'boundedNumber';
-    min: number;
-    max: number;
-    step?: number;
-    selection?: InputSelection;
-};
-
-export type ChoiceDomainOption = {
-    value: string | null;
-    label: string;
-    icon?: string;
-    badge?: string;
-    description?: string;
-    disabled?: boolean;
-    disabledReason?: string;
-};
-
-export type ChoiceDomain = {
-    type: 'choice';
-    choices: Array<ChoiceDomainOption>;
-    selection?: InputSelection;
-    dependencies?: EagerInputDomainDependencies;
-};
-
-export type ChoiceListDomain = {
-    type: 'choiceList';
-    choices: Array<ChoiceDomainOption>;
-    min?: number;
-    max?: number;
-    selection?: InputSelection;
-    dependencies?: EagerInputDomainDependencies;
-};
-
-/**
- * Canonical descriptor for one interaction input collector.
- */
-export type InteractionInputDescriptor = {
-    key: string;
-    kind: string;
-    domain: InputDomain;
-    /**
-     * Optional default value applied to this input when the player has not
-     * yet drafted a value. Mirrors the input collector's `defaultValue`
-     * from the authored interaction, so plugins can render a sensible
-     * starting state (e.g. a pre-selected resource for a bank trade).
-     *
-     */
-    defaultValue?: JsonValue;
-};
-
-export type AvailableInteractionAvailability = {
-    status: 'available';
-};
-
-export type NotYourTurnInteractionAvailability = {
-    status: 'notYourTurn';
-    reason: string;
-};
-
-export type InsufficientResourcesInteractionAvailability = {
-    status: 'insufficientResources';
-    reason: string;
-    /**
-     * Resource shortfall by resource id when a costed interaction is not currently affordable.
-     */
-    missingResources: {
-        [key: string]: number;
-    };
-};
-
-export type BlockedInteractionAvailability = {
-    status: 'blocked';
-    reason: string;
-    code?: string;
-};
-
-export type InteractionAvailability = ({
-    status: 'available';
-} & AvailableInteractionAvailability) | ({
-    status: 'notYourTurn';
-} & NotYourTurnInteractionAvailability) | ({
-    status: 'insufficientResources';
-} & InsufficientResourcesInteractionAvailability) | ({
-    status: 'blocked';
-} & BlockedInteractionAvailability);
-
-/**
- * Authoritative interaction descriptor resolved by the trusted bundle.
- */
-export type InteractionDescriptorBase = {
-    phaseName: string;
-    interactionKey: string;
-    interactionId: string;
-    /**
-     * Canonical interaction descriptor digest used by browser replay/protocol surfaces.
-     */
-    descriptorDigest?: string;
-    /**
-     * Canonical draft digest for the descriptor's current input values.
-     */
-    draftDigest?: string;
-    zoneId?: string;
-    /**
-     * Draft commit policy materialized by the trusted reducer bundle. Omitted authoring specs default to manual before this descriptor crosses the runtime boundary.
-     */
-    commit: InteractionCommitPolicy;
-    /**
-     * Ordered input descriptors. Each entry is the canonical source for its collector key, collector kind, and valid-value domain.
-     */
-    inputs: Array<InteractionInputDescriptor>;
-    cost?: {
-        [key: string]: JsonValue;
-    };
-    currentResources?: {
-        [key: string]: JsonValue;
-    };
-    availability: InteractionAvailability;
-};
-
-export type ActionInteractionDescriptor = InteractionDescriptorBase & {
-    kind: 'action';
-};
-
-export type InteractionContextOption = {
-    id: string;
-    label: string;
-};
-
-export type InteractionContext = {
-    to: string;
-    title?: string;
-    payload?: {
-        [key: string]: JsonValue;
-    };
-    options?: Array<InteractionContextOption>;
-};
-
-export type PromptInteractionDescriptor = InteractionDescriptorBase & {
-    kind: 'prompt';
-    context: InteractionContext;
-};
-
-export type InteractionDescriptor = ({
-    kind: 'action';
-} & ActionInteractionDescriptor) | ({
-    kind: 'prompt';
-} & PromptInteractionDescriptor);
-
-export type ZoneHandles = {
-    cardIds: Array<string>;
-    cardViewsById: {
-        [key: string]: string;
-    };
-    playableByCardId: {
-        [key: string]: Array<string>;
-    };
-};
-
-export type HostGameplaySeatView = {
-    /**
-     * Opaque revision token for this seat's available descriptors and input domains.
-     */
-    actionSetVersion: string;
-    /**
-     * JSON-serialized reducer-projected UI view for this player.
-     */
-    view: string | null;
-    /**
-     * Descriptor refs for interactions available to this player.
-     */
-    availableInteractionRefs: Array<string>;
-    /**
-     * Zone handles for this player, keyed by zone id.
-     */
-    zones: {
-        [key: string]: ZoneHandles;
-    };
-};
-
-export type HostPlayerGameplayView = {
-    /**
-     * Monotonic gameplay version for stale-client detection.
-     */
-    version: number;
-    /**
-     * Opaque revision token for the returned descriptors and input domains.
-     */
-    actionSetVersion: string;
-    /**
-     * Player ID currently selected for rendering and input.
-     */
-    perspectivePlayerId: string;
-    /**
-     * Player IDs included in this normalized projection envelope.
-     */
-    controllablePlayerIds: Array<string>;
-    shared: HostGameplaySharedView;
-    /**
-     * Deduplicated interaction descriptor registry keyed by stable descriptor ref.
-     */
-    interactionsByRef: {
-        [key: string]: InteractionDescriptor;
-    };
-    /**
-     * Player-scoped projections keyed by authorized player id.
-     */
-    seats: {
-        [key: string]: HostGameplaySeatView;
-    };
-};
-
-export type HostGameplaySessionSnapshot = {
-    type: 'gameplay';
-    context: HostSessionContext;
-    lobby: HostLobbyView;
-    gameplay: HostPlayerGameplayView;
-};
-
-export type HostEndedSessionSnapshot = {
-    type: 'ended';
-    context: HostSessionContext;
-    lobby: HostLobbyView;
-};
-
-export type HostSessionSnapshot = ({
-    type: 'lobby';
-} & HostLobbySessionSnapshot) | ({
-    type: 'gameplay';
-} & HostGameplaySessionSnapshot) | ({
-    type: 'ended';
-} & HostEndedSessionSnapshot);
-
-export type HostSessionSnapshotReason = 'load' | 'start' | 'switch-player' | 'resync';
-
-export type HostSessionSnapshotEvent = {
-    type: 'session.snapshot';
-    reason: HostSessionSnapshotReason;
-    snapshot: HostSessionSnapshot;
-};
-
-export type HostSessionLobbyUpdatedEvent = {
-    type: 'session.lobbyUpdated';
-    context: HostSessionContext;
-    lobby: HostLobbyView;
-};
-
-export type HostSessionEventCausation = {
-    clientActionId?: string;
-};
-
-export type HostSessionGameplayUpdatedEvent = {
-    type: 'session.gameplayUpdated';
-    context: HostSessionContext;
-    gameplay: HostPlayerGameplayView;
-    causation?: HostSessionEventCausation;
-};
-
-export type HostSessionHistoryUpdatedEvent = {
-    type: 'session.historyUpdated';
-    context: HostSessionContext;
-};
-
-export type HostSessionEndedEvent = {
-    type: 'session.ended';
-    context: HostSessionContext;
-    lobby: HostLobbyView;
-};
-
-export type HostSessionErrorEvent = {
-    type: 'session.error';
-    sessionId: string;
-    code?: string;
-    message: string;
-    recoverable: boolean;
-};
-
-export type HostSessionEvent = ({
-    type: 'session.snapshot';
-} & HostSessionSnapshotEvent) | ({
-    type: 'session.lobbyUpdated';
-} & HostSessionLobbyUpdatedEvent) | ({
-    type: 'session.gameplayUpdated';
-} & HostSessionGameplayUpdatedEvent) | ({
-    type: 'session.historyUpdated';
-} & HostSessionHistoryUpdatedEvent) | ({
-    type: 'session.ended';
-} & HostSessionEndedEvent) | ({
-    type: 'session.error';
-} & HostSessionErrorEvent);
-
-/**
- * Bounded long-poll response for selected-perspective host session updates.
- */
-export type HostSessionEventBatchResponse = {
-    /**
-     * Latest persisted session message id covered by this response.
-     */
-    cursor: number;
-    /**
-     * Fresh baseline snapshot when the caller has no cursor or needs resync.
-     */
-    snapshot?: HostSessionSnapshot;
-    /**
-     * Persisted events visible to the requested session actor after the supplied cursor.
-     */
-    events: Array<HostSessionEvent>;
-    /**
-     * True when no visible update arrived before the bounded wait elapsed.
-     */
-    timedOut: boolean;
-};
-
-export type GameplayCapabilityResponse = {
-    websocketUrl: string;
-    token: string;
-    expiresAt: string;
-    sessionId: string;
-    playerId: string;
-    permissions: Array<'observe' | 'submit' | 'restore-history'>;
 };
 
 /**
@@ -3145,6 +2291,10 @@ export type DemoSessionResponse = {
      */
     setupProfileId?: string;
     reducerArtifactIdentity: DemoReducerArtifactIdentity;
+    /**
+     * Legacy digest alias for reducerArtifactIdentity.digest.
+     */
+    reducerArtifactHash: string;
     gameSource: SessionGameSource;
 };
 
@@ -3638,440 +2788,6 @@ export type EnsureProjectResponses = {
 
 export type EnsureProjectResponse = EnsureProjectResponses[keyof EnsureProjectResponses];
 
-export type GetProjectRepositoryData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/repository';
-};
-
-export type GetProjectRepositoryErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetProjectRepositoryError = GetProjectRepositoryErrors[keyof GetProjectRepositoryErrors];
-
-export type GetProjectRepositoryResponses = {
-    /**
-     * Repository binding found
-     */
-    200: ProjectRepository;
-};
-
-export type GetProjectRepositoryResponse = GetProjectRepositoryResponses[keyof GetProjectRepositoryResponses];
-
-export type EnsureProjectRepositoryData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/repository';
-};
-
-export type EnsureProjectRepositoryErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type EnsureProjectRepositoryError = EnsureProjectRepositoryErrors[keyof EnsureProjectRepositoryErrors];
-
-export type EnsureProjectRepositoryResponses = {
-    /**
-     * Repository binding ensured
-     */
-    200: ProjectRepository;
-};
-
-export type EnsureProjectRepositoryResponse = EnsureProjectRepositoryResponses[keyof EnsureProjectRepositoryResponses];
-
-export type RetryProjectRepositoryReconciliationData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/repository/reconcile';
-};
-
-export type RetryProjectRepositoryReconciliationErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type RetryProjectRepositoryReconciliationError = RetryProjectRepositoryReconciliationErrors[keyof RetryProjectRepositoryReconciliationErrors];
-
-export type RetryProjectRepositoryReconciliationResponses = {
-    /**
-     * Repository reconciliation requested
-     */
-    200: ProjectRepository;
-};
-
-export type RetryProjectRepositoryReconciliationResponse = RetryProjectRepositoryReconciliationResponses[keyof RetryProjectRepositoryReconciliationResponses];
-
-export type EnsureProjectBuildData = {
-    body: EnsureProjectBuildRequest;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/builds';
-};
-
-export type EnsureProjectBuildErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type EnsureProjectBuildError = EnsureProjectBuildErrors[keyof EnsureProjectBuildErrors];
-
-export type EnsureProjectBuildResponses = {
-    /**
-     * Existing or newly queued project build
-     */
-    200: ProjectBuild;
-};
-
-export type EnsureProjectBuildResponse = EnsureProjectBuildResponses[keyof EnsureProjectBuildResponses];
-
-export type GetProjectCommitStatusData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-        /**
-         * Exact Git commit OID already resolved by the caller.
-         */
-        commitOid: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/status/{commitOid}';
-};
-
-export type GetProjectCommitStatusErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetProjectCommitStatusError = GetProjectCommitStatusErrors[keyof GetProjectCommitStatusErrors];
-
-export type GetProjectCommitStatusResponses = {
-    /**
-     * Server state for the requested commit
-     */
-    200: ProjectCommitStatus;
-};
-
-export type GetProjectCommitStatusResponse = GetProjectCommitStatusResponses[keyof GetProjectCommitStatusResponses];
-
-export type GetProjectBuildData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-        /**
-         * Canonical build recipe digest.
-         */
-        buildRecipeDigest: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/builds/{buildRecipeDigest}';
-};
-
-export type GetProjectBuildErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetProjectBuildError = GetProjectBuildErrors[keyof GetProjectBuildErrors];
-
-export type GetProjectBuildResponses = {
-    /**
-     * Project build found
-     */
-    200: ProjectBuild;
-};
-
-export type GetProjectBuildResponse = GetProjectBuildResponses[keyof GetProjectBuildResponses];
-
-export type CreateProjectPreviewData = {
-    body: CreateProjectPreviewRequest;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/previews';
-};
-
-export type CreateProjectPreviewErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type CreateProjectPreviewError = CreateProjectPreviewErrors[keyof CreateProjectPreviewErrors];
-
-export type CreateProjectPreviewResponses = {
-    /**
-     * Pending-retention project preview
-     */
-    200: ProjectPreview;
-};
-
-export type CreateProjectPreviewResponse = CreateProjectPreviewResponses[keyof CreateProjectPreviewResponses];
-
-export type PublishProjectReleaseData = {
-    body: PublishProjectReleaseRequest;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/releases';
-};
-
-export type PublishProjectReleaseErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type PublishProjectReleaseError = PublishProjectReleaseErrors[keyof PublishProjectReleaseErrors];
-
-export type PublishProjectReleaseResponses = {
-    /**
-     * Pending-retention project release
-     */
-    200: ProjectRelease;
-};
-
-export type PublishProjectReleaseResponse = PublishProjectReleaseResponses[keyof PublishProjectReleaseResponses];
-
-export type GetCurrentProjectReleaseData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/releases/current';
-};
-
-export type GetCurrentProjectReleaseErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetCurrentProjectReleaseError = GetCurrentProjectReleaseErrors[keyof GetCurrentProjectReleaseErrors];
-
-export type GetCurrentProjectReleaseResponses = {
-    /**
-     * Current active project release
-     */
-    200: ProjectRelease;
-};
-
-export type GetCurrentProjectReleaseResponse = GetCurrentProjectReleaseResponses[keyof GetCurrentProjectReleaseResponses];
-
 export type GetProjectBySlugData = {
     body?: never;
     path: {
@@ -4458,144 +3174,6 @@ export type GetProjectCompiledResultResponses = {
 
 export type GetProjectCompiledResultResponse = GetProjectCompiledResultResponses[keyof GetProjectCompiledResultResponses];
 
-export type UploadProjectInitialProjectionData = {
-    body: UploadInitialProjectionRequest;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/preview/initial-projection';
-};
-
-export type UploadProjectInitialProjectionErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type UploadProjectInitialProjectionError = UploadProjectInitialProjectionErrors[keyof UploadProjectInitialProjectionErrors];
-
-export type UploadProjectInitialProjectionResponses = {
-    /**
-     * Initial projection uploaded successfully
-     */
-    204: void;
-};
-
-export type UploadProjectInitialProjectionResponse = UploadProjectInitialProjectionResponses[keyof UploadProjectInitialProjectionResponses];
-
-export type QueueProjectPreviewScreenshotData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/preview/screenshot';
-};
-
-export type QueueProjectPreviewScreenshotErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type QueueProjectPreviewScreenshotError = QueueProjectPreviewScreenshotErrors[keyof QueueProjectPreviewScreenshotErrors];
-
-export type QueueProjectPreviewScreenshotResponses = {
-    /**
-     * Preview screenshot job queued
-     */
-    202: PreviewScreenshotJobResponse;
-};
-
-export type QueueProjectPreviewScreenshotResponse = QueueProjectPreviewScreenshotResponses[keyof QueueProjectPreviewScreenshotResponses];
-
-export type FetchProjectPreviewImageData = {
-    body?: never;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/preview/image';
-};
-
-export type FetchProjectPreviewImageErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type FetchProjectPreviewImageError = FetchProjectPreviewImageErrors[keyof FetchProjectPreviewImageErrors];
-
-export type FetchProjectPreviewImageResponses = {
-    /**
-     * Preview image retrieved successfully
-     */
-    200: Blob | File;
-};
-
-export type FetchProjectPreviewImageResponse = FetchProjectPreviewImageResponses[keyof FetchProjectPreviewImageResponses];
-
 export type EnsureProjectDevCompileData = {
     body: EnsureDevCompileRequest;
     path: {
@@ -4914,61 +3492,6 @@ export type GetJobResponses = {
 
 export type GetJobResponse = GetJobResponses[keyof GetJobResponses];
 
-export type GetJobEventBatchData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for any async job
-         */
-        jobId: string;
-    };
-    query?: {
-        /**
-         * Opaque cursor from the previous job event batch.
-         */
-        afterCursor?: string;
-        /**
-         * Maximum time to hold the request before returning an empty batch.
-         */
-        waitMs?: number;
-    };
-    url: '/api/jobs/{jobId}/event-batches';
-};
-
-export type GetJobEventBatchErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetJobEventBatchError = GetJobEventBatchErrors[keyof GetJobEventBatchErrors];
-
-export type GetJobEventBatchResponses = {
-    /**
-     * Job event batch
-     */
-    200: JobEventBatchResponse;
-};
-
-export type GetJobEventBatchResponse = GetJobEventBatchResponses[keyof GetJobEventBatchResponses];
-
 export type CreateGameRunData = {
     body: CreateGameRunRequest;
     path?: never;
@@ -5043,95 +3566,6 @@ export type CancelGameRunResponses = {
     202: unknown;
 };
 
-export type AcceptGameRunData = {
-    body?: never;
-    path: {
-        jobId: string;
-    };
-    query?: never;
-    url: '/api/runs/{jobId}/accept';
-};
-
-export type AcceptGameRunErrors = {
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Conflict - version mismatch or resource state conflict
-     */
-    409: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type AcceptGameRunError = AcceptGameRunErrors[keyof AcceptGameRunErrors];
-
-export type AcceptGameRunResponses = {
-    /**
-     * Agent build result accept queued
-     */
-    202: AcceptGameRunResponse;
-};
-
-export type AcceptGameRunResponse2 = AcceptGameRunResponses[keyof AcceptGameRunResponses];
-
-export type CreateProjectSessionFromReducerSnapshotData = {
-    body: CreateSessionFromReducerSnapshotRequest;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/sessions/from-reducer-snapshot';
-};
-
-export type CreateProjectSessionFromReducerSnapshotErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type CreateProjectSessionFromReducerSnapshotError = CreateProjectSessionFromReducerSnapshotErrors[keyof CreateProjectSessionFromReducerSnapshotErrors];
-
-export type CreateProjectSessionFromReducerSnapshotResponses = {
-    /**
-     * Session materialized successfully
-     */
-    200: HostSessionSnapshot;
-};
-
-export type CreateProjectSessionFromReducerSnapshotResponse = CreateProjectSessionFromReducerSnapshotResponses[keyof CreateProjectSessionFromReducerSnapshotResponses];
-
 export type GetSessionByShortCodeData = {
     body?: never;
     path: {
@@ -5170,7 +3604,7 @@ export type GetSessionByShortCodeResponses = {
     /**
      * Session found successfully
      */
-    200: HostSessionSnapshot;
+    200: SessionControlSnapshot;
 };
 
 export type GetSessionByShortCodeResponse = GetSessionByShortCodeResponses[keyof GetSessionByShortCodeResponses];
@@ -5221,77 +3655,10 @@ export type GetSessionSnapshotResponses = {
     /**
      * Session snapshot retrieved successfully
      */
-    200: HostSessionSnapshot;
+    200: SessionControlSnapshot;
 };
 
 export type GetSessionSnapshotResponse = GetSessionSnapshotResponses[keyof GetSessionSnapshotResponses];
-
-export type GetSessionLobbyEventBatchData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-    };
-    query: {
-        /**
-         * Latest lobby message cursor received by the client.
-         */
-        afterCursor?: number;
-        /**
-         * Maximum time to hold the request before returning an empty batch.
-         */
-        waitMs?: number;
-        /**
-         * Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
-         */
-        clientId: string;
-        /**
-         * Optional caller label for diagnostics, such as `play-page` or `session-play-panel`.
-         */
-        clientSource?: string;
-    };
-    url: '/api/sessions/{sessionId}/event-batches';
-};
-
-export type GetSessionLobbyEventBatchErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Too many requests or live connections
-     */
-    429: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetSessionLobbyEventBatchError = GetSessionLobbyEventBatchErrors[keyof GetSessionLobbyEventBatchErrors];
-
-export type GetSessionLobbyEventBatchResponses = {
-    /**
-     * Lobby session event batch
-     */
-    200: HostSessionEventBatchResponse;
-};
-
-export type GetSessionLobbyEventBatchResponse = GetSessionLobbyEventBatchResponses[keyof GetSessionLobbyEventBatchResponses];
 
 export type StartGameData = {
     body?: never;
@@ -5334,66 +3701,10 @@ export type StartGameResponses = {
     /**
      * Game started successfully
      */
-    200: HostSessionSnapshot;
+    200: SessionControlSnapshot;
 };
 
 export type StartGameResponse = StartGameResponses[keyof StartGameResponses];
-
-export type CreateGameplayCapabilityData = {
-    body?: never;
-    headers?: {
-        /**
-         * Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
-         */
-        'X-Dreamboard-Browser-Origin'?: string;
-    };
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-        /**
-         * Unique identifier for the player (e.g., 'player-1')
-         */
-        playerId: string;
-    };
-    query?: never;
-    url: '/api/sessions/{sessionId}/players/{playerId}/gameplay-capability';
-};
-
-export type CreateGameplayCapabilityErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type CreateGameplayCapabilityError = CreateGameplayCapabilityErrors[keyof CreateGameplayCapabilityErrors];
-
-export type CreateGameplayCapabilityResponses = {
-    /**
-     * Gameplay capability issued successfully
-     */
-    200: GameplayCapabilityResponse;
-};
-
-export type CreateGameplayCapabilityResponse = CreateGameplayCapabilityResponses[keyof CreateGameplayCapabilityResponses];
 
 export type AddSeatData = {
     body?: never;
@@ -5434,9 +3745,9 @@ export type AddSeatError = AddSeatErrors[keyof AddSeatErrors];
 
 export type AddSeatResponses = {
     /**
-     * Seat added successfully
+     * Seat added and resulting lobby returned successfully
      */
-    201: SeatAssignment;
+    200: SessionControlSnapshot;
 };
 
 export type AddSeatResponse = AddSeatResponses[keyof AddSeatResponses];
@@ -5484,9 +3795,9 @@ export type RemoveSeatError = RemoveSeatErrors[keyof RemoveSeatErrors];
 
 export type RemoveSeatResponses = {
     /**
-     * Seat removed successfully
+     * Seat removed and resulting lobby returned successfully
      */
-    204: void;
+    200: SessionControlSnapshot;
 };
 
 export type RemoveSeatResponse = RemoveSeatResponses[keyof RemoveSeatResponses];
@@ -5536,7 +3847,7 @@ export type UpdateSeatResponses = {
     /**
      * Seat updated successfully
      */
-    200: SeatAssignment;
+    200: SessionControlSnapshot;
 };
 
 export type UpdateSeatResponse = UpdateSeatResponses[keyof UpdateSeatResponses];
@@ -5580,9 +3891,9 @@ export type AssignSeatError = AssignSeatErrors[keyof AssignSeatErrors];
 
 export type AssignSeatResponses = {
     /**
-     * Seat assigned successfully
+     * Seat assigned and resulting lobby returned successfully
      */
-    204: void;
+    200: SessionControlSnapshot;
 };
 
 export type AssignSeatResponse = AssignSeatResponses[keyof AssignSeatResponses];
@@ -5630,9 +3941,9 @@ export type UnassignSeatError = UnassignSeatErrors[keyof UnassignSeatErrors];
 
 export type UnassignSeatResponses = {
     /**
-     * Seat unassigned successfully
+     * Seat unassigned and resulting lobby returned successfully
      */
-    204: void;
+    200: SessionControlSnapshot;
 };
 
 export type UnassignSeatResponse = UnassignSeatResponses[keyof UnassignSeatResponses];
@@ -5828,9 +4139,9 @@ export type GetDemoGameThumbnailResponse = GetDemoGameThumbnailResponses[keyof G
 
 export type CreateDemoGameSessionData = {
     /**
-     * Optional deterministic demo-session creation inputs.
+     * Demo-session creation inputs. Send an empty JSON object to keep randomized demo behavior.
      */
-    body?: CreateDemoSessionRequest;
+    body: CreateDemoSessionRequest;
     path: {
         /**
          * Demo game slug
@@ -5905,7 +4216,7 @@ export type GetDemoSessionByShortCodeResponses = {
     /**
      * Demo session found successfully
      */
-    200: HostSessionSnapshot;
+    200: SessionControlSnapshot;
 };
 
 export type GetDemoSessionByShortCodeResponse = GetDemoSessionByShortCodeResponses[keyof GetDemoSessionByShortCodeResponses];
@@ -5956,77 +4267,10 @@ export type GetDemoSessionSnapshotResponses = {
     /**
      * Demo session snapshot retrieved successfully
      */
-    200: HostSessionSnapshot;
+    200: SessionControlSnapshot;
 };
 
 export type GetDemoSessionSnapshotResponse = GetDemoSessionSnapshotResponses[keyof GetDemoSessionSnapshotResponses];
-
-export type GetDemoSessionLobbyEventBatchData = {
-    body?: never;
-    path: {
-        /**
-         * Unique identifier for the game session
-         */
-        sessionId: string;
-    };
-    query: {
-        /**
-         * Latest lobby message cursor received by the client.
-         */
-        afterCursor?: number;
-        /**
-         * Maximum time to hold the request before returning an empty batch.
-         */
-        waitMs?: number;
-        /**
-         * Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
-         */
-        clientId: string;
-        /**
-         * Optional caller label for diagnostics, such as `play-page` or `session-play-panel`.
-         */
-        clientSource?: string;
-    };
-    url: '/api/demo/sessions/{sessionId}/event-batches';
-};
-
-export type GetDemoSessionLobbyEventBatchErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Too many requests or live connections
-     */
-    429: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type GetDemoSessionLobbyEventBatchError = GetDemoSessionLobbyEventBatchErrors[keyof GetDemoSessionLobbyEventBatchErrors];
-
-export type GetDemoSessionLobbyEventBatchResponses = {
-    /**
-     * Demo lobby session event batch
-     */
-    200: HostSessionEventBatchResponse;
-};
-
-export type GetDemoSessionLobbyEventBatchResponse = GetDemoSessionLobbyEventBatchResponses[keyof GetDemoSessionLobbyEventBatchResponses];
 
 export type StartDemoGameData = {
     body?: never;
@@ -6069,34 +4313,24 @@ export type StartDemoGameResponses = {
     /**
      * Demo game started successfully
      */
-    200: HostSessionSnapshot;
+    200: SessionControlSnapshot;
 };
 
 export type StartDemoGameResponse = StartDemoGameResponses[keyof StartDemoGameResponses];
 
-export type CreateDemoGameplayCapabilityData = {
+export type GetDemoSessionUiBundleData = {
     body?: never;
-    headers?: {
-        /**
-         * Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
-         */
-        'X-Dreamboard-Browser-Origin'?: string;
-    };
     path: {
         /**
-         * Unique identifier for the game session
+         * Demo session whose pinned source provides the UI bundle.
          */
         sessionId: string;
-        /**
-         * Unique identifier for the player (e.g., 'player-1')
-         */
-        playerId: string;
     };
     query?: never;
-    url: '/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability';
+    url: '/api/demo/sessions/{sessionId}/ui-bundle';
 };
 
-export type CreateDemoGameplayCapabilityErrors = {
+export type GetDemoSessionUiBundleErrors = {
     /**
      * Bad request - invalid input parameters
      */
@@ -6119,55 +4353,13 @@ export type CreateDemoGameplayCapabilityErrors = {
     500: ProblemDetails;
 };
 
-export type CreateDemoGameplayCapabilityError = CreateDemoGameplayCapabilityErrors[keyof CreateDemoGameplayCapabilityErrors];
+export type GetDemoSessionUiBundleError = GetDemoSessionUiBundleErrors[keyof GetDemoSessionUiBundleErrors];
 
-export type CreateDemoGameplayCapabilityResponses = {
-    /**
-     * Demo gameplay capability issued successfully
-     */
-    200: GameplayCapabilityResponse;
-};
-
-export type CreateDemoGameplayCapabilityResponse = CreateDemoGameplayCapabilityResponses[keyof CreateDemoGameplayCapabilityResponses];
-
-export type FetchDemoUiBundleData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * Demo session whose catalog revision provides the UI bundle.
-         */
-        sessionId: string;
-    };
-    url: '/api/demo/ui-bundles/fetch';
-};
-
-export type FetchDemoUiBundleErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type FetchDemoUiBundleError = FetchDemoUiBundleErrors[keyof FetchDemoUiBundleErrors];
-
-export type FetchDemoUiBundleResponses = {
+export type GetDemoSessionUiBundleResponses = {
     /**
      * HTML content of the UI bundle
      */
     200: string;
 };
 
-export type FetchDemoUiBundleResponse = FetchDemoUiBundleResponses[keyof FetchDemoUiBundleResponses];
+export type GetDemoSessionUiBundleResponse = GetDemoSessionUiBundleResponses[keyof GetDemoSessionUiBundleResponses];

@@ -5,7 +5,6 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
   assertCandidateFileIntegrity,
-  candidatePackage,
   DEFAULT_CANDIDATE_ROOT,
   optionValue,
   readCandidateReceipt,
@@ -21,10 +20,11 @@ const receiptPath = path.resolve(
   ),
 );
 const receipt = await readCandidateReceipt(receiptPath);
-const cli = candidatePackage(receipt, "cli");
-const devHost = candidatePackage(receipt, "devHost");
-const cliTarball = await assertCandidateFileIntegrity(receiptPath, cli);
-const devHostTarball = await assertCandidateFileIntegrity(receiptPath, devHost);
+const tarballs = await Promise.all(
+  receipt.packages.map((entry) =>
+    assertCandidateFileIntegrity(receiptPath, entry),
+  ),
+);
 
 await run(
   "pnpm",
@@ -52,8 +52,7 @@ try {
     "pnpm",
     [
       "add",
-      `file:${devHostTarball}`,
-      `file:${cliTarball}`,
+      ...tarballs.map((file) => `file:${file}`),
       `${receipt.releaseSet.packages.sdk.name}@${receipt.releaseSet.packages.sdk.version}`,
       "--ignore-workspace",
       "--config.shared-workspace-lockfile=false",

@@ -1,0 +1,36 @@
+{
+  "accepted": [
+    {
+      "input": "https://dreamboard.games",
+      "canonical": "https://dreamboard.games"
+    },
+    {
+      "input": "https://staging.dreamboard.games",
+      "canonical": "https://staging.dreamboard.games"
+    },
+    {
+      "input": "http://localhost:43127",
+      "canonical": "http://localhost:43127"
+    },
+    {
+      "input": "http://127.0.0.1:43127",
+      "canonical": "http://127.0.0.1:43127"
+    },
+    {
+      "input": "http://[::1]:43127",
+      "canonical": "http://[::1]:43127"
+    }
+  ],
+  "rejected": [
+    "null",
+    "file://localhost/tmp/game.html",
+    "ftp://localhost:43127",
+    "http://localhost.evil.test:43127",
+    "http://localhost:43127/path",
+    "http://localhost:43127?query=1",
+    "http://localhost:43127#fragment",
+    "http://user@localhost:43127",
+    "http://[0:0:0:0:0:0:0:1]:43127",
+    "not an origin"
+  ]
+}

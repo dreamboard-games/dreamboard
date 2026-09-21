@@ -1,3 +1,5 @@
+import { PLUGIN_IFRAME_SANDBOX } from "./plugin-iframe-policy.js";
+import { RuntimeJsonSchema } from "@dreamboard-games/sdk/plugin-runtime-contract";
 /// <reference lib="dom" />
 
 import "./host-main.css";
@@ -21,7 +23,6 @@ import {
   DrawerTrigger,
 } from "./components/drawer.js";
 import { Input } from "./components/input.js";
-import { createGameplayCapability } from "@dreamboard-games/api-client";
 import { client } from "@dreamboard-games/api-client/client.gen";
 import {
   HostFeedbackToaster,
@@ -32,11 +33,9 @@ import {
   type HostControllablePlayer,
 } from "@dreamboard-games/ui-host-runtime/components";
 import {
-  LongPollSessionManager,
   createGameplayAuthorityTransport,
   createUnifiedSessionStore,
   unifiedSessionSelectors,
-  type GameplayCapabilityRequester,
   type HistoryState,
   type HostFeedback,
 } from "@dreamboard-games/ui-host-runtime/runtime";
@@ -53,7 +52,7 @@ import {
   DevHostController,
   type DevHostRuntimeError,
 } from "./dev-host-controller.js";
-import { createDevHostSessionTransport } from "./dev-host-session-transport.js";
+import { createDevHostLobbyApi } from "./dev-host-lobby-api.js";
 import {
   SessionStorageDevHostStorage,
   type ActiveSession,
@@ -64,29 +63,19 @@ import { toHostSessionMetadataProps } from "./ui-host-runtime-contract.js";
 const diagnosticsLevel = resolveDevDiagnosticsLevel(devConfig.debug);
 const devLogger = createDevDiagnosticsLogger(diagnosticsLevel);
 const storage = new SessionStorageDevHostStorage(window.sessionStorage);
-// The browser never sees the bearer token. All backend traffic is
-// same-origin and the CLI's reverse-proxy middleware (`/api/*`) injects
-// `Authorization: Bearer <fresh>` on the wire.
+// HTTP control requests use the CLI proxy; only this trusted host frame obtains
+// refreshed access credentials for the gameplay socket. The authored iframe is opaque.
 client.setConfig({ baseUrl: "" });
-const createDevHostGameplayCapability: GameplayCapabilityRequester = (
-  options,
-) =>
-  createGameplayCapability({
-    ...options,
-    client,
-  } as Parameters<
-    typeof createGameplayCapability
-  >[0]) as ReturnType<GameplayCapabilityRequester>;
-// Gameplay streaming and submits go through the Gameplay Authority WebSocket
-// (the backend's event-batches stream is removed); snapshot/start/dev-session
-// requests fall back to the dev-server endpoints.
-const hostSessionTransport = createGameplayAuthorityTransport({
-  capabilityRequester: createDevHostGameplayCapability,
-  fallbackTransport: createDevHostSessionTransport(),
-  getCurrentSessionContext: () =>
-    unifiedSessionSelectors.sessionContext(store.getState()),
-  getCurrentGameplay: () =>
-    unifiedSessionSelectors.gameplayViewport(store.getState()),
+const lobbyApi = createDevHostLobbyApi();
+const gameplayConnection = createGameplayAuthorityTransport({
+  getCredential: async () => {
+    const response = await fetch("/__dreamboard_dev/gameplay-credential", {
+      method: "POST",
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("Unable to refresh gameplay credentials");
+    return response.json();
+  },
 });
 let runtimeDisposed = false;
 
@@ -126,33 +115,9 @@ declare global {
 let devAuthorWarnings: DevAuthorWarning[] = [];
 
 const store = createUnifiedSessionStore({
-  createSseManager: () =>
-    new LongPollSessionManager({
-      transport: hostSessionTransport,
-      logger: {
-        log: (...args: unknown[]) => {
-          if (runtimeDisposed) {
-            return;
-          }
-          devLogger.log(...args);
-        },
-        warn: (...args: unknown[]) => {
-          if (runtimeDisposed) {
-            return;
-          }
-          devLogger.warn(...args);
-        },
-        error: (...args: unknown[]) => {
-          if (runtimeDisposed) {
-            return;
-          }
-          devLogger.error(...args);
-          controller.handleSseTransportError(args);
-        },
-      },
-    }),
+  lobbyApi,
+  gameplayConnection,
   logger: devLogger,
-  transport: hostSessionTransport,
   fallbackToAllSeatsWhenUserIdMissing: !devConfig.userId,
 });
 
@@ -162,7 +127,7 @@ const controller = new DevHostController(
   {
     autoStartGame: devConfig.autoStartGame,
     compiledResultId: devConfig.compiledResultId,
-    createDevSessionSnapshot: hostSessionTransport.createDevSessionSnapshot,
+    createDevSessionSnapshot: lobbyApi.createDevSessionSnapshot,
     debug: devConfig.debug,
     fallbackSession: devConfig.initialSession,
     projectId: devConfig.projectId,
@@ -219,7 +184,7 @@ function installProxyAuthErrorInterceptor(): void {
 
 const restoreConsoleRelay = installConsoleRelay("host");
 const removeWindowErrorRelay = installWindowErrorRelay("host");
-installSseRelay();
+installSessionEventRelay();
 installBrowserTestBridge();
 window.addEventListener("message", handlePluginLogMessage);
 window.addEventListener("pagehide", disposeHostRuntime);
@@ -328,7 +293,7 @@ type DevHostAppProps = {
   onCreateSession: () => void;
   onStartGame: () => void;
   onSwitchPlayer: (playerId: string) => void;
-  onRestoreHistory: (entryId: string) => Promise<void>;
+  onRestoreHistory: (target: { version: number }) => Promise<void>;
   onDismissHostFeedback: (feedbackId: string) => void;
   onDismissAuthorWarning: (warningId: string) => void;
   onDismissRuntimeError: () => void;
@@ -413,6 +378,7 @@ function DevHostApp({
       />
       <main className="absolute inset-0 z-0 flex flex-col bg-transparent">
         <iframe
+          sandbox={PLUGIN_IFRAME_SANDBOX}
           ref={onIframeReady}
           src={iframeSrc}
           referrerPolicy="no-referrer"
@@ -768,11 +734,11 @@ function RuntimeErrorOverlay({
   );
 }
 
-function installSseRelay(): void {
+function installSessionEventRelay(): void {
   let lastLoggedEventId = 0;
   store.subscribe((state) => {
     const nextEntries = unifiedSessionSelectors
-      .sseEvents(state)
+      .sessionEvents(state)
       .filter((entry) => entry.id > lastLoggedEventId);
     if (nextEntries.length === 0) {
       return;
@@ -781,7 +747,7 @@ function installSseRelay(): void {
     for (const entry of nextEntries) {
       lastLoggedEventId = entry.id;
       relayBrowserLog({
-        source: "sse",
+        source: "gameplay",
         level: "info",
         message: devConfig.debug
           ? `${entry.eventType} ${stringifyForRelay(entry.data)}`
@@ -818,11 +784,18 @@ function installBrowserTestBridge(): void {
       if (!sessionId) {
         throw new Error("Browser test bridge has no active session.");
       }
+      const frame = store.getState().getPluginGameplayFrame();
+      if (!frame || frame.basis.perspectivePlayerId !== playerId) {
+        throw new Error(
+          "Browser test bridge player does not match the rendered frame.",
+        );
+      }
       return store.getState().submitInteraction({
-        sessionId,
-        playerId,
+        type: "interaction.submit",
+        clientActionId: crypto.randomUUID(),
+        basis: frame.basis,
         interactionId,
-        params,
+        params: RuntimeJsonSchema.parse(params),
       });
     },
   };

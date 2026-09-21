@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/api-client",
-  "version": "0.3.0-alpha.7",
+  "version": "0.3.0-alpha.8",
   "description": "Public Dreamboard API client and event types",
   "repository": {
     "type": "git",
@@ -108,7 +108,6 @@
     }
   },
   "scripts": {
-    "authoring:candidate": "node scripts/build-authoring-candidate.mjs",
     "check": "pnpm run check:contract-source && pnpm run check:generated && pnpm run build",
     "build": "tsc -b",
     "generate": "bun run scripts/generate.ts --write",

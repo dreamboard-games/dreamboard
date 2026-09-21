@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
 import { client } from './client.gen.js';
-import type { AcceptGameRunData, AcceptGameRunErrors, AcceptGameRunResponses, AddSeatData, AddSeatErrors, AddSeatResponses, AssignSeatData, AssignSeatErrors, AssignSeatResponses, CancelGameRunData, CancelGameRunErrors, CancelGameRunResponses, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionErrors, CreateBillingCheckoutSessionResponses, CreateBillingPortalSessionData, CreateBillingPortalSessionErrors, CreateBillingPortalSessionResponses, CreateDemoGameplayCapabilityData, CreateDemoGameplayCapabilityErrors, CreateDemoGameplayCapabilityResponses, CreateDemoGameSessionData, CreateDemoGameSessionErrors, CreateDemoGameSessionResponses, CreateGameplayCapabilityData, CreateGameplayCapabilityErrors, CreateGameplayCapabilityResponses, CreateGameRevisionData, CreateGameRevisionErrors, CreateGameRevisionResponses, CreateGameRunData, CreateGameRunErrors, CreateGameRunResponses, CreateProjectPreviewData, CreateProjectPreviewErrors, CreateProjectPreviewResponses, CreateProjectSessionData, CreateProjectSessionErrors, CreateProjectSessionFromReducerSnapshotData, CreateProjectSessionFromReducerSnapshotErrors, CreateProjectSessionFromReducerSnapshotResponses, CreateProjectSessionResponses, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionErrors, CreateProjectSourceBlobUploadSessionResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DownloadProjectSourcesData, DownloadProjectSourcesErrors, DownloadProjectSourcesResponses, EnsureProjectBuildData, EnsureProjectBuildErrors, EnsureProjectBuildResponses, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileErrors, EnsureProjectDevCompileResponses, EnsureProjectErrors, EnsureProjectRepositoryData, EnsureProjectRepositoryErrors, EnsureProjectRepositoryResponses, EnsureProjectResponses, ExchangeAuthTokenData, ExchangeAuthTokenErrors, ExchangeAuthTokenResponses, ExtractGameSpecData, ExtractGameSpecErrors, ExtractGameSpecResponses, FetchDemoUiBundleData, FetchDemoUiBundleErrors, FetchDemoUiBundleResponses, FetchProjectPreviewImageData, FetchProjectPreviewImageErrors, FetchProjectPreviewImageResponses, GetApiVersionData, GetApiVersionResponses, GetAuthJwksData, GetAuthJwksResponses, GetCurrentAuthUserData, GetCurrentAuthUserErrors, GetCurrentAuthUserResponses, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsErrors, GetCurrentBillingEntitlementsResponses, GetCurrentProjectReleaseData, GetCurrentProjectReleaseErrors, GetCurrentProjectReleaseResponses, GetDemoGameData, GetDemoGameErrors, GetDemoGameResponses, GetDemoGameThumbnailData, GetDemoGameThumbnailErrors, GetDemoGameThumbnailResponses, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeErrors, GetDemoSessionByShortCodeResponses, GetDemoSessionLobbyEventBatchData, GetDemoSessionLobbyEventBatchErrors, GetDemoSessionLobbyEventBatchResponses, GetDemoSessionSnapshotData, GetDemoSessionSnapshotErrors, GetDemoSessionSnapshotResponses, GetJobData, GetJobErrors, GetJobEventBatchData, GetJobEventBatchErrors, GetJobEventBatchResponses, GetJobResponses, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultErrors, GetLatestProjectCompiledResultResponses, GetProjectActiveJobData, GetProjectActiveJobErrors, GetProjectActiveJobResponses, GetProjectBuildData, GetProjectBuildErrors, GetProjectBuildResponses, GetProjectBySlugData, GetProjectBySlugErrors, GetProjectBySlugResponses, GetProjectCommitStatusData, GetProjectCommitStatusErrors, GetProjectCommitStatusResponses, GetProjectCompiledResultData, GetProjectCompiledResultErrors, GetProjectCompiledResultResponses, GetProjectData, GetProjectErrors, GetProjectRepositoryData, GetProjectRepositoryErrors, GetProjectRepositoryResponses, GetProjectResponses, GetProjectRevisionSourcesData, GetProjectRevisionSourcesErrors, GetProjectRevisionSourcesResponses, GetProjectSourcesData, GetProjectSourcesErrors, GetProjectSourcesResponses, GetProjectUiBundleData, GetProjectUiBundleErrors, GetProjectUiBundleResponses, GetSessionByShortCodeData, GetSessionByShortCodeErrors, GetSessionByShortCodeResponses, GetSessionLobbyEventBatchData, GetSessionLobbyEventBatchErrors, GetSessionLobbyEventBatchResponses, GetSessionSnapshotData, GetSessionSnapshotErrors, GetSessionSnapshotResponses, GetSessionUiBundleData, GetSessionUiBundleErrors, GetSessionUiBundleResponses, HealthCheckData, HealthCheckResponses, ListDemoGamesData, ListDemoGamesErrors, ListDemoGamesResponses, ListProjectCompiledResultsData, ListProjectCompiledResultsErrors, ListProjectCompiledResultsResponses, ListProjectsData, ListProjectsErrors, ListProjectsResponses, PublishProjectReleaseData, PublishProjectReleaseErrors, PublishProjectReleaseResponses, QueryWorkshopRulebookData, QueryWorkshopRulebookErrors, QueryWorkshopRulebookResponses, QueueProjectPreviewScreenshotData, QueueProjectPreviewScreenshotErrors, QueueProjectPreviewScreenshotResponses, QueueProjectRevisionCompileData, QueueProjectRevisionCompileErrors, QueueProjectRevisionCompileResponses, RemoveSeatData, RemoveSeatErrors, RemoveSeatResponses, RetryProjectRepositoryReconciliationData, RetryProjectRepositoryReconciliationErrors, RetryProjectRepositoryReconciliationResponses, StartDemoGameData, StartDemoGameErrors, StartDemoGameResponses, StartGameData, StartGameErrors, StartGameResponses, UnassignSeatData, UnassignSeatErrors, UnassignSeatResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateSeatData, UpdateSeatErrors, UpdateSeatResponses, UploadProjectInitialProjectionData, UploadProjectInitialProjectionErrors, UploadProjectInitialProjectionResponses } from './types.gen.js';
+import type { AddSeatData, AddSeatErrors, AddSeatResponses, AssignSeatData, AssignSeatErrors, AssignSeatResponses, CancelGameRunData, CancelGameRunErrors, CancelGameRunResponses, CreateBillingCheckoutSessionData, CreateBillingCheckoutSessionErrors, CreateBillingCheckoutSessionResponses, CreateBillingPortalSessionData, CreateBillingPortalSessionErrors, CreateBillingPortalSessionResponses, CreateDemoGameSessionData, CreateDemoGameSessionErrors, CreateDemoGameSessionResponses, CreateGameRevisionData, CreateGameRevisionErrors, CreateGameRevisionResponses, CreateGameRunData, CreateGameRunErrors, CreateGameRunResponses, CreateProjectSessionData, CreateProjectSessionErrors, CreateProjectSessionResponses, CreateProjectSourceBlobUploadSessionData, CreateProjectSourceBlobUploadSessionErrors, CreateProjectSourceBlobUploadSessionResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DownloadProjectSourcesData, DownloadProjectSourcesErrors, DownloadProjectSourcesResponses, EnsureProjectData, EnsureProjectDevCompileData, EnsureProjectDevCompileErrors, EnsureProjectDevCompileResponses, EnsureProjectErrors, EnsureProjectResponses, ExchangeAuthTokenData, ExchangeAuthTokenErrors, ExchangeAuthTokenResponses, ExtractGameSpecData, ExtractGameSpecErrors, ExtractGameSpecResponses, GetApiVersionData, GetApiVersionResponses, GetAuthJwksData, GetAuthJwksResponses, GetCurrentAuthUserData, GetCurrentAuthUserErrors, GetCurrentAuthUserResponses, GetCurrentBillingEntitlementsData, GetCurrentBillingEntitlementsErrors, GetCurrentBillingEntitlementsResponses, GetDemoGameData, GetDemoGameErrors, GetDemoGameResponses, GetDemoGameThumbnailData, GetDemoGameThumbnailErrors, GetDemoGameThumbnailResponses, GetDemoSessionByShortCodeData, GetDemoSessionByShortCodeErrors, GetDemoSessionByShortCodeResponses, GetDemoSessionSnapshotData, GetDemoSessionSnapshotErrors, GetDemoSessionSnapshotResponses, GetDemoSessionUiBundleData, GetDemoSessionUiBundleErrors, GetDemoSessionUiBundleResponses, GetJobData, GetJobErrors, GetJobResponses, GetLatestProjectCompiledResultData, GetLatestProjectCompiledResultErrors, GetLatestProjectCompiledResultResponses, GetProjectActiveJobData, GetProjectActiveJobErrors, GetProjectActiveJobResponses, GetProjectBySlugData, GetProjectBySlugErrors, GetProjectBySlugResponses, GetProjectCompiledResultData, GetProjectCompiledResultErrors, GetProjectCompiledResultResponses, GetProjectData, GetProjectErrors, GetProjectResponses, GetProjectRevisionSourcesData, GetProjectRevisionSourcesErrors, GetProjectRevisionSourcesResponses, GetProjectSourcesData, GetProjectSourcesErrors, GetProjectSourcesResponses, GetProjectUiBundleData, GetProjectUiBundleErrors, GetProjectUiBundleResponses, GetSessionByShortCodeData, GetSessionByShortCodeErrors, GetSessionByShortCodeResponses, GetSessionSnapshotData, GetSessionSnapshotErrors, GetSessionSnapshotResponses, GetSessionUiBundleData, GetSessionUiBundleErrors, GetSessionUiBundleResponses, HealthCheckData, HealthCheckResponses, ListDemoGamesData, ListDemoGamesErrors, ListDemoGamesResponses, ListProjectCompiledResultsData, ListProjectCompiledResultsErrors, ListProjectCompiledResultsResponses, ListProjectsData, ListProjectsErrors, ListProjectsResponses, QueryWorkshopRulebookData, QueryWorkshopRulebookErrors, QueryWorkshopRulebookResponses, QueueProjectRevisionCompileData, QueueProjectRevisionCompileErrors, QueueProjectRevisionCompileResponses, RemoveSeatData, RemoveSeatErrors, RemoveSeatResponses, StartDemoGameData, StartDemoGameErrors, StartDemoGameResponses, StartGameData, StartGameErrors, StartGameResponses, UnassignSeatData, UnassignSeatErrors, UnassignSeatResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateSeatData, UpdateSeatErrors, UpdateSeatResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -197,117 +197,6 @@ export const ensureProject = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Get project repository
- *
- * Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope.
- */
-export const getProjectRepository = <ThrowOnError extends boolean = false>(options: Options<GetProjectRepositoryData, ThrowOnError>) => (options.client ?? client).get<GetProjectRepositoryResponses, GetProjectRepositoryErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/repository',
-    ...options
-});
-
-/**
- * Ensure project repository
- *
- * Ensure the project installation in the authenticated user's active owner scope has one opaque Git repository binding.
- */
-export const ensureProjectRepository = <ThrowOnError extends boolean = false>(options: Options<EnsureProjectRepositoryData, ThrowOnError>) => (options.client ?? client).put<EnsureProjectRepositoryResponses, EnsureProjectRepositoryErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/repository',
-    ...options
-});
-
-/**
- * Retry project repository reconciliation
- *
- * Request a new reconciliation generation for the project's opaque Git repository binding.
- */
-export const retryProjectRepositoryReconciliation = <ThrowOnError extends boolean = false>(options: Options<RetryProjectRepositoryReconciliationData, ThrowOnError>) => (options.client ?? client).post<RetryProjectRepositoryReconciliationResponses, RetryProjectRepositoryReconciliationErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/repository/reconcile',
-    ...options
-});
-
-/**
- * Ensure project build
- *
- * Ensure a server-derived build recipe and compile job exist for one exact observed Git commit.
- */
-export const ensureProjectBuild = <ThrowOnError extends boolean = false>(options: Options<EnsureProjectBuildData, ThrowOnError>) => (options.client ?? client).post<EnsureProjectBuildResponses, EnsureProjectBuildErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/builds',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get project commit status
- *
- * Return server-owned source, build, preview, and release state for one exact Git commit.
- */
-export const getProjectCommitStatus = <ThrowOnError extends boolean = false>(options: Options<GetProjectCommitStatusData, ThrowOnError>) => (options.client ?? client).get<GetProjectCommitStatusResponses, GetProjectCommitStatusErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/status/{commitOid}',
-    ...options
-});
-
-/**
- * Get project build
- *
- * Get a server-derived build recipe and compiled artifact state for this project.
- */
-export const getProjectBuild = <ThrowOnError extends boolean = false>(options: Options<GetProjectBuildData, ThrowOnError>) => (options.client ?? client).get<GetProjectBuildResponses, GetProjectBuildErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/builds/{buildRecipeDigest}',
-    ...options
-});
-
-/**
- * Create project preview
- *
- * Create a preview aggregate for one exact observed Git commit after its build has succeeded.
- */
-export const createProjectPreview = <ThrowOnError extends boolean = false>(options: Options<CreateProjectPreviewData, ThrowOnError>) => (options.client ?? client).post<CreateProjectPreviewResponses, CreateProjectPreviewErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/previews',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Publish project release
- *
- * Create a pending release aggregate for one exact observed Git commit after its release build has succeeded.
- */
-export const publishProjectRelease = <ThrowOnError extends boolean = false>(options: Options<PublishProjectReleaseData, ThrowOnError>) => (options.client ?? client).post<PublishProjectReleaseResponses, PublishProjectReleaseErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/releases',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get current project release
- *
- * Read the active release currently selected for a project.
- */
-export const getCurrentProjectRelease = <ThrowOnError extends boolean = false>(options: Options<GetCurrentProjectReleaseData, ThrowOnError>) => (options.client ?? client).get<GetCurrentProjectReleaseResponses, GetCurrentProjectReleaseErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/releases/current',
-    ...options
-});
-
-/**
  * Get project by slug
  *
  * Resolve a portable project installed in the authenticated user's active owner scope by slug.
@@ -404,43 +293,6 @@ export const getProjectCompiledResult = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Upload initial projection for project preview rendering
- *
- * Store the reducer-native projection JSON used by the compiler service to render a dashboard preview screenshot for a project.
- */
-export const uploadProjectInitialProjection = <ThrowOnError extends boolean = false>(options: Options<UploadProjectInitialProjectionData, ThrowOnError>) => (options.client ?? client).put<UploadProjectInitialProjectionResponses, UploadProjectInitialProjectionErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/preview/initial-projection',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Queue project preview screenshot generation
- *
- * Queue an async job that renders the latest successful UI bundle for a project and stores a PNG preview.
- */
-export const queueProjectPreviewScreenshot = <ThrowOnError extends boolean = false>(options: Options<QueueProjectPreviewScreenshotData, ThrowOnError>) => (options.client ?? client).post<QueueProjectPreviewScreenshotResponses, QueueProjectPreviewScreenshotErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/preview/screenshot',
-    ...options
-});
-
-/**
- * Fetch generated project preview image
- *
- * Return the latest generated project preview PNG from artifact storage.
- */
-export const fetchProjectPreviewImage = <ThrowOnError extends boolean = false>(options: Options<FetchProjectPreviewImageData, ThrowOnError>) => (options.client ?? client).get<FetchProjectPreviewImageResponses, FetchProjectPreviewImageErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/preview/image',
-    ...options
-});
-
-/**
  * Ensure a private project dev compile exists
  *
  * Reuse or create a session-scoped dev compilation for the provided workspace fingerprint without advancing the canonical authored head.
@@ -517,22 +369,11 @@ export const queryWorkshopRulebook = <ThrowOnError extends boolean = false>(opti
 /**
  * Get job details
  *
- * Fetch details for a specific async job, including ordered user-facing tasks.
+ * Fetch the current durable snapshot for a specific async job.
  */
 export const getJob = <ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>) => (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/jobs/{jobId}',
-    ...options
-});
-
-/**
- * Long-poll job details
- *
- * Return the current job snapshot immediately when it differs from afterCursor, otherwise wait briefly for a job update.
- */
-export const getJobEventBatch = <ThrowOnError extends boolean = false>(options: Options<GetJobEventBatchData, ThrowOnError>) => (options.client ?? client).get<GetJobEventBatchResponses, GetJobEventBatchErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/jobs/{jobId}/event-batches',
     ...options
 });
 
@@ -563,32 +404,6 @@ export const cancelGameRun = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Accept an agent build result
- *
- * Accept a ready-for-review agent branch after its reported head has a succeeded preview.
- */
-export const acceptGameRun = <ThrowOnError extends boolean = false>(options: Options<AcceptGameRunData, ThrowOnError>) => (options.client ?? client).post<AcceptGameRunResponses, AcceptGameRunErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/runs/{jobId}/accept',
-    ...options
-});
-
-/**
- * Create a project session from a reducer snapshot
- *
- * Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness, resolved through a portable project.
- */
-export const createProjectSessionFromReducerSnapshot = <ThrowOnError extends boolean = false>(options: Options<CreateProjectSessionFromReducerSnapshotData, ThrowOnError>) => (options.client ?? client).post<CreateProjectSessionFromReducerSnapshotResponses, CreateProjectSessionFromReducerSnapshotErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/projects/{projectId}/sessions/from-reducer-snapshot',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Get session by short code
  *
  * Look up and hydrate a session using its memorable short code.
@@ -611,17 +426,6 @@ export const getSessionSnapshot = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Long-poll lobby session events
- *
- * Return a lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket.
- */
-export const getSessionLobbyEventBatch = <ThrowOnError extends boolean = false>(options: Options<GetSessionLobbyEventBatchData, ThrowOnError>) => (options.client ?? client).get<GetSessionLobbyEventBatchResponses, GetSessionLobbyEventBatchErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/event-batches',
-    ...options
-});
-
-/**
  * Start the game
  *
  * Transition session from lobby to gameplay phase (host only)
@@ -629,17 +433,6 @@ export const getSessionLobbyEventBatch = <ThrowOnError extends boolean = false>(
 export const startGame = <ThrowOnError extends boolean = false>(options: Options<StartGameData, ThrowOnError>) => (options.client ?? client).post<StartGameResponses, StartGameErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/sessions/{sessionId}/start',
-    ...options
-});
-
-/**
- * Issue a gameplay authority capability
- *
- * Returns a short-lived, session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
- */
-export const createGameplayCapability = <ThrowOnError extends boolean = false>(options: Options<CreateGameplayCapabilityData, ThrowOnError>) => (options.client ?? client).post<CreateGameplayCapabilityResponses, CreateGameplayCapabilityErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/sessions/{sessionId}/players/{playerId}/gameplay-capability',
     ...options
 });
 
@@ -774,13 +567,6 @@ export const getDemoSessionByShortCode = <ThrowOnError extends boolean = false>(
 export const getDemoSessionSnapshot = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionSnapshotData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionSnapshotResponses, GetDemoSessionSnapshotErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/snapshot', ...options });
 
 /**
- * Long-poll demo lobby session events
- *
- * Return a demo lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket.
- */
-export const getDemoSessionLobbyEventBatch = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionLobbyEventBatchData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionLobbyEventBatchResponses, GetDemoSessionLobbyEventBatchErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/event-batches', ...options });
-
-/**
  * Start the demo game
  *
  * Transition a demo session from lobby to gameplay phase.
@@ -788,15 +574,8 @@ export const getDemoSessionLobbyEventBatch = <ThrowOnError extends boolean = fal
 export const startDemoGame = <ThrowOnError extends boolean = false>(options: Options<StartDemoGameData, ThrowOnError>) => (options.client ?? client).post<StartDemoGameResponses, StartDemoGameErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/start', ...options });
 
 /**
- * Issue a demo gameplay authority capability
+ * Get the UI bundle pinned to a demo session
  *
- * Returns a short-lived demo session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
+ * Fetch and return the HTML content of the UI bundle pinned to a demo session.
  */
-export const createDemoGameplayCapability = <ThrowOnError extends boolean = false>(options: Options<CreateDemoGameplayCapabilityData, ThrowOnError>) => (options.client ?? client).post<CreateDemoGameplayCapabilityResponses, CreateDemoGameplayCapabilityErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability', ...options });
-
-/**
- * Fetch demo UI bundle
- *
- * Fetch and return the HTML content of a demo session UI bundle from object storage.
- */
-export const fetchDemoUiBundle = <ThrowOnError extends boolean = false>(options: Options<FetchDemoUiBundleData, ThrowOnError>) => (options.client ?? client).get<FetchDemoUiBundleResponses, FetchDemoUiBundleErrors, ThrowOnError>({ url: '/api/demo/ui-bundles/fetch', ...options });
+export const getDemoSessionUiBundle = <ThrowOnError extends boolean = false>(options: Options<GetDemoSessionUiBundleData, ThrowOnError>) => (options.client ?? client).get<GetDemoSessionUiBundleResponses, GetDemoSessionUiBundleErrors, ThrowOnError>({ url: '/api/demo/sessions/{sessionId}/ui-bundle', ...options });

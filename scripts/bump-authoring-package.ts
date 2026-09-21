@@ -15,7 +15,14 @@ type DependencySection =
   | "dependencies"
   | "devDependencies"
   | "peerDependencies";
-type PackageKey = "sdk" | "apiClient" | "devHost" | "cli";
+type PackageKey =
+  | "sdk"
+  | "apiClient"
+  | "devHost"
+  | "cli"
+  | "gameplayProtocol"
+  | "gameplayClient"
+  | "uiHostRuntime";
 type NpmTag = "alpha" | "latest";
 type Target =
   | { kind: "version"; version: string }
@@ -63,6 +70,17 @@ const packageConfigs: PackageConfig[] = [
     displayName: "SDK",
     npmName: "@dreamboard-games/sdk",
     updates: [
+      ...[
+        "gameplay-authority-protocol",
+        "gameplay-authority-client",
+        "ui-host-runtime",
+      ].map((directory) =>
+        dependencyTarget(
+          `packages/${directory}/package.json`,
+          "dependencies",
+          "@dreamboard-games/sdk",
+        ),
+      ),
       dependencyTarget(
         "apps/dreamboard-cli/package.json",
         "devDependencies",
@@ -101,6 +119,19 @@ const packageConfigs: PackageConfig[] = [
     npmName: "@dreamboard-games/cli",
     updates: [packageVersionTarget("apps/dreamboard-cli/package.json")],
   },
+  ...(
+    [
+      ["gameplayProtocol", "gameplay-authority-protocol"],
+      ["gameplayClient", "gameplay-authority-client"],
+      ["uiHostRuntime", "ui-host-runtime"],
+    ] as const
+  ).map(([key, directory]) => ({
+    key,
+    aliases: [key, directory, `@dreamboard-games/${directory}`],
+    displayName: directory,
+    npmName: `@dreamboard-games/${directory}`,
+    updates: [packageVersionTarget(`packages/${directory}/package.json`)],
+  })),
 ];
 
 const aliases = new Map<string, PackageConfig>();

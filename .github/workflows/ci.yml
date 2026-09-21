@@ -35,5 +35,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Chromium for credential isolation proof
+        run: pnpm --dir packages/dev-host exec playwright install --with-deps chromium
+
       - name: Check repository
         run: pnpm check

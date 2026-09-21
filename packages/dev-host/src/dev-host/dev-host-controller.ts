@@ -1,6 +1,6 @@
 import {
   PluginSessionGateway,
-  type HostSessionTransport,
+  type LobbyApi,
   type LoggerLike,
   type SessionContext,
   type UnifiedSessionStore,
@@ -10,10 +10,8 @@ import { formatConsoleArgs } from "./dev-diagnostics.js";
 import type { ActiveSession, DevHostStorage } from "./dev-host-storage.js";
 import { toGameSessionStoreApi } from "./ui-host-runtime-contract.js";
 
-const AUTO_RECOVERY_SSE_FAILURE_THRESHOLD = 2;
-const MAX_AUTO_RECOVERY_ATTEMPTS = 1;
 type DevHostSessionSnapshot = Awaited<
-  ReturnType<NonNullable<HostSessionTransport["createDevSessionSnapshot"]>>
+  ReturnType<NonNullable<LobbyApi["createDevSessionSnapshot"]>>
 >;
 
 type SessionStoreApi = {
@@ -50,9 +48,7 @@ function createSubmissionError(
 export interface DevHostControllerConfig {
   autoStartGame: boolean;
   compiledResultId: string;
-  createDevSessionSnapshot?: NonNullable<
-    HostSessionTransport["createDevSessionSnapshot"]
-  >;
+  createDevSessionSnapshot?: NonNullable<LobbyApi["createDevSessionSnapshot"]>;
   debug: boolean;
   fallbackSession: ActiveSession;
   projectId: string;
@@ -102,9 +98,6 @@ export class DevHostController {
   private gateway: PluginSessionGateway | null = null;
   private gatewayStoreAttached = false;
   private pluginFrameReloadCounter = 0;
-  private autoRecoveryAttempts = 0;
-  private sessionSnapshotSseFailureCount = 0;
-  private recoveryInFlight = false;
   private runtimeError: DevHostRuntimeError | null = null;
   private playerSwitchRequestId = 0;
 
@@ -118,9 +111,6 @@ export class DevHostController {
     this.currentSession = structuredClone(this.defaultSession);
     this.seedValue = String(this.currentSession.seed ?? 1337);
     this.unsubscribeStore = this.store.subscribe((state) => {
-      if (unifiedSessionSelectors.bootstrapStatus(state) !== "loading") {
-        this.sessionSnapshotSseFailureCount = 0;
-      }
       if (
         this.pluginReady &&
         !this.gatewayStoreAttached &&
@@ -168,7 +158,6 @@ export class DevHostController {
   }
 
   async initialize(): Promise<void> {
-    this.sessionSnapshotSseFailureCount = 0;
     this.notify();
 
     try {
@@ -276,10 +265,10 @@ export class DevHostController {
     void this.switchPlayerFromBootstrap(playerId);
   }
 
-  async restoreHistoryEntry(entryId: string): Promise<void> {
+  async restoreHistoryEntry(target: { version: number }): Promise<void> {
     await this.store.getState().restoreHistory({
       sessionId: this.currentSession.sessionId,
-      entryId,
+      targetVersion: target.version,
     });
   }
 
@@ -294,34 +283,6 @@ export class DevHostController {
 
   matchesPluginWindow(source: MessageEvent["source"]): boolean {
     return Boolean(this.iframe && source === this.iframe.contentWindow);
-  }
-
-  handleSseTransportError(args: unknown[]): void {
-    if (
-      unifiedSessionSelectors.bootstrapStatus(this.store.getState()) !==
-        "loading" ||
-      this.recoveryInFlight
-    ) {
-      return;
-    }
-
-    const errorMessage = args
-      .map((value) => (value instanceof Error ? value.message : String(value)))
-      .join(" ");
-    if (!errorMessage.includes("SSE failed: 400")) {
-      return;
-    }
-
-    this.sessionSnapshotSseFailureCount += 1;
-    if (
-      this.sessionSnapshotSseFailureCount < AUTO_RECOVERY_SSE_FAILURE_THRESHOLD
-    ) {
-      return;
-    }
-
-    void this.recoverFromUnhealthySession(
-      "The current session stream is unhealthy, creating a fresh session...",
-    );
   }
 
   dispose(): void {
@@ -374,7 +335,6 @@ export class DevHostController {
       iframe: this.iframe,
       sessionId: this.currentSession.sessionId,
       controllablePlayerIds: session.controllablePlayerIds,
-      controllingPlayerId: session.controllingPlayerId ?? "",
       userId: this.config.userId,
       onReady: () => {
         this.pluginReady = true;
@@ -391,20 +351,9 @@ export class DevHostController {
         );
         this.notify();
       },
-      onInteraction: async (
-        playerId: string,
-        interactionId: string,
-        params: unknown,
-        meta,
-      ) => {
+      onInteraction: async (command) => {
         try {
-          await this.store.getState().submitInteraction({
-            sessionId: this.currentSession.sessionId,
-            playerId,
-            interactionId,
-            params,
-            clientActionId: meta?.clientActionId,
-          });
+          await this.store.getState().submitInteraction(command);
         } catch (error) {
           if (error instanceof Error && error.name === "SubmissionError") {
             throw error;
@@ -415,24 +364,6 @@ export class DevHostController {
             "Failed to submit interaction",
           );
         }
-      },
-      onValidateInteraction: async (
-        playerId: string,
-        interactionId: string,
-        params: unknown,
-      ) => {
-        const gameplay = this.store.getState().getRenderableGameplay();
-        if (!gameplay) {
-          return {
-            valid: false,
-            errorCode: "runtime-unavailable",
-            message: "No renderable gameplay snapshot is available.",
-          };
-        }
-        void playerId;
-        void interactionId;
-        void params;
-        return { valid: true };
       },
       logger: this.logger,
     });
@@ -454,37 +385,6 @@ export class DevHostController {
     this.iframeLoaded = false;
     this.pluginReady = false;
     this.gatewayStoreAttached = false;
-  }
-
-  private async recoverFromUnhealthySession(reason: string): Promise<void> {
-    if (
-      this.recoveryInFlight ||
-      this.autoRecoveryAttempts >= MAX_AUTO_RECOVERY_ATTEMPTS ||
-      unifiedSessionSelectors.bootstrapStatus(this.store.getState()) !==
-        "loading"
-    ) {
-      return;
-    }
-
-    this.recoveryInFlight = true;
-    this.autoRecoveryAttempts += 1;
-
-    try {
-      this.logger.warn("[DevHost] " + reason);
-      const seed = this.currentSession.seed ?? 1337;
-      const snapshot = await this.createBackendDevSessionSnapshot(seed);
-      this.adoptCreatedSession(snapshot, seed);
-      await this.loadStoreSnapshot(null, "dev-new");
-      this.syncCurrentSessionFromStore(seed);
-      this.persistCurrentPlayerFromStore();
-    } catch (error) {
-      this.logger.error(
-        "[DevHost] Automatic recovery failed:",
-        formatConsoleArgs([error]),
-      );
-    } finally {
-      this.recoveryInFlight = false;
-    }
   }
 
   private async loadStoreSnapshot(
