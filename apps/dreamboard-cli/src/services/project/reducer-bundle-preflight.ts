@@ -85,7 +85,7 @@ export type ReducerBundleLike = Pick<
       playerIds: readonly string[];
       rngSeed?: number | null;
       setup?: unknown;
-    }): unknown | Promise<unknown>;
+    }): { state: unknown } | Promise<{ state: unknown }>;
     project(input: {
       state: unknown;
       playerIds: readonly string[];
@@ -386,7 +386,7 @@ export async function driveReducerBundleThroughScenarios(options: {
 
     let sessionState: unknown;
     try {
-      sessionState = await bundle.initialize({
+      const initialized = await bundle.initialize({
         table: table as Wire.JsonValue,
         playerIds: [...playerIds],
         rngSeed,
@@ -394,6 +394,7 @@ export async function driveReducerBundleThroughScenarios(options: {
           ? { profileId: scenario.setupProfileId, optionValues: {} }
           : null,
       });
+      sessionState = initialized.state;
     } catch (error) {
       const summary = summarizeError(error);
       failures.push({
