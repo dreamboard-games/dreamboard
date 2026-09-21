@@ -2067,52 +2067,6 @@ export type CreateGameRunResponse = {
     projectId: string;
 };
 
-/**
- * Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
- */
-export type CreateSessionFromReducerSnapshotRequest = {
-    /**
-     * Compiled result ID that produced the reducer bundle used to create the snapshot.
-     */
-    compiledResultId: string;
-    /**
-     * Deterministic RNG seed associated with the generated base.
-     */
-    seed: number;
-    /**
-     * Number of players materialized in the reducer snapshot.
-     */
-    playerCount: number;
-    /**
-     * Authored setup profile associated with the generated base, if any.
-     */
-    setupProfileId?: string;
-    /**
-     * Generated base artifact id used to hydrate the reducer shadow.
-     */
-    baseId: string;
-    /**
-     * Scenario id materialized into this session.
-     */
-    scenarioId: string;
-    /**
-     * Final reducer-native session state after running scenario.when locally.
-     */
-    reducerState: {
-        [key: string]: unknown;
-    };
-    /**
-     * Reducer runtime version corresponding to reducerState.
-     */
-    reducerStateVersion: number;
-    /**
-     * CLI-computed fingerprint diagnostics for the generated base and scenario materialization.
-     */
-    fingerprintMetadata?: {
-        [key: string]: string;
-    };
-};
-
 export type SessionSnapshotPhase = 'lobby' | 'started';
 
 export type HostSessionContext = {
@@ -3611,52 +3565,6 @@ export type CancelGameRunResponses = {
      */
     202: unknown;
 };
-
-export type CreateProjectSessionFromReducerSnapshotData = {
-    body: CreateSessionFromReducerSnapshotRequest;
-    path: {
-        /**
-         * Portable project lineage identifier
-         */
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/sessions/from-reducer-snapshot';
-};
-
-export type CreateProjectSessionFromReducerSnapshotErrors = {
-    /**
-     * Bad request - invalid input parameters
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized - authentication required
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden - insufficient permissions
-     */
-    403: ProblemDetails;
-    /**
-     * Resource not found
-     */
-    404: ProblemDetails;
-    /**
-     * Internal server error
-     */
-    500: ProblemDetails;
-};
-
-export type CreateProjectSessionFromReducerSnapshotError = CreateProjectSessionFromReducerSnapshotErrors[keyof CreateProjectSessionFromReducerSnapshotErrors];
-
-export type CreateProjectSessionFromReducerSnapshotResponses = {
-    /**
-     * Session materialized successfully
-     */
-    200: SessionControlSnapshot;
-};
-
-export type CreateProjectSessionFromReducerSnapshotResponse = CreateProjectSessionFromReducerSnapshotResponses[keyof CreateProjectSessionFromReducerSnapshotResponses];
 
 export type GetSessionByShortCodeData = {
     body?: never;

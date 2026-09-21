@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "internal",
-  "sourceRevision": "63750a32390fbfd3a8f6bb4f0640e97e319d98e8",
+  "sourceRevision": "313a5ecfbebbf30e054510f12a84f07119fa4818",
   "sourceWorktreeStatus": "dirty",
-  "privateBundleSha256": "sha256:dacb1e99724eb6839931109c081efa49c176c9e3e832d7b070fc1ccc25021ad8",
-  "routePolicySha256": "sha256:e13ef42414e665aef11b9981720e873f03aa94746e1ff107fbd02ec9b2e7610b",
-  "clientAllowlistSha256": "sha256:3ae364e17cb042ff61deef26579775ef969b889c863cba1c8e9f69de9f379db6",
-  "publicOpenApiSha256": "sha256:4e4e17b4ae5924297610400a6d86e9870267d66bbe17fb1be2a9bd8f2207a0f1",
-  "operationCount": 50,
+  "privateBundleSha256": "sha256:ff19ae417a62c5e73a1ebeb53303038a5d1f57488af58a99f189d4192ecadcd9",
+  "routePolicySha256": "sha256:62573ebdcf8871624347968a16ac1c23a06941a79bc92d509c6734ebbce608ff",
+  "clientAllowlistSha256": "sha256:50c74dcd7797add9b84b8e922fdf792e92716e8c568c37c8e97b7400293e5ead",
+  "publicOpenApiSha256": "sha256:aaf5a392b03584887b5c2a8fdb0722b33d6e07e839f2cb2de7c634f6da39aef6",
+  "operationCount": 49,
   "publicClientRoutes": [
     {
       "method": "GET",
@@ -168,11 +168,6 @@
       "method": "POST",
       "path": "/api/projects/{projectId}/sessions",
       "operationId": "createProjectSession"
-    },
-    {
-      "method": "POST",
-      "path": "/api/projects/{projectId}/sessions/from-reducer-snapshot",
-      "operationId": "createProjectSessionFromReducerSnapshot"
     },
     {
       "method": "POST",

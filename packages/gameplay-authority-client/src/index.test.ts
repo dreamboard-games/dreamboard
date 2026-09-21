@@ -311,6 +311,83 @@ describe("gameplay authority client", () => {
     });
   });
 
+  test("correlates backpressure to its operation and request while other requests remain pending", async () => {
+    const factory = createFakeWebSocketFactory();
+    const connecting = connectGameplayAuthority({
+      websocketUrl: WEBSOCKET_URL,
+      credential: CREDENTIAL,
+      sessionId: SESSION_ID,
+      playerId: PLAYER_ID,
+      webSocketFactory: factory.ctor,
+    });
+    await authenticate(factory);
+    const client = await connecting;
+    const command = {
+      type: "interaction.submit" as const,
+      clientActionId: "accepted",
+      basis: {
+        version: 3,
+        actionSetVersion: "3:main",
+        perspectivePlayerId: PLAYER_ID,
+      },
+      interactionId: "play-card",
+      params: {},
+    };
+    const accepted = client.submit(command);
+    const rejected = client.submit({ ...command, clientActionId: "rejected" });
+    const restored = client.restoreHistory({
+      restoreId: "restored",
+      targetVersion: 1,
+    });
+    const rejectedRestore = client.restoreHistory({
+      restoreId: "rejected-restore",
+      targetVersion: 1,
+    });
+    const rejectedCheck = expect(rejected).rejects.toMatchObject({
+      clientActionId: "rejected",
+    });
+    const rejectedRestoreCheck = expect(rejectedRestore).rejects.toMatchObject({
+      restoreId: "rejected-restore",
+    });
+    const socket = expectSingleSocket(factory);
+    socket.emitJson({
+      type: "gameplay.backpressure",
+      reason: "queue_full",
+      retryAfterMs: 100,
+      message: "Queue full",
+      operation: "interaction.submit",
+      clientActionId: "rejected",
+    });
+    socket.emitJson({
+      type: "gameplay.backpressure",
+      reason: "queue_full",
+      retryAfterMs: 100,
+      message: "Queue full",
+      operation: "history.restore",
+      restoreId: "rejected-restore",
+    });
+    socket.emitJson({
+      type: "interaction.result",
+      clientActionId: "accepted",
+      accepted: true,
+    });
+    socket.emitJson({
+      type: "history.restored",
+      restoreId: "restored",
+      version: 5,
+    });
+    await Promise.all([
+      rejectedCheck,
+      rejectedRestoreCheck,
+      expect(accepted).resolves.toMatchObject({
+        accepted: true,
+        clientActionId: "accepted",
+      }),
+      expect(restored).resolves.toMatchObject({ restoreId: "restored" }),
+    ]);
+    client.close();
+  });
+
   test("resumes and streams snapshot frames", async () => {
     const factory = createFakeWebSocketFactory();
     const clientPromise = connectGameplayAuthority({

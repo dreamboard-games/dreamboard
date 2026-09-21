@@ -970,41 +970,6 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/sessions/from-reducer-snapshot":
-    post:
-      summary: Create a project session from a reducer snapshot
-      description: "Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness, resolved through a portable project."
-      operationId: createProjectSessionFromReducerSnapshot
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-        - Sessions
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateSessionFromReducerSnapshotRequest"
-      responses:
-        "200":
-          description: Session materialized successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SessionControlSnapshot"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   "/api/sessions/code/{shortCode}":
     parameters:
       - name: shortCode
@@ -4631,51 +4596,6 @@ components:
       required:
         - jobId
         - projectId
-    CreateSessionFromReducerSnapshotRequest:
-      type: object
-      description: Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
-      properties:
-        compiledResultId:
-          type: string
-          format: uuid
-          description: Compiled result ID that produced the reducer bundle used to create the snapshot.
-        seed:
-          type: integer
-          format: int64
-          description: Deterministic RNG seed associated with the generated base.
-        playerCount:
-          type: integer
-          description: Number of players materialized in the reducer snapshot.
-        setupProfileId:
-          type: string
-          nullable: true
-          description: "Authored setup profile associated with the generated base, if any."
-        baseId:
-          type: string
-          description: Generated base artifact id used to hydrate the reducer shadow.
-        scenarioId:
-          type: string
-          description: Scenario id materialized into this session.
-        reducerState:
-          type: object
-          additionalProperties: true
-          description: Final reducer-native session state after running scenario.when locally.
-        reducerStateVersion:
-          type: integer
-          description: Reducer runtime version corresponding to reducerState.
-        fingerprintMetadata:
-          type: object
-          additionalProperties:
-            type: string
-          description: CLI-computed fingerprint diagnostics for the generated base and scenario materialization.
-      required:
-        - compiledResultId
-        - seed
-        - playerCount
-        - baseId
-        - scenarioId
-        - reducerState
-        - reducerStateVersion
     SessionSnapshotPhase:
       type: string
       enum:

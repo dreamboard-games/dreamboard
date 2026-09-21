@@ -190,7 +190,9 @@ class WebSocketGameplayAuthorityClient implements GameplayAuthorityClient {
     const frame = await waitForServerFrame(
       this.socket,
       (candidate) =>
-        candidate.type === "gameplay.backpressure" ||
+        (candidate.type === "gameplay.backpressure" &&
+          candidate.operation === "interaction.submit" &&
+          candidate.clientActionId === command.clientActionId) ||
         (candidate.type === "interaction.result" &&
           candidate.clientActionId === command.clientActionId),
       this.requestTimeoutMs,
@@ -217,7 +219,9 @@ class WebSocketGameplayAuthorityClient implements GameplayAuthorityClient {
     const frame = await waitForServerFrame(
       this.socket,
       (candidate) =>
-        candidate.type === "gameplay.backpressure" ||
+        (candidate.type === "gameplay.backpressure" &&
+          candidate.operation === "history.restore" &&
+          candidate.restoreId === input.restoreId) ||
         (candidate.type === "history.restored" &&
           candidate.restoreId === input.restoreId) ||
         (candidate.type === "history.restoreRejected" &&

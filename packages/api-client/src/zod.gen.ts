@@ -1358,21 +1358,6 @@ export const zCreateGameRunResponse = z.object({
     projectId: z.uuid()
 });
 
-/**
- * Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
- */
-export const zCreateSessionFromReducerSnapshotRequest = z.object({
-    compiledResultId: z.uuid(),
-    seed: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    playerCount: z.int(),
-    setupProfileId: z.optional(z.string()),
-    baseId: z.string(),
-    scenarioId: z.string(),
-    reducerState: z.record(z.string(), z.unknown()),
-    reducerStateVersion: z.int(),
-    fingerprintMetadata: z.optional(z.record(z.string(), z.string()))
-});
-
 export const zSessionSnapshotPhase = z.enum(['lobby', 'started']);
 
 export const zHostSessionContext = z.object({
@@ -1894,19 +1879,6 @@ export const zCancelGameRunData = z.object({
     }),
     query: z.optional(z.never())
 });
-
-export const zCreateProjectSessionFromReducerSnapshotData = z.object({
-    body: zCreateSessionFromReducerSnapshotRequest,
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Session materialized successfully
- */
-export const zCreateProjectSessionFromReducerSnapshotResponse = zSessionControlSnapshot;
 
 export const zGetSessionByShortCodeData = z.object({
     body: z.optional(z.never()),

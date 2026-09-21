@@ -208,20 +208,26 @@ export function createSessionIngressController<
 
   function executeEffect(effect: SessionStateEffect): void {
     switch (effect.type) {
-      case "requestGameplayResync":
+      case "requestGameplayResync": {
+        const context = getSessionContext(store.getState().session);
+        if (!context) {
+          gameplayHandlers.onError(
+            new Error("Cannot resync gameplay without session context"),
+          );
+          break;
+        }
         logger.warn(
           `[UnifiedSession] ${effect.reason}; reconnecting to refresh gameplay.bootstrap`,
         );
         void gameplayConnection.connect({
           sessionId: effect.sessionId,
-          websocketUrl: getSessionContext(store.getState().session)!
-            .gameplayWebsocketUrl,
+          websocketUrl: context.gameplayWebsocketUrl,
           playerId: effect.playerId,
-          switchablePlayerIds: getSessionContext(store.getState().session)
-            ?.switchablePlayerIds ?? [effect.playerId],
+          switchablePlayerIds: context.switchablePlayerIds,
           handlers: gameplayHandlers,
         });
         break;
+      }
       case "reconnectGameplay":
         void gameplayConnection
           .switchPerspective(effect.playerId)
@@ -269,14 +275,19 @@ export function createSessionIngressController<
   ) {
     prepareSessionConnection(userId);
     logger.log(`[UnifiedSession] Connecting to session: ${sessionId}`);
+    const context = getSessionContext(store.getState().session);
+    if (!context) {
+      gameplayHandlers.onError(
+        new Error("Cannot connect gameplay without session context"),
+      );
+      return;
+    }
     connectedSessionId = sessionId;
     void gameplayConnection.connect({
       sessionId,
-      websocketUrl: getSessionContext(store.getState().session)!
-        .gameplayWebsocketUrl,
+      websocketUrl: context.gameplayWebsocketUrl,
       playerId: connectOptions.playerId,
-      switchablePlayerIds: getSessionContext(store.getState().session)
-        ?.switchablePlayerIds ?? [connectOptions.playerId],
+      switchablePlayerIds: context.switchablePlayerIds,
       handlers: gameplayHandlers,
     });
   }
