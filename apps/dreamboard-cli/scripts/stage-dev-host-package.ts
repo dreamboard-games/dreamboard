@@ -51,6 +51,10 @@ const dependencies: Record<string, string> = {
   "@dreamboard-games/api-client":
     AUTHORING_RELEASE_SET.packages.apiClient.version,
 };
+for (const entry of Object.values(AUTHORING_RELEASE_SET.packages)) {
+  if (dependencies[entry.name]?.startsWith("workspace:"))
+    dependencies[entry.name] = entry.version;
+}
 delete dependencies["@dreamboard-games/sdk"];
 
 const packageJson = {

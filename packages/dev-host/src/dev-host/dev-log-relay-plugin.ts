@@ -5,7 +5,7 @@ import {
   getSessionSnapshot,
   startGame,
   type CreateSessionRequest,
-  type HostSessionSnapshot,
+  type SessionControlSnapshot,
 } from "@dreamboard-games/api-client";
 import consola from "consola";
 import type { Plugin } from "vite";
@@ -31,75 +31,77 @@ export function createDevLogRelayPlugin(options: {
   return {
     name: "dreamboard-dev-log-relay",
     configureServer(server) {
-      server.middlewares.use("/__dreamboard_dev/log", (req, res) => {
-        if (req.method !== "POST") {
-          res.statusCode = 405;
-          res.setHeader("content-type", "application/json");
-          res.end(JSON.stringify({ error: "Method not allowed" }));
-          return;
-        }
-
-        const chunks: Buffer[] = [];
-        req.on("data", (chunk) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        });
-        req.on("end", () => {
-          try {
-            const body = Buffer.concat(chunks).toString("utf8");
-            const payload = JSON.parse(body) as Partial<DevLogEnvelope>;
-            const normalizedPayload = {
-              source: coerceLogSource(payload.source),
-              level: coerceLogLevel(payload.level),
-              message:
-                typeof payload.message === "string"
-                  ? payload.message
-                  : "Missing dev log message",
-            } satisfies DevLogEnvelope;
-            if (
-              shouldRelayDevLog(options.diagnosticsLevel, normalizedPayload)
-            ) {
-              relayDevLog(normalizedPayload);
-            }
-            res.statusCode = 204;
-            res.end();
-          } catch (error) {
-            consola.warn(
-              `[dev-host] Failed to decode browser log payload: ${formatUnknown(error)}`,
-            );
-            res.statusCode = 400;
+      return () => {
+        server.middlewares.use("/__dreamboard_dev/log", (req, res) => {
+          if (req.method !== "POST") {
+            res.statusCode = 405;
             res.setHeader("content-type", "application/json");
-            res.end(JSON.stringify({ error: "Invalid dev log payload" }));
+            res.end(JSON.stringify({ error: "Method not allowed" }));
+            return;
           }
-        });
-      });
 
-      server.middlewares.use(
-        "/__dreamboard_dev/session/snapshot",
-        createSnapshotSessionHandler({
-          sessionFilePath: options.sessionFilePath,
-          runtimeConfig: options.runtimeConfig,
-          apiBaseUrl: options.apiBaseUrl,
-          platform: options.platform,
-        }),
-      );
-      server.middlewares.use(
-        "/__dreamboard_dev/session/new",
-        createNewSessionHandler({
-          sessionFilePath: options.sessionFilePath,
-          runtimeConfig: options.runtimeConfig,
-          apiBaseUrl: options.apiBaseUrl,
-          platform: options.platform,
-        }),
-      );
-      server.middlewares.use(
-        "/__dreamboard_dev/session/start",
-        createStartSessionHandler({
-          sessionFilePath: options.sessionFilePath,
-          runtimeConfig: options.runtimeConfig,
-          apiBaseUrl: options.apiBaseUrl,
-          platform: options.platform,
-        }),
-      );
+          const chunks: Buffer[] = [];
+          req.on("data", (chunk) => {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          });
+          req.on("end", () => {
+            try {
+              const body = Buffer.concat(chunks).toString("utf8");
+              const payload = JSON.parse(body) as Partial<DevLogEnvelope>;
+              const normalizedPayload = {
+                source: coerceLogSource(payload.source),
+                level: coerceLogLevel(payload.level),
+                message:
+                  typeof payload.message === "string"
+                    ? payload.message
+                    : "Missing dev log message",
+              } satisfies DevLogEnvelope;
+              if (
+                shouldRelayDevLog(options.diagnosticsLevel, normalizedPayload)
+              ) {
+                relayDevLog(normalizedPayload);
+              }
+              res.statusCode = 204;
+              res.end();
+            } catch (error) {
+              consola.warn(
+                `[dev-host] Failed to decode browser log payload: ${formatUnknown(error)}`,
+              );
+              res.statusCode = 400;
+              res.setHeader("content-type", "application/json");
+              res.end(JSON.stringify({ error: "Invalid dev log payload" }));
+            }
+          });
+        });
+
+        server.middlewares.use(
+          "/__dreamboard_dev/session/snapshot",
+          createSnapshotSessionHandler({
+            sessionFilePath: options.sessionFilePath,
+            runtimeConfig: options.runtimeConfig,
+            apiBaseUrl: options.apiBaseUrl,
+            platform: options.platform,
+          }),
+        );
+        server.middlewares.use(
+          "/__dreamboard_dev/session/new",
+          createNewSessionHandler({
+            sessionFilePath: options.sessionFilePath,
+            runtimeConfig: options.runtimeConfig,
+            apiBaseUrl: options.apiBaseUrl,
+            platform: options.platform,
+          }),
+        );
+        server.middlewares.use(
+          "/__dreamboard_dev/session/start",
+          createStartSessionHandler({
+            sessionFilePath: options.sessionFilePath,
+            runtimeConfig: options.runtimeConfig,
+            apiBaseUrl: options.apiBaseUrl,
+            platform: options.platform,
+          }),
+        );
+      };
     },
   };
 }
@@ -250,7 +252,7 @@ async function handleStartSessionRequest(
 
   try {
     let session = await loadCurrentSession(options);
-    let snapshot: HostSessionSnapshot;
+    let snapshot: SessionControlSnapshot;
     try {
       snapshot = await startBackendSession(options, session.sessionId);
     } catch (error) {
@@ -281,7 +283,7 @@ async function startSessionOrLoadSnapshot(
   },
   sessionId: string,
   requestedPlayerId: string | null,
-): Promise<HostSessionSnapshot> {
+): Promise<SessionControlSnapshot> {
   try {
     const snapshot = await startBackendSession(options, sessionId);
     if (!requestedPlayerId) {
@@ -324,7 +326,7 @@ async function fetchBackendSessionSnapshot(
   },
   sessionId: string,
   playerId: string | null,
-): Promise<HostSessionSnapshot> {
+): Promise<SessionControlSnapshot> {
   const auth = await resolveBackendAuth(connection);
   const result = await getSessionSnapshot({
     baseUrl: connection.apiBaseUrl,
@@ -341,7 +343,7 @@ async function startBackendSession(
     platform: DevHostPlatform;
   },
   sessionId: string,
-): Promise<HostSessionSnapshot> {
+): Promise<SessionControlSnapshot> {
   const auth = await resolveBackendAuth(connection);
   const result = await startGame({
     baseUrl: connection.apiBaseUrl,
@@ -603,7 +605,7 @@ function relayDevLog(payload: DevLogEnvelope): void {
 }
 
 function coerceLogSource(value: unknown): DevLogEnvelope["source"] {
-  return value === "host" || value === "plugin" || value === "sse"
+  return value === "host" || value === "plugin" || value === "gameplay"
     ? value
     : "host";
 }

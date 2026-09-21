@@ -11,7 +11,7 @@ import {
   type CreateSessionResponse,
   type EnsureDevCompileRequest,
   type EnsureDevCompileResponse,
-  type HostSessionSnapshot,
+  type SessionControlSnapshot,
   type Project,
 } from "@dreamboard-games/api-client";
 import { toDreamboardApiError } from "../../utils/errors.js";
@@ -128,7 +128,7 @@ export async function createProjectSessionSdk(options: {
 export async function createProjectSessionFromReducerSnapshotSdk(options: {
   projectId: string;
   request: CreateSessionFromReducerSnapshotRequest;
-}): Promise<HostSessionSnapshot> {
+}): Promise<SessionControlSnapshot> {
   const { data, error, response } =
     await createProjectSessionFromReducerSnapshot({
       path: { projectId: options.projectId },

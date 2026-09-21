@@ -18,6 +18,9 @@ export type AuthoringReleaseSetV1 = {
     sdk: AuthoringReleasePackageV1;
     apiClient: AuthoringReleasePackageV1;
     devHost: AuthoringReleasePackageV1;
+    gameplayProtocol: AuthoringReleasePackageV1;
+    gameplayClient: AuthoringReleasePackageV1;
+    uiHostRuntime: AuthoringReleasePackageV1;
   };
   protocols: {
     authoringAdapter: 1;

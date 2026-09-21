@@ -29,7 +29,7 @@ for (const entry of receipt.packages) {
   await assertCandidateFileIntegrity(receiptPath, entry);
 }
 
-for (const key of ["sdk", "apiClient"] as const) {
+for (const key of ["sdk"] as const) {
   const entry = receipt.releaseSet.packages[key];
   const metadata = await fetchVersion(entry.name, entry.version);
   if (!metadata) {

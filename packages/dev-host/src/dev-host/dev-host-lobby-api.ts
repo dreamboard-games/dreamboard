@@ -1,20 +1,18 @@
 import {
-  defaultHostSessionTransport,
-  type HostSessionTransport,
+  defaultLobbyApi,
+  type LobbyApi,
 } from "@dreamboard-games/ui-host-runtime/runtime";
 
-type HostSessionSnapshot = Awaited<
-  ReturnType<HostSessionTransport["loadSessionSnapshot"]>
->;
+type SessionControlSnapshot = Awaited<ReturnType<LobbyApi["load"]>>;
 
-type DevHostSessionSnapshot = HostSessionSnapshot & {
-  context: HostSessionSnapshot["context"] & { seed?: number | null };
+type DevSessionControlSnapshot = SessionControlSnapshot & {
+  context: SessionControlSnapshot["context"] & { seed?: number | null };
 };
 
 async function requestSnapshot(
   path: string,
   init: RequestInit,
-): Promise<DevHostSessionSnapshot> {
+): Promise<DevSessionControlSnapshot> {
   const response = await fetch(path, init);
   const contentType = response.headers.get("content-type") ?? "";
   const payload = contentType.includes("application/json")
@@ -23,20 +21,20 @@ async function requestSnapshot(
   if (!response.ok) {
     throw payload;
   }
-  return payload as DevHostSessionSnapshot;
+  return payload as DevSessionControlSnapshot;
 }
 
-export function createDevHostSessionTransport(): HostSessionTransport {
+export function createDevHostLobbyApi(): LobbyApi {
   return {
-    ...defaultHostSessionTransport,
-    loadSessionSnapshot: async (input) =>
+    ...defaultLobbyApi,
+    load: async (input) =>
       requestSnapshot(
         input.requestedPlayerId?.trim()
           ? `/__dreamboard_dev/session/snapshot?playerId=${encodeURIComponent(input.requestedPlayerId.trim())}`
           : "/__dreamboard_dev/session/snapshot",
         { method: "GET" },
       ),
-    startSession: async () =>
+    start: async () =>
       requestSnapshot("/__dreamboard_dev/session/start", {
         method: "POST",
         body: undefined,

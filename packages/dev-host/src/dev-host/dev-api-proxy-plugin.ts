@@ -4,8 +4,9 @@
  * Every `/api/*` request the browser makes is intercepted here, run
  * through the CLI-supplied credential platform when needed, then forwarded to
  * the configured upstream backend with an `Authorization: Bearer <Dreamboard API
- * JWT>` header injected on the wire. The access and refresh tokens never reach
- * the browser.
+ * JWT>` header injected on the wire. A same-origin POST endpoint supplies only
+ * the refreshed access token to the trusted host frame for gameplay WebSockets.
+ * Authored plugin frames are sandboxed to opaque origins.
  *
  * Failure contract:
  * - Permanent refresh failure (stored refresh token invalid) responds
@@ -27,8 +28,6 @@ import { EventEmitter } from "node:events";
 import consola from "consola";
 import type { Plugin } from "vite";
 import type { DevHostPlatform, DevHostResolvedBearer } from "./contract.js";
-
-const BROWSER_ORIGIN_HEADER = "X-Dreamboard-Browser-Origin";
 
 export type ResolvedBearer = DevHostResolvedBearer;
 
@@ -91,23 +90,68 @@ export function createDevApiProxyPlugin(options: {
       const resolveBearer =
         deps?.resolveBearer ?? (() => options.platform.resolveBearer());
 
-      // NOTE: we intentionally do NOT mount this middleware on `/api`.
-      // Connect-style `middlewares.use(path, handler)` strips the mount
-      // prefix from `req.url` before invoking the handler, which would
-      // cause the proxy to forward `/sessions/.../status` instead of
-      // `/api/sessions/.../status` and the backend would respond 404.
-      // Filtering inside the handler keeps the full path intact.
-      server.middlewares.use((req, res, next) => {
-        if (!req.url || !isApiRequest(req.url)) {
-          next();
-          return;
-        }
-        void handleApiRequest({ req, res, proxy, resolveBearer });
-      });
-
       server.httpServer?.once("close", () => {
         proxy.close();
       });
+
+      // Install after Vite's host validation and CORS middleware. This keeps
+      // configured allowedHosts authoritative, and lets this route remove CORS.
+      return () => {
+        server.middlewares.use((req, res, next) => {
+          const credentialRequest =
+            req.url === "/__dreamboard_dev/gameplay-credential";
+          const apiRequest = Boolean(req.url && isApiRequest(req.url));
+          const sessionRequest =
+            req.url?.startsWith("/__dreamboard_dev/session/") ?? false;
+          if (!credentialRequest && !apiRequest && !sessionRequest) {
+            next();
+            return;
+          }
+          res.removeHeader("access-control-allow-origin");
+          res.removeHeader("access-control-allow-credentials");
+          res.setHeader("cache-control", "no-store");
+          const expectedOrigin = `${server.config.server.https ? "https" : "http"}://${req.headers.host}`;
+          const readWithoutOrigin =
+            !credentialRequest &&
+            (req.method === "GET" || req.method === "HEAD") &&
+            req.headers.origin === undefined;
+          if (!readWithoutOrigin && req.headers.origin !== expectedOrigin) {
+            res.statusCode = 403;
+            res.end();
+            return;
+          }
+          if (apiRequest) {
+            // Preserve the full /api path while forwarding the authenticated request.
+            void handleApiRequest({ req, res, proxy, resolveBearer });
+            return;
+          }
+          if (!credentialRequest) {
+            next();
+            return;
+          }
+          if (req.method !== "POST") {
+            res.statusCode = 403;
+            res.end();
+            return;
+          }
+          void (async () => {
+            try {
+              const bearer = await resolveBearer();
+              if (bearer.kind === "permanent_invalid" || !bearer.token) {
+                res.statusCode = 401;
+                res.end();
+                return;
+              }
+              res.setHeader("content-type", "application/json");
+              res.end(JSON.stringify({ kind: "user", token: bearer.token }));
+            } catch {
+              // Credential errors may contain provider details; never expose them.
+              res.statusCode = 502;
+              res.end();
+            }
+          })();
+        });
+      };
     },
   };
 }
@@ -206,25 +250,18 @@ export function createForwardHeaders(
   targetUrl: URL,
 ): http.OutgoingHttpHeaders {
   const headers: http.OutgoingHttpHeaders = { ...req.headers };
-  const browserOrigin = isGameplayCapabilityRequest(req.url ?? "")
-    ? canonicalizeBrowserOrigin(req.headers.origin)
-    : null;
-
   // Browser requests are same-origin with the dev host. Once the CLI proxies
   // them to the backend, they are server-to-server requests; forwarding the
   // browser Origin from a Cloudflare/LAN host makes backend CORS reject valid
   // dev traffic.
   delete headers.origin;
-  deleteHeaderCaseInsensitive(headers, BROWSER_ORIGIN_HEADER);
+  delete headers["x-dreamboard-browser-origin"];
   delete headers["access-control-request-headers"];
   delete headers["access-control-request-method"];
 
   headers.host = targetUrl.host;
   headers["x-forwarded-host"] = req.headers.host;
   headers["x-forwarded-proto"] = targetUrl.protocol.replace(":", "");
-  if (browserOrigin) {
-    headers[BROWSER_ORIGIN_HEADER] = browserOrigin;
-  }
 
   return headers;
 }
@@ -267,72 +304,6 @@ function respondRefreshFailed(res: ServerResponse, error: unknown): void {
 
 function isApiRequest(url: string): boolean {
   return url === "/api" || url.startsWith("/api/") || url.startsWith("/api?");
-}
-
-function isGameplayCapabilityRequest(url: string): boolean {
-  let pathname: string;
-  try {
-    pathname = new URL(url, "http://dreamboard.dev").pathname;
-  } catch {
-    pathname = url.split("?", 1)[0] ?? "";
-  }
-
-  return (
-    /^\/api\/sessions\/[^/]+\/players\/[^/]+\/gameplay-capability$/.test(
-      pathname,
-    ) ||
-    /^\/api\/demo\/sessions\/[^/]+\/players\/[^/]+\/gameplay-capability$/.test(
-      pathname,
-    )
-  );
-}
-
-function canonicalizeBrowserOrigin(
-  origin: string | string[] | undefined,
-): string | null {
-  if (typeof origin !== "string") return null;
-  const rawOrigin = origin.trim();
-  if (!rawOrigin || rawOrigin === "null") return null;
-
-  let parsed: URL;
-  try {
-    parsed = new URL(rawOrigin);
-  } catch {
-    return null;
-  }
-
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return null;
-  }
-  if (parsed.username || parsed.password) {
-    return null;
-  }
-  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
-    return null;
-  }
-  if (
-    parsed.hostname !== "localhost" &&
-    parsed.hostname.includes("localhost")
-  ) {
-    return null;
-  }
-  if (parsed.hostname.startsWith("[") && rawOrigin !== parsed.origin) {
-    return null;
-  }
-
-  return parsed.origin;
-}
-
-function deleteHeaderCaseInsensitive(
-  headers: http.OutgoingHttpHeaders,
-  headerName: string,
-): void {
-  const target = headerName.toLowerCase();
-  for (const key of Object.keys(headers)) {
-    if (key.toLowerCase() === target) {
-      delete headers[key];
-    }
-  }
 }
 
 function formatUnknown(value: unknown): string {

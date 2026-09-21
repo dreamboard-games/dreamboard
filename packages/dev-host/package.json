@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/dev-host",
-  "version": "0.1.30-alpha.33",
+  "version": "0.1.30-alpha.34",
   "description": "Project-local Dreamboard development host.",
   "repository": {
     "type": "git",
@@ -26,14 +26,14 @@
   "scripts": {
     "check": "pnpm run build && pnpm run test",
     "build": "tsc -p tsconfig.json",
-    "test": "bun run scripts/test.ts",
+    "test": "bun run scripts/test.ts && vitest run test-node",
     "stage:publish": "pnpm --dir ../../apps/dreamboard-cli run release-set:generate && pnpm run build && tsx ../../apps/dreamboard-cli/scripts/stage-dev-host-package.ts",
     "pack:publish": "pnpm run stage:publish && npm pack --pack-destination .publish .publish/package"
   },
   "dependencies": {
     "@dreamboard-games/api-client": "workspace:*",
-    "@dreamboard-games/sdk": "0.4.0-alpha.14",
-    "@dreamboard-games/ui-host-runtime": "0.1.0-alpha.7",
+    "@dreamboard-games/sdk": "0.5.0-alpha.0",
+    "@dreamboard-games/ui-host-runtime": "workspace:*",
     "@tailwindcss/postcss": "^4.3.0",
     "@vitejs/plugin-react": "^4.7.0",
     "clsx": "^2.1.1",
@@ -58,10 +58,14 @@
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "playwright": "^1.60.0",
+    "ws": "^8.18.3",
+    "@types/ws": "^8.18.1"
   },
   "peerDependencies": {
-    "@dreamboard-games/sdk": "0.4.0-alpha.14"
+    "@dreamboard-games/sdk": "0.5.0-alpha.0"
   },
   "publishConfig": {
     "access": "public"

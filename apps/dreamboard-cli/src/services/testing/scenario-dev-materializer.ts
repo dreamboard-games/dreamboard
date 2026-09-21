@@ -1,10 +1,18 @@
+import { connectGameplayAuthority } from "@dreamboard-games/gameplay-authority-client";
+import {
+  RuntimeJsonSchema,
+  type PluginGameplayFrame,
+} from "@dreamboard-games/sdk/plugin-runtime-contract";
 import {
   getSessionSnapshot,
   startGame,
-  type HostSessionSnapshot,
+  type SessionControlSnapshot,
 } from "@dreamboard-games/api-client";
-import { createProjectSessionSdk } from "../api/index.js";
-import { submitGameplayAuthorityAction } from "../gameplay-authority-submit.js";
+import { createProjectSessionSdk } from "../api/project-api.js";
+import {
+  currentGameplayCredential,
+  submitGameplayAuthorityAction,
+} from "../gameplay-authority-submit.js";
 import { toDreamboardApiError } from "../../utils/errors.js";
 import { projectIdFromSessionGameSource } from "../../utils/session-game-source.js";
 import {
@@ -102,11 +110,11 @@ type ScenarioMaterializerDependencies = {
   readonly loadScenarios: typeof loadReducerNativeScenarios;
   readonly compileScenario: typeof compileReducerNativeScenarioReplay;
   readonly createSession: typeof createProjectSessionSdk;
-  readonly startSession: (sessionId: string) => Promise<HostSessionSnapshot>;
+  readonly startSession: (sessionId: string) => Promise<SessionControlSnapshot>;
   readonly readSession: (options: {
     readonly sessionId: string;
     readonly playerId: string;
-  }) => Promise<HostSessionSnapshot>;
+  }) => Promise<PluginGameplayFrame>;
   readonly submitAction: typeof submitGameplayAuthorityAction;
 };
 
@@ -282,7 +290,6 @@ export async function createSessionFromScenario(
     backendPlayerIds,
     deps,
     localInspectionCache,
-    preferredSnapshot: startedSnapshot,
   });
   let commandsReplayed = 0;
 
@@ -304,21 +311,7 @@ export async function createSessionFromScenario(
         sessionId: session.sessionId,
         playerId: actorPlayerId,
       }));
-    const gameplay = requireGameplaySnapshot({
-      snapshot: actorSnapshot,
-      scenario: authorityScenario,
-      checkpoint: currentCheckpoint,
-      sourceCommand: step.source,
-    });
-    const actorSeatProjection = gameplay.seats[actorPlayerId];
-    if (!actorSeatProjection) {
-      throw backendSnapshotError({
-        scenario: authorityScenario,
-        checkpoint: currentCheckpoint,
-        sourceCommand: step.source,
-        message: `${formatSourceCommand(step.source)} cannot resolve backend projection for seat ${step.command.actor.seat}.`,
-      });
-    }
+    const gameplay = actorSnapshot;
     const beforeInspection = await cachedLocalInspection({
       scenario: authorityScenario,
       checkpoint: currentCheckpoint,
@@ -340,13 +333,16 @@ export async function createSessionFromScenario(
         interactionId: step.command.interactionId,
       },
       body: {
-        expectedVersion: gameplay.version,
-        actionSetVersion: actorSeatProjection.actionSetVersion,
-        inputs,
+        expectedVersion: gameplay.basis.version,
+        actionSetVersion: gameplay.basis.actionSetVersion,
+        inputs: RuntimeJsonSchema.parse(inputs),
       },
     });
     if (submitted.error || submitted.data?.accepted !== true) {
-      const backendErrorCode = submitted.data?.errorCode ?? undefined;
+      const backendErrorCode =
+        submitted.data?.accepted === false
+          ? submitted.data.errorCode
+          : undefined;
       throw new ScenarioDevMaterializationError({
         code: "SCENARIO_BACKEND_REPLAY_REJECTED",
         message:
@@ -543,31 +539,20 @@ async function assertCheckpointParity(options: {
     string,
     Awaited<ReturnType<typeof inspectLocalScenario>>
   >;
-  readonly preferredSnapshot?: HostSessionSnapshot;
   readonly sourceCommand?: ScenarioSourceCommand;
 }): Promise<{
   readonly proofs: readonly ScenarioProjectionDigestProof[];
-  readonly snapshotsBySeat: ReadonlyMap<number, HostSessionSnapshot>;
+  readonly snapshotsBySeat: ReadonlyMap<number, PluginGameplayFrame>;
 }> {
   const proofs: ScenarioProjectionDigestProof[] = [];
-  const snapshotsBySeat = new Map<number, HostSessionSnapshot>();
+  const snapshotsBySeat = new Map<number, PluginGameplayFrame>();
   for (const [seat, playerId] of options.backendPlayerIds.entries()) {
-    const snapshot =
-      seat === 0 &&
-      options.preferredSnapshot?.type === "gameplay" &&
-      options.preferredSnapshot.gameplay.perspectivePlayerId === playerId
-        ? options.preferredSnapshot
-        : await options.deps.readSession({
-            sessionId: options.sessionId,
-            playerId,
-          });
-    snapshotsBySeat.set(seat, snapshot);
-    const gameplay = requireGameplaySnapshot({
-      snapshot,
-      scenario: options.scenario,
-      checkpoint: options.checkpoint,
-      sourceCommand: options.sourceCommand,
+    const snapshot = await options.deps.readSession({
+      sessionId: options.sessionId,
+      playerId,
     });
+    snapshotsBySeat.set(seat, snapshot);
+    const gameplay = snapshot;
     const local = await cachedLocalInspection({
       scenario: options.scenario,
       checkpoint: options.checkpoint,
@@ -612,45 +597,32 @@ async function assertCheckpointParity(options: {
 
 function backendScenarioProjection(options: {
   readonly scenario: LoadedReducerNativeScenario;
-  readonly gameplay: Extract<
-    HostSessionSnapshot,
-    { type: "gameplay" }
-  >["gameplay"];
+  readonly gameplay: PluginGameplayFrame;
   readonly playerId: string;
   readonly playerIds: readonly string[];
   readonly seat: number;
 }): ScenarioProjectionParityLike {
-  const seatProjection = options.gameplay.seats[options.playerId];
-  if (!seatProjection) {
-    throw new Error(
-      `Backend gameplay projection omitted selected player '${options.playerId}'.`,
-    );
+  if (options.gameplay.flow.currentPhase === null) {
+    throw new Error("Scenario projection has no current phase.");
   }
-  const interactionRefs = seatProjection.availableInteractionRefs;
   return {
     perspective: { seat: options.seat },
     flow: {
-      phase: options.gameplay.shared.currentPhase,
-      step: options.gameplay.shared.currentStage,
+      phase: options.gameplay.flow.currentPhase,
+      step: options.gameplay.flow.currentStage,
       activeSeats: mapBackendPlayerIdsToSeats(
-        options.gameplay.shared.activePlayers,
+        options.gameplay.flow.activePlayers,
         options.playerIds,
       ),
       pendingSeats: mapBackendPlayerIdsToSeats(
-        options.gameplay.shared.simultaneousPhase?.pendingPlayerIds ?? [],
+        options.gameplay.flow.simultaneousPhase?.pendingPlayerIds ?? [],
         options.playerIds,
       ),
       continuationWaiterSeats: [],
       blockedBy: [],
     },
-    view: parseBackendView(seatProjection.view, options.playerId),
-    interactions: interactionRefs.map((ref) => {
-      const descriptor = options.gameplay.interactionsByRef[ref];
-      if (!descriptor) {
-        throw new Error(
-          `Backend gameplay projection references missing interaction '${ref}'.`,
-        );
-      }
+    view: options.gameplay.view,
+    interactions: options.gameplay.availableInteractions.map((descriptor) => {
       return {
         actorSeat: options.seat,
         interactionId: descriptor.interactionId,
@@ -702,20 +674,8 @@ function mapBackendPlayerIdsToSeats(
   ].sort((left, right) => left - right);
 }
 
-function parseBackendView(value: string | null, playerId: string): unknown {
-  if (value === null) return null;
-  try {
-    return JSON.parse(value) as unknown;
-  } catch (error) {
-    throw new Error(
-      `Backend view for '${playerId}' is not valid JSON: ${errorMessage(error)}`,
-      { cause: error },
-    );
-  }
-}
-
 function requireBackendPlayerIds(options: {
-  readonly snapshot: HostSessionSnapshot;
+  readonly snapshot: SessionControlSnapshot;
   readonly expectedCount: number;
   readonly scenario: LoadedReducerNativeScenario;
 }): readonly string[] {
@@ -733,25 +693,6 @@ function requireBackendPlayerIds(options: {
     });
   }
   return playerIds;
-}
-
-function requireGameplaySnapshot(options: {
-  readonly snapshot: HostSessionSnapshot;
-  readonly scenario: LoadedReducerNativeScenario;
-  readonly checkpoint: ScenarioCheckpointLike;
-  readonly sourceCommand?: ScenarioSourceCommand;
-}): Extract<HostSessionSnapshot, { type: "gameplay" }>["gameplay"] {
-  if (options.snapshot.type !== "gameplay") {
-    throw backendSnapshotError({
-      scenario: options.scenario,
-      checkpoint: options.checkpoint,
-      sourceCommand: options.sourceCommand,
-      message:
-        `${options.sourceCommand ? formatSourceCommand(options.sourceCommand) : "Scenario setup"} ` +
-        `reached backend session state '${options.snapshot.type}' before projection parity could be proven.`,
-    });
-  }
-  return options.snapshot.gameplay;
 }
 
 function backendSnapshotError(options: {
@@ -789,7 +730,7 @@ function formatSourceCommand(source: ScenarioSourceCommand): string {
 
 async function startBackendSession(
   sessionId: string,
-): Promise<HostSessionSnapshot> {
+): Promise<SessionControlSnapshot> {
   const { data, error, response } = await startGame({
     path: { sessionId },
   });
@@ -810,7 +751,7 @@ async function startBackendSession(
 async function readBackendSession(options: {
   readonly sessionId: string;
   readonly playerId: string;
-}): Promise<HostSessionSnapshot> {
+}): Promise<PluginGameplayFrame> {
   const { data, error, response } = await getSessionSnapshot({
     path: { sessionId: options.sessionId },
     query: { playerId: options.playerId },
@@ -826,7 +767,24 @@ async function readBackendSession(options: {
       ),
     });
   }
-  return data;
+  const connection = await connectGameplayAuthority({
+    websocketUrl: data.context.gameplayWebsocketUrl,
+    credential: currentGameplayCredential(),
+    sessionId: options.sessionId,
+    playerId: options.playerId,
+  });
+  try {
+    const frames = connection.frames(AbortSignal.timeout(10_000));
+    connection.resume();
+    for await (const frame of frames) {
+      if (frame.type === "session.snapshot") return frame.frame;
+    }
+    throw new Error(
+      "Gameplay socket closed before the scenario projection arrived.",
+    );
+  } finally {
+    connection.close();
+  }
 }
 
 function errorMessage(error: unknown): string {

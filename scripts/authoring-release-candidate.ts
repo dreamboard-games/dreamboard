@@ -3,7 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { AuthoringReleaseSetV1 } from "../apps/dreamboard-cli/src/release/authoring-release-set.ts";
 
-export type CandidatePackageKey = "cli" | "devHost";
+export const CANDIDATE_PACKAGE_KEYS = [
+  "apiClient",
+  "gameplayProtocol",
+  "gameplayClient",
+  "uiHostRuntime",
+  "devHost",
+  "cli",
+] as const;
+export type CandidatePackageKey = (typeof CANDIDATE_PACKAGE_KEYS)[number];
 
 export type AuthoringReleaseCandidatePackageV1 = {
   key: CandidatePackageKey;
@@ -56,8 +64,10 @@ export async function readCandidateReceipt(
     throw new Error(`Unsupported authoring release set in ${receiptPath}.`);
   }
   const keys = receipt.packages.map((entry) => entry.key).sort();
-  if (keys.join(",") !== "cli,devHost") {
-    throw new Error(`${receiptPath} must contain exactly CLI and dev-host.`);
+  if (keys.join(",") !== [...CANDIDATE_PACKAGE_KEYS].sort().join(",")) {
+    throw new Error(
+      `${receiptPath} must contain exactly the six authoring packages.`,
+    );
   }
   for (const entry of receipt.packages) {
     const releaseEntry = receipt.releaseSet.packages[entry.key];

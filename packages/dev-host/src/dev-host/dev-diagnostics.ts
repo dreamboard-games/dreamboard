@@ -1,7 +1,7 @@
 import type { LoggerLike } from "@dreamboard-games/ui-host-runtime/runtime";
 
 export type DevLogEnvelope = {
-  source: "host" | "plugin" | "sse";
+  source: "host" | "plugin" | "gameplay";
   level: "log" | "warn" | "error" | "info";
   message: string;
 };

@@ -1,5 +1,6 @@
+import type { PluginGameplayFrame } from "@dreamboard-games/sdk/plugin-runtime-contract";
 import { describe, expect, test } from "bun:test";
-import type { HostSessionSnapshot } from "@dreamboard-games/api-client";
+import type { SessionControlSnapshot } from "@dreamboard-games/api-client";
 import {
   createSessionFromScenario,
   parseScenarioCheckpoint,
@@ -377,9 +378,9 @@ function createBackendHarness(
           },
         } as never;
       },
-      startSession: async () => snapshot(),
+      startSession: async () => snapshot().control,
       readSession: async ({ playerId }: { playerId: string }) =>
-        snapshot(playerId),
+        snapshot(playerId).gameplay,
       submitAction: async (request: {
         readonly path: unknown;
         readonly body: {
@@ -392,10 +393,9 @@ function createBackendHarness(
         if (options.rejectAtVersion === version) {
           return {
             data: {
-              success: false,
               accepted: false,
-              version,
-              actionSetVersion: `actions:${version}`,
+              clientActionId: "test-action",
+              message: "Rule changed",
               errorCode: "BACKEND_RULE_CHANGED",
             },
           };
@@ -403,10 +403,8 @@ function createBackendHarness(
         version += 1;
         return {
           data: {
-            success: true,
             accepted: true,
-            version,
-            actionSetVersion: `actions:${version}`,
+            clientActionId: "test-action",
           },
         };
       },
@@ -544,51 +542,53 @@ function createGameplaySnapshot(options: {
   readonly setupProfileId: string;
   readonly playerCount: number;
   readonly activeSeat: number;
-}): HostSessionSnapshot {
+}): { control: SessionControlSnapshot; gameplay: PluginGameplayFrame } {
   const playerIds = Array.from(
     { length: options.playerCount },
     (_, index) => `player-${index + 1}`,
   );
   return {
-    type: "gameplay",
-    context: {
-      sessionId: "session-1",
-      shortCode: "calm-cloud-17",
-      phase: "gameplay",
-      status: "active",
-      hostActor: { kind: "AUTH_USER", id: "user-1" },
-      gameSource: {
-        kind: "USER_COMPILED",
-        projectId: "project-1",
-        revisionDigest: "sha256:revision",
-        compiledResultId: "compile-1",
+    control: {
+      context: {
+        sessionId: "session-1",
+        shortCode: "calm-cloud-17",
+        phase: "started",
+        gameplayWebsocketUrl: "ws://gameplay.test",
+        hostActor: { kind: "AUTH_USER", id: "user-1" },
+        gameSource: {
+          kind: "USER_COMPILED",
+          projectId: "project-1",
+          revisionDigest: "sha256:revision",
+          compiledResultId: "compile-1",
+        },
+        setupProfileId: options.setupProfileId,
+        switchablePlayerIds: playerIds,
       },
-      setupProfileId: options.setupProfileId,
-      switchablePlayerIds: playerIds,
-    },
-    lobby: {
-      seats: playerIds.map((playerId, index) => ({
-        playerId,
-        displayName: `Player ${index + 1}`,
-        isHost: index === 0,
-      })),
-      canStart: false,
-      hostActor: { kind: "AUTH_USER", id: "user-1" },
-      setupProfileId: options.setupProfileId,
+      lobby: {
+        seats: playerIds.map((playerId, index) => ({
+          playerId,
+          displayName: `Player ${index + 1}`,
+          isHost: index === 0,
+        })),
+        canStart: false,
+        hostActor: { kind: "AUTH_USER", id: "user-1" },
+        setupProfileId: options.setupProfileId,
+      },
     },
     gameplay: {
-      version: options.version,
-      actionSetVersion: `actions:${options.version}`,
-      perspectivePlayerId: options.perspectivePlayerId,
-      controllablePlayerIds: playerIds,
-      shared: {
+      basis: {
+        version: options.version,
+        actionSetVersion: `actions:${options.version}`,
+        perspectivePlayerId: options.perspectivePlayerId,
+      },
+      flow: {
         activePlayers: [playerIds[options.activeSeat]!],
         currentPhase: "main",
         currentStage: null,
-        stageSeats: [],
+        simultaneousPhase: null,
       },
-      interactionsByRef: {
-        increment: {
+      availableInteractions: [
+        {
           kind: "action",
           phaseName: "main",
           interactionKey: "increment",
@@ -597,18 +597,10 @@ function createGameplaySnapshot(options: {
           inputs: [],
           availability: { status: "available" },
         },
-      },
-      seats: Object.fromEntries(
-        playerIds.map((playerId) => [
-          playerId,
-          {
-            actionSetVersion: `actions:${options.version}`,
-            view: JSON.stringify({ value: options.viewValue }),
-            availableInteractionRefs: ["increment"],
-            zones: {},
-          },
-        ]),
-      ),
+      ],
+      view: { value: options.viewValue },
+      zones: {},
+      recentEvents: [],
     },
   };
 }

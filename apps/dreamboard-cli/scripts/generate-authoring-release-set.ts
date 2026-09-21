@@ -159,6 +159,36 @@ const [rootPackage, cliPackage, apiClientPackage, devHostPackage] =
     ),
   ]);
 
+const sharedPackages = Object.fromEntries(
+  await Promise.all(
+    [
+      ["gameplayProtocol", "gameplay-authority-protocol"],
+      ["gameplayClient", "gameplay-authority-client"],
+      ["uiHostRuntime", "ui-host-runtime"],
+    ].map(async ([key, directory]) => {
+      const manifest = await readPackageJson(
+        path.join(repoRoot, "packages", directory!, "package.json"),
+      );
+      if (
+        manifest.dependencies?.["@dreamboard-games/sdk"] !==
+        cliPackage.devDependencies?.["@dreamboard-games/sdk"]
+      ) {
+        throw new Error(`${directory} must use the authoring SDK version.`);
+      }
+      return [
+        key,
+        {
+          name: manifest.name!,
+          version: requireExactVersion(directory!, manifest.version),
+        },
+      ];
+    }),
+  ),
+) as Pick<
+  AuthoringReleaseSetV1["packages"],
+  "gameplayProtocol" | "gameplayClient" | "uiHostRuntime"
+>;
+
 const cliSdkVersion = requireExactVersion(
   "@dreamboard-games/sdk CLI development dependency",
   cliPackage.devDependencies?.["@dreamboard-games/sdk"],
@@ -244,6 +274,7 @@ const releaseSetWithoutId: Omit<AuthoringReleaseSetV1, "releaseSetId"> = {
   schemaVersion: 1,
   channel: "public",
   packages: {
+    ...sharedPackages,
     cli: {
       name: "@dreamboard-games/cli",
       version: packageVersions.cli,
