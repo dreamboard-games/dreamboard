@@ -64,13 +64,13 @@ export interface ReducerBundleSmokeFailure {
 }
 
 /**
- * Shape of a single seat's slice in `projectSeatsDynamic(...)`. Only `view`
+ * Shape of a single seat's slice in `project(...)`. Only `view`
  * is consumed by the preflight, but the full wire DTO keeps local tests
  * aligned with the canonical reducer boundary.
  */
 export type ReducerBundleSeatProjection = Wire.SeatProjection;
 
-/** Result of calling `bundle.projectSeatsDynamic({ state, playerIds })`. */
+/** Result of calling `bundle.project({ state, playerIds })`. */
 export type ReducerBundleSeatProjectionBundle = Wire.SeatProjectionBundle;
 
 /**
@@ -86,12 +86,12 @@ export type ReducerBundleLike = Pick<
       rngSeed?: number | null;
       setup?: unknown;
     }): unknown | Promise<unknown>;
-    projectSeatsDynamic(input: {
+    project(input: {
       state: unknown;
       playerIds: readonly string[];
     }): ReducerBundleSeatProjectionBundle;
   },
-  "initialize" | "projectSeatsDynamic"
+  "initialize" | "project"
 >;
 
 type PerPlayerValidationHelpers = {
@@ -324,7 +324,7 @@ function identityShuffle<Value>(values: readonly Value[]): Value[] {
  *
  *   1. materializes an initial table via `materializeManifestTable`,
  *   2. calls `bundle.initialize({ table, playerIds, rngSeed, setup })`,
- *   3. calls `bundle.projectSeatsDynamic({ state, playerIds })` once, and
+ *   3. calls `bundle.project({ state, playerIds })` once, and
  *   4. validates any embedded `PerPlayer<T>` views match the runtime seat
  *      list using `perPlayerSchema({ players: playerIds })`.
  *
@@ -407,7 +407,7 @@ export async function driveReducerBundleThroughScenarios(options: {
 
     let projection: ReducerBundleSeatProjectionBundle | undefined;
     try {
-      projection = bundle.projectSeatsDynamic({
+      projection = bundle.project({
         state: sessionState as Wire.ReducerSessionState,
         playerIds: [...playerIds],
       });
@@ -430,7 +430,7 @@ export async function driveReducerBundleThroughScenarios(options: {
           scenario,
           phase: "PROJECT_SEATS",
           playerId,
-          headline: `projectSeatsDynamic() did not return an entry for seat '${playerId}'.`,
+          headline: `project() did not return an entry for seat '${playerId}'.`,
         });
         continue;
       }
@@ -524,7 +524,7 @@ function formatFailureLines(
  * The surrounding workflow already guarantees that the authored contract imports cleanly
  * (via `assertReducerContractPreflight`) and that `tsc --noEmit` is
  * green (via `runLocalTypecheck`) before this runs, so failures from
- * this step are always runtime-shaped (`initialize`/`projectSeatsDynamic` rejecting,
+ * this step are always runtime-shaped (`initialize`/`project` rejecting,
  * `perPlayer` seat mismatches, …) rather than static type or import
  * errors.
  */
