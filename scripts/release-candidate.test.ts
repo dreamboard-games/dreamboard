@@ -9,13 +9,13 @@ function candidate() {
   const packages = [
     {
       name: runtimePackage,
-      version: "0.1.0-alpha.0",
+      version: "0.1.0-alpha.1",
       file: "runtime.tgz",
       integrity: "sha512-runtime",
     },
     {
       name: hostPackage,
-      version: "0.2.0-alpha.0",
+      version: "0.2.0-alpha.1",
       file: "host.tgz",
       integrity: "sha512-host",
     },
@@ -23,7 +23,7 @@ function candidate() {
   const receipt = {
     schemaVersion: 2,
     sourceCommit: "abc",
-    sdkVersion: "0.5.0-alpha.1",
+    sdkVersion: "0.5.0-alpha.2",
     packages,
   };
   const manifests = packages.map((entry) => ({

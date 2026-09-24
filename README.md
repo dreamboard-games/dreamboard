@@ -26,4 +26,4 @@ Use Node 24 and pnpm. `pnpm check` builds the public packages and executes brows
 
 `pnpm verify:package` creates tarballs and a SHA-512 receipt under `build/release-candidate` and verifies package identities and compiled entrypoints. The manually dispatched release workflow uploads this immutable candidate for review. Its explicit `publish` input enables npm publication through the protected release environment, rechecking exact registry integrity before and after publishing.
 
-The no-generated-source authoring API is being delivered in the corresponding SDK change. This branch uses the real published SDK `0.5.0-alpha.1` until that candidate is published and repinned; do not substitute a private workspace SDK dependency.
+The offline packages use the published SDK `0.5.0-alpha.2`. Keep the SDK, browser runtime, and dev host pinned to one published cohort; do not substitute a private workspace SDK dependency.
