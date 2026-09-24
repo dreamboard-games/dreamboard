@@ -28,6 +28,7 @@ await writeFile(
     private: true,
     type: "module",
     packageManager: "pnpm@10.4.1",
+    pnpm: { overrides: { "@dreamboard-games/browser-gameplay-runtime": `file:${runtimeFile}` } },
     dependencies: {
       "@dreamboard-games/dev-host": `file:${path.join(candidate, host.file)}`,
       "@dreamboard-games/browser-gameplay-runtime": `file:${runtimeFile}`,
