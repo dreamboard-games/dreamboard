@@ -1,10 +1,11 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
   type PackageManifest,
   hostPackage,
   runtimePackage,
   validateCandidateCohort,
   validateInstalledProof,
+  verifyPublishedIntegrity,
 } from "./release-candidate-validation.ts";
 function candidate() {
   const packages = [
@@ -94,3 +95,54 @@ for (const index of [0, 1]) {
     },
   );
 }
+
+test("waits for missing published metadata without republishing", async () => {
+  vi.useFakeTimers();
+  try {
+    const entry = candidate().receipt.packages[0]!;
+    const read = vi
+      .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
+      .mockReturnValue(entry.integrity);
+    const verified = verifyPublishedIntegrity(entry, read);
+    expect(read).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await verified;
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(read).toHaveBeenLastCalledWith(entry.name, entry.version);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+test("fails immediately for a published integrity mismatch", async () => {
+  vi.useFakeTimers();
+  try {
+    const read = vi.fn().mockReturnValue("sha512-other");
+    await expect(
+      verifyPublishedIntegrity(candidate().receipt.packages[0]!, read),
+    ).rejects.toThrow("Published integrity mismatch");
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+test("bounds missing-version convergence to twenty minutes", async () => {
+  vi.useFakeTimers();
+  try {
+    const read = vi.fn().mockReturnValue(null);
+    const verified = verifyPublishedIntegrity(
+      candidate().receipt.packages[0]!,
+      read,
+    );
+    const rejected = expect(verified).rejects.toThrow("within 20 minutes");
+    await vi.advanceTimersByTimeAsync(1_200_000);
+    await rejected;
+    expect(read).toHaveBeenCalledTimes(121);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
