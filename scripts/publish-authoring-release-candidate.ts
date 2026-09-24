@@ -1,6 +1,7 @@
 import { validateInstalledProof } from "./release-candidate-validation.ts";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { setTimeout } from "node:timers/promises";
 import path from "node:path";
 import "./verify-authoring-release-candidate.ts";
 const destination = path.resolve(
@@ -40,6 +41,7 @@ function registryIntegrity(name: string, version: string): string | null {
           "--json",
           "--registry",
           "https://registry.npmjs.org/",
+          "--prefer-online",
         ],
         { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
       ),
@@ -78,6 +80,13 @@ for (const entry of unpublished) {
   );
 }
 for (const entry of receipt.packages) {
-  if (registryIntegrity(entry.name, entry.version) !== entry.integrity)
-    throw new Error(`Published integrity mismatch: ${entry.name}`);
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const published = registryIntegrity(entry.name, entry.version);
+    if (published === entry.integrity) break;
+    if (published !== null)
+      throw new Error(`Published integrity mismatch: ${entry.name}`);
+    if (attempt === 59)
+      throw new Error(`Published package unavailable: ${entry.name}`);
+    await setTimeout(5_000);
+  }
 }
