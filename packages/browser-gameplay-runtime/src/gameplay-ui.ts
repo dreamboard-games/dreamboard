@@ -26,6 +26,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
   let bridge: PluginBridge;
   let iframe: HTMLIFrameElement;
   let disposed = false;
+  let stopHandshake = () => {};
   let tail: Promise<unknown> = Promise.resolve();
   function queue<T>(run: () => Promise<T>): Promise<T> {
     const result = tail.then(() => {
@@ -77,9 +78,18 @@ export function mountGameplayUI(options: GameplayUIOptions) {
     iframe.srcdoc = policy + options.html;
     options.container.append(iframe);
     bridge = new PluginBridge(iframe);
-    bridge.onPluginMessage("runtime.ready", () =>
-      bridge.sendGameplayFrame(frame),
-    );
+    const mountedBridge = bridge;
+    let attempts = 0;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const mountedIframe = iframe;
+    stopHandshake = () => {
+      clearInterval(timer);
+      mountedIframe.onload = null;
+    };
+    bridge.onPluginMessage("runtime.ready", () => {
+      stopHandshake();
+      mountedBridge.sendGameplayFrame(frame);
+    });
     bridge.onPluginMessage("runtime.error", (message) =>
       options.onError?.(new Error(message.message)),
     );
@@ -127,11 +137,21 @@ export function mountGameplayUI(options: GameplayUIOptions) {
         }
       }).catch((error) => options.onError?.(error));
     });
-    iframe.onload = () =>
-      bridge.sendInit({
-        sessionId: options.sessionId,
-        players: options.players,
-      });
+    iframe.onload = () => {
+      const sendInit = () => {
+        if (++attempts > 40) {
+          stopHandshake();
+          options.onError?.(new Error("Game UI did not initialize within 10 seconds"));
+          return;
+        }
+        mountedBridge.sendInit({
+          sessionId: options.sessionId,
+          players: options.players,
+        });
+      };
+      timer = setInterval(sendInit, 250);
+      sendInit();
+    };
   }
   updateSnapshot(snapshot);
   mount();
@@ -140,6 +160,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       queue(async () => {
         const next = await options.runtime.selectSeat(playerId);
         if (!disposed) {
+          stopHandshake();
           bridge.disconnect();
           iframe.remove();
           updateSnapshot(next);
@@ -151,6 +172,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       queue(async () => {
         const next = await options.runtime.reset();
         if (!disposed) {
+          stopHandshake();
           bridge.disconnect();
           iframe.remove();
           updateSnapshot(next);
@@ -160,6 +182,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       }),
     dispose: () => {
       disposed = true;
+      stopHandshake();
       bridge.disconnect();
       iframe.remove();
     },

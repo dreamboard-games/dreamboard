@@ -231,7 +231,7 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
       const initialSnapshot = await runtime.start();
       const html = `<button id="increment">Increment</button><pre></pre><script>
   let host,frame;
-  addEventListener('message',event=>{
+  setTimeout(()=>addEventListener('message',event=>{
    if(event.source!==parent)return;
    if(event.data.payload.type==='runtime.init'){
     host=event.data;parent.postMessage({...host,sequence:1,payload:{type:'runtime.ready'}},event.origin);
@@ -239,7 +239,7 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
    if(event.data.payload.type==='gameplay.frame'){
     frame=event.data.payload.frame;document.querySelector('pre').textContent=JSON.stringify(frame);
    }
-  });
+  }), 600);
   document.querySelector('button').onclick=()=>parent.postMessage({...host,sequence:2,payload:{type:'interaction.submit',clientActionId:crypto.randomUUID(),basis:frame.basis,interactionId:'increment',params:{}}},'*');
   </script>`;
       (window as any).ui = module.mountGameplayUI({
