@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/dev-host",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.2",
   "type": "module",
   "description": "Project-local offline Dreamboard development host.",
   "bin": {

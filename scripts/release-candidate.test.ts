@@ -9,13 +9,13 @@ function candidate() {
   const packages = [
     {
       name: runtimePackage,
-      version: "0.1.0-alpha.0",
+      version: "0.1.0-alpha.2",
       file: "runtime.tgz",
       integrity: "sha512-runtime",
     },
     {
       name: hostPackage,
-      version: "0.2.0-alpha.0",
+      version: "0.2.0-alpha.2",
       file: "host.tgz",
       integrity: "sha512-host",
     },

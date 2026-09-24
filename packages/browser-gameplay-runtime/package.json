@@ -1,6 +1,6 @@
 {
   "name": "@dreamboard-games/browser-gameplay-runtime",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.2",
   "type": "module",
   "description": "Offline browser gameplay in an opaque sandbox and terminable worker.",
   "exports": {
