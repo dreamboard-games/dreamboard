@@ -12,7 +12,7 @@ test("launcher bundles authored sources and boots SDK UI without a backend", asy
   try {
     await page.goto(host.url);
     await expect(page.locator("#status")).toHaveText(
-      "Local play · remote media blocked",
+      "Local play",
     );
     await expect(
       page.frameLocator('iframe[title="Game"]').getByRole("heading"),
@@ -34,7 +34,7 @@ test("launcher bundles authored sources and boots SDK UI without a backend", asy
     ).toHaveText("Count: 1");
     await page.getByRole("button", { name: "Reset game" }).click();
     await expect(page.locator("#status")).toHaveText(
-      "Local play · remote media blocked",
+      "Local play",
     );
     await expect(page.locator("#error")).toBeEmpty();
   } finally {
