@@ -39,6 +39,8 @@ tags:
     description: Development and testing endpoints
   - name: Internal Perf
     description: Internal performance evidence endpoints
+  - name: Internal Demo Releases
+    description: Internal operator endpoints for observing demo release state
   - name: Demo Games
     description: Bundled catalog demos playable without an account
 paths:
@@ -216,7 +218,6 @@ paths:
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
-        - agent-job
       x-dreamboard-policy:
         action: project.read
         resource:
@@ -278,7 +279,6 @@ paths:
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
-        - agent-job
       x-dreamboard-policy:
         action: project.read
         resource:
@@ -314,7 +314,6 @@ paths:
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
-        - agent-job
       x-dreamboard-policy:
         action: project.author
         resource:
@@ -362,7 +361,6 @@ paths:
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
-        - agent-job
       x-dreamboard-policy:
         action: project.author
         resource:
@@ -406,7 +404,6 @@ paths:
       x-dreamboard-exposure: public
       x-dreamboard-actors:
         - user
-        - agent-job
       x-dreamboard-policy:
         action: project.author
         resource:
@@ -425,285 +422,6 @@ paths:
                 $ref: "#/components/schemas/DeleteProjectResponse"
         "400":
           $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/repository":
-    get:
-      summary: Get project repository
-      description: "Get the opaque Git repository binding and reconciliation status for a project in the authenticated user's active owner scope."
-      operationId: getProjectRepository
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "200":
-          description: Repository binding found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectRepository"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-    put:
-      summary: Ensure project repository
-      description: "Ensure the project installation in the authenticated user's active owner scope has one opaque Git repository binding."
-      operationId: ensureProjectRepository
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "200":
-          description: Repository binding ensured
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectRepository"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/repository/reconcile":
-    post:
-      summary: Retry project repository reconciliation
-      description: "Request a new reconciliation generation for the project's opaque Git repository binding."
-      operationId: retryProjectRepositoryReconciliation
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "200":
-          description: Repository reconciliation requested
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectRepository"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/builds":
-    post:
-      summary: Ensure project build
-      description: Ensure a server-derived build recipe and compile job exist for one exact observed Git commit.
-      operationId: ensureProjectBuild
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/EnsureProjectBuildRequest"
-      responses:
-        "200":
-          description: Existing or newly queued project build
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectBuild"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/status/{commitOid}":
-    get:
-      summary: Get project commit status
-      description: "Return server-owned source, build, preview, and release state for one exact Git commit."
-      operationId: getProjectCommitStatus
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-        - name: commitOid
-          in: path
-          required: true
-          description: Exact Git commit OID already resolved by the caller.
-          schema:
-            type: string
-            pattern: "^[a-f0-9]{40,64}$"
-      responses:
-        "200":
-          description: Server state for the requested commit
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectCommitStatus"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/builds/{buildRecipeDigest}":
-    get:
-      summary: Get project build
-      description: Get a server-derived build recipe and compiled artifact state for this project.
-      operationId: getProjectBuild
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-        - name: buildRecipeDigest
-          in: path
-          required: true
-          description: Canonical build recipe digest.
-          schema:
-            type: string
-            pattern: "^sha256:[a-f0-9]{64}$"
-      responses:
-        "200":
-          description: Project build found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectBuild"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/previews":
-    post:
-      summary: Create project preview
-      description: Create a preview aggregate for one exact observed Git commit after its build has succeeded.
-      operationId: createProjectPreview
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateProjectPreviewRequest"
-      responses:
-        "200":
-          description: Pending-retention project preview
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectPreview"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/releases":
-    post:
-      summary: Publish project release
-      description: Create a pending release aggregate for one exact observed Git commit after its release build has succeeded.
-      operationId: publishProjectRelease
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PublishProjectReleaseRequest"
-      responses:
-        "200":
-          description: Pending-retention project release
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectRelease"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/releases/current":
-    get:
-      summary: Get current project release
-      description: Read the active release currently selected for a project.
-      operationId: getCurrentProjectRelease
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "200":
-          description: Current active project release
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectRelease"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "403":
@@ -971,85 +689,30 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/preview/initial-projection":
-    put:
-      summary: Upload initial projection for project preview rendering
-      description: Store the reducer-native projection JSON used by the compiler service to render a dashboard preview screenshot for a project.
-      operationId: uploadProjectInitialProjection
+  "/api/projects/{projectId}/compiled-results/{compiledResultId}/playable":
+    get:
+      summary: Download an immutable playable revision
+      description: "Returns temporary download URLs and published SHA-256 hashes pinned to this successful compiled result, with its manifest and SDK version. Does not create a hosted session."
+      operationId: getProjectPlayableRevision
       security:
         - BearerAuth: []
       tags:
         - Projects
       parameters:
         - $ref: "#/components/parameters/ProjectId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UploadInitialProjectionRequest"
+        - name: compiledResultId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
-        "204":
-          description: Initial projection uploaded successfully
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/preview/screenshot":
-    post:
-      summary: Queue project preview screenshot generation
-      description: Queue an async job that renders the latest successful UI bundle for a project and stores a PNG preview.
-      operationId: queueProjectPreviewScreenshot
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "202":
-          description: Preview screenshot job queued
+        "200":
+          description: Immutable playable code and manifest
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PreviewScreenshotJobResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/preview/image":
-    get:
-      summary: Fetch generated project preview image
-      description: Return the latest generated project preview PNG from artifact storage.
-      operationId: fetchProjectPreviewImage
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "200":
-          description: Preview image retrieved successfully
-          content:
-            image/png:
-              schema:
-                type: string
-                format: binary
+                $ref: "#/components/schemas/PlayableRevision"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "403":
@@ -1259,7 +922,7 @@ paths:
           format: uuid
     get:
       summary: Get job details
-      description: "Fetch details for a specific async job, including ordered user-facing tasks."
+      description: Fetch the current durable snapshot for a specific async job.
       operationId: getJob
       security:
         - BearerAuth: []
@@ -1272,57 +935,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobDetailResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/jobs/{jobId}/event-batches":
-    parameters:
-      - name: jobId
-        in: path
-        required: true
-        description: Unique identifier for any async job
-        schema:
-          type: string
-          format: uuid
-    get:
-      summary: Long-poll job details
-      description: "Return the current job snapshot immediately when it differs from afterCursor, otherwise wait briefly for a job update."
-      operationId: getJobEventBatch
-      security:
-        - BearerAuth: []
-      tags:
-        - Jobs
-      parameters:
-        - name: afterCursor
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Opaque cursor from the previous job event batch.
-        - name: waitMs
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 0
-            maximum: 25000
-            default: 25000
-          description: Maximum time to hold the request before returning an empty batch.
-      responses:
-        "200":
-          description: Job event batch
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JobEventBatchResponse"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1390,74 +1002,6 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  "/api/runs/{jobId}/accept":
-    post:
-      summary: Accept an agent build result
-      description: Accept a ready-for-review agent branch after its reported head has a succeeded preview.
-      operationId: acceptGameRun
-      security:
-        - BearerAuth: []
-      tags:
-        - Agent
-      parameters:
-        - name: jobId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "202":
-          description: Agent build result accept queued
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcceptGameRunResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/projects/{projectId}/sessions/from-reducer-snapshot":
-    post:
-      summary: Create a project session from a reducer snapshot
-      description: "Create an auto-assigned gameplay session from a reducer-native snapshot produced by the CLI scenario harness, resolved through a portable project."
-      operationId: createProjectSessionFromReducerSnapshot
-      security:
-        - BearerAuth: []
-      tags:
-        - Projects
-        - Sessions
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateSessionFromReducerSnapshotRequest"
-      responses:
-        "200":
-          description: Session materialized successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   "/api/sessions/code/{shortCode}":
     parameters:
       - name: shortCode
@@ -1487,7 +1031,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "404":
@@ -1518,7 +1062,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1527,67 +1071,6 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/sessions/{sessionId}/event-batches":
-    parameters:
-      - $ref: "#/components/parameters/SessionId"
-    get:
-      summary: Long-poll lobby session events
-      description: "Return a lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket."
-      operationId: getSessionLobbyEventBatch
-      security:
-        - BearerAuth: []
-      tags:
-        - Sessions
-      parameters:
-        - name: afterCursor
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int64
-            minimum: 0
-          description: Latest lobby message cursor received by the client.
-        - name: waitMs
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 0
-            maximum: 25000
-            default: 25000
-          description: Maximum time to hold the request before returning an empty batch.
-        - name: clientId
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
-        - name: clientSource
-          in: query
-          required: false
-          schema:
-            type: string
-          description: "Optional caller label for diagnostics, such as `play-page` or `session-play-panel`."
-      responses:
-        "200":
-          description: Lobby session event batch
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HostSessionEventBatchResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   "/api/sessions/{sessionId}/start":
@@ -1607,43 +1090,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/sessions/{sessionId}/players/{playerId}/gameplay-capability":
-    parameters:
-      - $ref: "#/components/parameters/SessionId"
-      - $ref: "#/components/parameters/PlayerId"
-    post:
-      summary: Issue a gameplay authority capability
-      description: "Returns a short-lived, session/player-scoped token and WebSocket URL for connecting to the gameplay authority service."
-      operationId: createGameplayCapability
-      parameters:
-        - name: X-Dreamboard-Browser-Origin
-          in: header
-          required: false
-          description: Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
-          schema:
-            type: string
-      security:
-        - BearerAuth: []
-      tags:
-        - Sessions
-      responses:
-        "200":
-          description: Gameplay capability issued successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GameplayCapabilityResponse"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1666,12 +1113,12 @@ paths:
       tags:
         - Sessions
       responses:
-        "201":
-          description: Seat added successfully
+        "200":
+          description: Seat added and resulting lobby returned successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SeatAssignment"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1706,7 +1153,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SeatAssignment"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1726,8 +1173,12 @@ paths:
       tags:
         - Sessions
       responses:
-        "204":
-          description: Seat removed successfully
+        "200":
+          description: Seat removed and resulting lobby returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1751,8 +1202,12 @@ paths:
       tags:
         - Sessions
       responses:
-        "204":
-          description: Seat assigned successfully
+        "200":
+          description: Seat assigned and resulting lobby returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1774,8 +1229,12 @@ paths:
       tags:
         - Sessions
       responses:
-        "204":
-          description: Seat unassigned successfully
+        "200":
+          description: Seat unassigned and resulting lobby returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -1949,8 +1408,8 @@ paths:
       tags:
         - Demo Games
       requestBody:
-        description: Optional deterministic demo-session creation inputs.
-        required: false
+        description: Demo-session creation inputs. Send an empty JSON object to keep randomized demo behavior.
+        required: true
         content:
           application/json:
             schema:
@@ -1996,7 +1455,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "404":
@@ -2026,7 +1485,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -2035,66 +1494,6 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  "/api/demo/sessions/{sessionId}/event-batches":
-    parameters:
-      - $ref: "#/components/parameters/SessionId"
-    get:
-      summary: Long-poll demo lobby session events
-      description: "Return a demo lobby snapshot when no cursor is supplied, otherwise return lobby-visible persisted events after the cursor or wait briefly for the next lobby update. Started player gameplay is delivered by Gameplay Authority WebSocket."
-      operationId: getDemoSessionLobbyEventBatch
-      security: []
-      tags:
-        - Demo
-      parameters:
-        - name: afterCursor
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int64
-            minimum: 0
-          description: Latest lobby message cursor received by the client.
-        - name: waitMs
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            minimum: 0
-            maximum: 25000
-            default: 25000
-          description: Maximum time to hold the request before returning an empty batch.
-        - name: clientId
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Stable browser-tab identifier used to bound concurrent lobby poll requests from the same tab.
-        - name: clientSource
-          in: query
-          required: false
-          schema:
-            type: string
-          description: "Optional caller label for diagnostics, such as `play-page` or `session-play-panel`."
-      responses:
-        "200":
-          description: Demo lobby session event batch
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HostSessionEventBatchResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   "/api/demo/sessions/{sessionId}/start":
@@ -2113,7 +1512,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSessionSnapshot"
+                $ref: "#/components/schemas/SessionControlSnapshot"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "401":
@@ -2124,60 +1523,25 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  "/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability":
-    parameters:
-      - $ref: "#/components/parameters/SessionId"
-      - $ref: "#/components/parameters/PlayerId"
-    post:
-      summary: Issue a demo gameplay authority capability
-      description: Returns a short-lived demo session/player-scoped token and WebSocket URL for connecting to the gameplay authority service.
-      operationId: createDemoGameplayCapability
-      parameters:
-        - name: X-Dreamboard-Browser-Origin
-          in: header
-          required: false
-          description: Canonical browser origin forwarded by the trusted local dev proxy when the normal Origin header is stripped from the server-to-server request.
-          schema:
-            type: string
-      security: []
-      tags:
-        - Demo
-      responses:
-        "200":
-          description: Demo gameplay capability issued successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GameplayCapabilityResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  /api/demo/ui-bundles/fetch:
+  "/api/demo/sessions/{sessionId}/ui-bundle":
     get:
-      summary: Fetch demo UI bundle
-      description: Fetch and return the HTML content of a demo session UI bundle from object storage.
-      operationId: fetchDemoUiBundle
+      summary: Get the UI bundle pinned to a demo session
+      description: Fetch and return the HTML content of the UI bundle pinned to a demo session.
+      operationId: getDemoSessionUiBundle
       security: []
       tags:
         - Demo
       parameters:
-        - name: sessionId
-          in: query
-          description: Demo session whose catalog revision provides the UI bundle.
+        - in: path
+          name: sessionId
+          required: true
+          description: Demo session whose pinned source provides the UI bundle.
           schema:
             type: string
             format: uuid
-          required: true
       responses:
         "200":
-          description: Demo UI bundle HTML retrieved successfully
+          description: Session-pinned plugin iframe HTML
           content:
             text/html:
               schema:
@@ -2187,10 +1551,70 @@ paths:
           $ref: "#/components/responses/BadRequestError"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  "/api/projects/{projectId}/builds/{buildJobId}":
+    get:
+      summary: Inspect an exact commit build
+      operationId: getProjectCommitBuild
+      security:
+        - BearerAuth: []
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: buildJobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Inspect an exact commit build
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectCommitBuild"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  "/api/projects/{projectId}/builds/{buildJobId}/sources":
+    get:
+      summary: Read source files from an exact commit build
+      operationId: getProjectCommitBuildSources
+      security:
+        - BearerAuth: []
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: buildJobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Read source files from an exact commit build
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectCommitBuildSources"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
 components:
   parameters:
     ProjectId:
@@ -2598,13 +2022,9 @@ components:
           type: boolean
           description: Whether the project is publicly visible
           default: false
-        previewStorageKey:
+        thumbnailStorageKey:
           type: string
-          description: Artifact object key for the latest generated project preview PNG
-          nullable: true
-        initialProjectionKey:
-          type: string
-          description: Artifact object key for the reducer-native projection used to render previews
+          description: Artifact object key for the latest project thumbnail
           nullable: true
         verified:
           type: boolean
@@ -2801,426 +2221,6 @@ components:
         metadata:
           $ref: "#/components/schemas/GameMetadata"
           nullable: true
-    ProjectRepositoryProvisioningState:
-      type: string
-      enum:
-        - REQUESTED
-        - PROVISIONING
-        - READY
-        - ERROR
-        - DELETING
-        - DELETED
-    ProjectRepository:
-      type: object
-      description: Environment-local opaque Git repository binding for a project installation.
-      properties:
-        repoBindingId:
-          type: string
-          format: uuid
-          description: Environment-local repository binding identifier. This is not portable project identity.
-        cloneUrl:
-          type: string
-          format: uri
-          description: Git smart-HTTP clone URL for the Dreamboard Git gateway.
-        defaultBranch:
-          type: string
-          description: Default branch configured for the repository.
-        headCommit:
-          type: string
-          nullable: true
-          description: Current repository HEAD commit OID when known.
-        provisioningState:
-          $ref: "#/components/schemas/ProjectRepositoryProvisioningState"
-        desiredGeneration:
-          type: integer
-          format: int64
-          description: Desired repository reconciliation generation.
-        observedGeneration:
-          type: integer
-          format: int64
-          description: Latest Forgejo state generation observed by reconciliation.
-        retryable:
-          type: boolean
-          description: Whether retrying reconciliation is allowed for the current state.
-        errorCode:
-          type: string
-          nullable: true
-          description: Stable sanitized reconciliation error code when provisioning is in error.
-      required:
-        - repoBindingId
-        - cloneUrl
-        - defaultBranch
-        - headCommit
-        - provisioningState
-        - desiredGeneration
-        - observedGeneration
-        - retryable
-    ProjectBuildTargetProfile:
-      type: string
-      enum:
-        - preview
-        - release
-    EnsureProjectBuildRequest:
-      type: object
-      description: Request to ensure a build exists for one exact observed Git commit.
-      properties:
-        commitOid:
-          type: string
-          pattern: "^[a-f0-9]{40,64}$"
-          description: Exact Git commit OID already pushed to the project repository.
-        targetProfile:
-          $ref: "#/components/schemas/ProjectBuildTargetProfile"
-      required:
-        - commitOid
-        - targetProfile
-    ProjectCompiledArtifactStatus:
-      type: string
-      enum:
-        - PENDING
-        - SUCCEEDED
-        - FAILED
-    ProjectBuild:
-      type: object
-      description: Server-derived build recipe and compiled artifact state for one exact Git commit.
-      properties:
-        buildRecipeId:
-          type: string
-          format: uuid
-        buildRecipeDigest:
-          type: string
-          pattern: "^sha256:[a-f0-9]{64}$"
-        gameRevisionId:
-          type: string
-          format: uuid
-        gitSourceRevisionId:
-          type: string
-          format: uuid
-        commitOid:
-          type: string
-        treeOid:
-          type: string
-        targetProfile:
-          $ref: "#/components/schemas/ProjectBuildTargetProfile"
-        compiledArtifactId:
-          type: string
-          format: uuid
-        compiledArtifactStatus:
-          $ref: "#/components/schemas/ProjectCompiledArtifactStatus"
-        compiledArtifactDigest:
-          type:
-            - string
-            - "null"
-        storageKey:
-          type:
-            - string
-            - "null"
-        workJobId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        enqueued:
-          type: boolean
-          description: Whether this request created the compile work job.
-      required:
-        - buildRecipeId
-        - buildRecipeDigest
-        - gameRevisionId
-        - gitSourceRevisionId
-        - commitOid
-        - treeOid
-        - targetProfile
-        - compiledArtifactId
-        - compiledArtifactStatus
-        - compiledArtifactDigest
-        - storageKey
-        - workJobId
-        - enqueued
-    ProjectCommitSourceValidationStatus:
-      type: string
-      enum:
-        - PENDING
-        - SUCCEEDED
-        - FAILED
-    ProjectCommitSourceStatus:
-      type: object
-      description: Server observation and validation state for one exact Git source revision.
-      properties:
-        observed:
-          type: boolean
-        gitSourceRevisionId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        treeOid:
-          type:
-            - string
-            - "null"
-        refName:
-          type:
-            - string
-            - "null"
-        validationStatus:
-          oneOf:
-            - $ref: "#/components/schemas/ProjectCommitSourceValidationStatus"
-            - type: "null"
-        validationDiagnostics:
-          type:
-            - object
-            - "null"
-          additionalProperties: true
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-        observedAt:
-          type:
-            - string
-            - "null"
-          format: date-time
-      required:
-        - observed
-        - gitSourceRevisionId
-        - treeOid
-        - refName
-        - validationStatus
-        - validationDiagnostics
-        - observedAt
-    ProjectCommitGameRevisionStatus:
-      type: object
-      description: Materialized game revision linked to an exact Git source revision.
-      properties:
-        gameRevisionId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        revisionDigest:
-          type:
-            - string
-            - "null"
-        sourceTreeHash:
-          type:
-            - string
-            - "null"
-      required:
-        - gameRevisionId
-        - revisionDigest
-        - sourceTreeHash
-    ProjectCommitBuildStatus:
-      type: object
-      description: Build recipe and compiled artifact state for a target profile at one exact commit.
-      properties:
-        targetProfile:
-          $ref: "#/components/schemas/ProjectBuildTargetProfile"
-        buildRecipeDigest:
-          type: string
-          pattern: "^sha256:[a-f0-9]{64}$"
-        buildRecipe:
-          type: object
-          additionalProperties: true
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-        buildRecipeId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        compiledArtifactId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        compiledArtifactStatus:
-          oneOf:
-            - $ref: "#/components/schemas/ProjectCompiledArtifactStatus"
-            - type: "null"
-        compiledArtifactDigest:
-          type:
-            - string
-            - "null"
-        storageKey:
-          type:
-            - string
-            - "null"
-        diagnostics:
-          type:
-            - object
-            - "null"
-          additionalProperties: true
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-      required:
-        - targetProfile
-        - buildRecipeDigest
-        - buildRecipe
-        - buildRecipeId
-        - compiledArtifactId
-        - compiledArtifactStatus
-        - compiledArtifactDigest
-        - storageKey
-        - diagnostics
-    ProjectPreviewStatus:
-      type: string
-      enum:
-        - PENDING_RETENTION
-        - ACTIVE
-        - EXPIRED
-    ProjectPreview:
-      type: object
-      description: Preview aggregate for one exact Git source revision and compiled artifact.
-      properties:
-        previewId:
-          type: string
-          format: uuid
-        gameRevisionId:
-          type: string
-          format: uuid
-        compiledArtifactId:
-          type: string
-          format: uuid
-        status:
-          $ref: "#/components/schemas/ProjectPreviewStatus"
-        sourceRef:
-          type:
-            - string
-            - "null"
-        retentionRef:
-          type:
-            - string
-            - "null"
-        expiresAt:
-          type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - previewId
-        - gameRevisionId
-        - compiledArtifactId
-        - status
-        - sourceRef
-        - retentionRef
-        - expiresAt
-        - createdAt
-    ProjectReleaseStatus:
-      type: string
-      enum:
-        - PENDING_RETENTION
-        - ACTIVE
-        - REVOKED
-    ProjectCommitReleaseStatus:
-      type: object
-      description: Release membership for a commit-scoped game revision.
-      properties:
-        releaseId:
-          type: string
-          format: uuid
-        gameRevisionId:
-          type: string
-          format: uuid
-        compiledArtifactId:
-          type: string
-          format: uuid
-        status:
-          $ref: "#/components/schemas/ProjectReleaseStatus"
-        retentionRef:
-          type:
-            - string
-            - "null"
-        current:
-          type: boolean
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - releaseId
-        - gameRevisionId
-        - compiledArtifactId
-        - status
-        - retentionRef
-        - current
-        - createdAt
-    ProjectCommitStatus:
-      type: object
-      description: Server-owned status aggregate for one exact Git commit.
-      properties:
-        projectId:
-          type: string
-          format: uuid
-        commitOid:
-          type: string
-          pattern: "^[a-f0-9]{40,64}$"
-        source:
-          $ref: "#/components/schemas/ProjectCommitSourceStatus"
-        gameRevision:
-          $ref: "#/components/schemas/ProjectCommitGameRevisionStatus"
-        builds:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProjectCommitBuildStatus"
-        previews:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProjectPreview"
-        releases:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProjectCommitReleaseStatus"
-      required:
-        - projectId
-        - commitOid
-        - source
-        - gameRevision
-        - builds
-        - previews
-        - releases
-    CreateProjectPreviewRequest:
-      type: object
-      description: Request to create a preview for one exact observed Git commit.
-      properties:
-        commitOid:
-          type: string
-          pattern: "^[a-f0-9]{40,64}$"
-          description: Exact Git commit OID already pushed to the project repository.
-      required:
-        - commitOid
-    PublishProjectReleaseRequest:
-      type: object
-      description: Request to publish a release for one exact observed Git commit.
-      properties:
-        commitOid:
-          type: string
-          pattern: "^[a-f0-9]{40,64}$"
-          description: Exact Git commit OID already pushed to the project repository.
-      required:
-        - commitOid
-    ProjectRelease:
-      type: object
-      description: Release aggregate for one exact Git source revision and compiled artifact.
-      properties:
-        releaseId:
-          type: string
-          format: uuid
-        gameRevisionId:
-          type: string
-          format: uuid
-        compiledArtifactId:
-          type: string
-          format: uuid
-        status:
-          $ref: "#/components/schemas/ProjectReleaseStatus"
-        retentionRef:
-          type:
-            - string
-            - "null"
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - releaseId
-        - gameRevisionId
-        - compiledArtifactId
-        - status
-        - retentionRef
-        - createdAt
     GameRevisionSourceFile:
       type: object
       description: Source file descriptor included in an atomic game revision
@@ -3838,13 +2838,13 @@ components:
         - id
         - name
         - host
-    GenericBoardTemplateSpec:
+    GenericBoardSpec:
       type: object
-      description: Reusable authored board topology template
+      description: Shared or per-player authored board instance shell
       properties:
         id:
           type: string
-          description: Stable template identifier
+          description: Stable board identifier
           pattern: "^[a-zA-Z][a-zA-Z0-9_-]*$"
         name:
           type: string
@@ -3856,6 +2856,8 @@ components:
           type: string
           description: "Optional authored board type identifier such as track, map, tableau, or grid"
           nullable: true
+        scope:
+          $ref: "#/components/schemas/TopologyScope"
         boardFieldsSchema:
           $ref: "#/components/schemas/ObjectSchema"
           nullable: true
@@ -3867,6 +2869,13 @@ components:
           nullable: true
         containerFieldsSchema:
           $ref: "#/components/schemas/ObjectSchema"
+          nullable: true
+        fields:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/JsonValue"
+          description: Typed authored board fields validated against boardFieldsSchema
+          x-kotlin-type: kotlinx.serialization.json.JsonElement
           nullable: true
         spaces:
           type: array
@@ -3887,27 +2896,130 @@ components:
         - id
         - name
         - layout
+        - scope
+    HexCoordinate:
+      type: object
+      properties:
+        q:
+          type: integer
+          format: int32
+        r:
+          type: integer
+          format: int32
+      required:
+        - q
+        - r
+    HexagonShape:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - hexagon
+        radius:
+          type: integer
+          format: int32
+          minimum: 0
+        center:
+          $ref: "#/components/schemas/HexCoordinate"
+      required:
+        - kind
+        - radius
+    HexSpiralShape:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - spiral
+        radius:
+          type: integer
+          format: int32
+          minimum: 0
+        center:
+          $ref: "#/components/schemas/HexCoordinate"
+      required:
+        - kind
+        - radius
+    HexRingShape:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - ring
+        radius:
+          type: integer
+          format: int32
+          minimum: 0
+        center:
+          $ref: "#/components/schemas/HexCoordinate"
+      required:
+        - kind
+        - radius
+    HexRectangleShape:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - rectangle
+        width:
+          type: integer
+          format: int32
+          minimum: 1
+        height:
+          type: integer
+          format: int32
+          minimum: 1
+        start:
+          $ref: "#/components/schemas/HexCoordinate"
+      required:
+        - kind
+        - width
+        - height
+    HexCoordinatesShape:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - coordinates
+        coordinates:
+          type: array
+          items:
+            $ref: "#/components/schemas/HexCoordinate"
+      required:
+        - kind
+        - coordinates
+    HexShape:
+      oneOf:
+        - $ref: "#/components/schemas/HexagonShape"
+        - $ref: "#/components/schemas/HexSpiralShape"
+        - $ref: "#/components/schemas/HexRingShape"
+        - $ref: "#/components/schemas/HexRectangleShape"
+        - $ref: "#/components/schemas/HexCoordinatesShape"
+      discriminator:
+        propertyName: kind
+        mapping:
+          hexagon: "#/components/schemas/HexagonShape"
+          spiral: "#/components/schemas/HexSpiralShape"
+          ring: "#/components/schemas/HexRingShape"
+          rectangle: "#/components/schemas/HexRectangleShape"
+          coordinates: "#/components/schemas/HexCoordinatesShape"
     HexOrientation:
       type: string
       enum:
-        - pointy-top
-        - flat-top
+        - pointy
+        - flat
       description: Visual orientation for authored hex coordinates
-    HexSpaceSpec:
+    HexSpaceOverride:
       type: object
-      description: One authored hex space in axial coordinates
+      description: Metadata overriding a generated hex coordinate
       properties:
         id:
           type: string
           description: Stable space identifier local to the board
-        q:
-          type: integer
-          format: int32
-          description: Axial q coordinate
-        r:
-          type: integer
-          format: int32
-          description: Axial r coordinate
         typeId:
           type: string
           description: Optional authored space type identifier
@@ -3923,10 +3035,6 @@ components:
           description: "Typed authored fields validated against the board's spaceFieldsSchema"
           x-kotlin-type: kotlinx.serialization.json.JsonElement
           nullable: true
-      required:
-        - id
-        - q
-        - r
     HexEdgeRef:
       type: object
       description: Hex edge identified by two adjacent hex spaces
@@ -4009,13 +3117,13 @@ components:
           nullable: true
       required:
         - ref
-    HexBoardTemplateSpec:
+    HexBoardSpec:
       type: object
-      description: Reusable authored hex board topology template
+      description: Shared or per-player authored hex board instance shell
       properties:
         id:
           type: string
-          description: Stable template identifier
+          description: Stable board identifier
           pattern: "^[a-zA-Z][a-zA-Z0-9_-]*$"
         name:
           type: string
@@ -4027,9 +3135,17 @@ components:
           type: string
           description: Optional authored board type identifier
           nullable: true
+        scope:
+          $ref: "#/components/schemas/TopologyScope"
+        shape:
+          $ref: "#/components/schemas/HexShape"
+        exclude:
+          type: array
+          items:
+            $ref: "#/components/schemas/HexCoordinate"
         orientation:
           $ref: "#/components/schemas/HexOrientation"
-          default: pointy-top
+          nullable: true
         boardFieldsSchema:
           $ref: "#/components/schemas/ObjectSchema"
           nullable: true
@@ -4042,11 +3158,17 @@ components:
         vertexFieldsSchema:
           $ref: "#/components/schemas/ObjectSchema"
           nullable: true
+        fields:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/JsonValue"
+          description: Typed authored board fields validated against boardFieldsSchema
+          x-kotlin-type: kotlinx.serialization.json.JsonElement
+          nullable: true
         spaces:
-          type: array
-          items:
-            $ref: "#/components/schemas/HexSpaceSpec"
-          default: []
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HexSpaceOverride"
         edges:
           type: array
           items:
@@ -4061,6 +3183,8 @@ components:
         - id
         - name
         - layout
+        - scope
+        - shape
     SquareSpaceSpec:
       type: object
       description: One authored square space in row/column coordinates
@@ -4151,211 +3275,6 @@ components:
           nullable: true
       required:
         - ref
-    SquareBoardTemplateSpec:
-      type: object
-      description: Reusable authored square board topology template
-      properties:
-        id:
-          type: string
-          description: Stable template identifier
-          pattern: "^[a-zA-Z][a-zA-Z0-9_-]*$"
-        name:
-          type: string
-        layout:
-          type: string
-          enum:
-            - square
-        typeId:
-          type: string
-          description: Optional authored board type identifier
-          nullable: true
-        boardFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        spaceFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        relationFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        containerFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        edgeFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        vertexFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        spaces:
-          type: array
-          items:
-            $ref: "#/components/schemas/SquareSpaceSpec"
-          default: []
-        relations:
-          type: array
-          items:
-            $ref: "#/components/schemas/BoardRelationSpec"
-          default: []
-        containers:
-          type: array
-          items:
-            $ref: "#/components/schemas/BoardContainerSpec"
-          default: []
-        edges:
-          type: array
-          items:
-            $ref: "#/components/schemas/SquareEdgeSpec"
-          default: []
-        vertices:
-          type: array
-          items:
-            $ref: "#/components/schemas/SquareVertexSpec"
-          default: []
-      required:
-        - id
-        - name
-        - layout
-    BoardTemplateSpec:
-      oneOf:
-        - $ref: "#/components/schemas/GenericBoardTemplateSpec"
-        - $ref: "#/components/schemas/HexBoardTemplateSpec"
-        - $ref: "#/components/schemas/SquareBoardTemplateSpec"
-      discriminator:
-        propertyName: layout
-        mapping:
-          generic: "#/components/schemas/GenericBoardTemplateSpec"
-          hex: "#/components/schemas/HexBoardTemplateSpec"
-          square: "#/components/schemas/SquareBoardTemplateSpec"
-    GenericBoardSpec:
-      type: object
-      description: Shared or per-player authored board instance shell
-      properties:
-        id:
-          type: string
-          description: Stable board identifier
-          pattern: "^[a-zA-Z][a-zA-Z0-9_-]*$"
-        name:
-          type: string
-        layout:
-          type: string
-          enum:
-            - generic
-        typeId:
-          type: string
-          description: "Optional authored board type identifier such as track, map, tableau, or grid"
-          nullable: true
-        scope:
-          $ref: "#/components/schemas/TopologyScope"
-        templateId:
-          type: string
-          description: Optional board template to clone before applying inline authored additions
-          nullable: true
-        boardFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        spaceFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        relationFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        containerFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        fields:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/JsonValue"
-          description: Typed authored board fields validated against boardFieldsSchema
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-        spaces:
-          type: array
-          items:
-            $ref: "#/components/schemas/BoardSpaceSpec"
-          default: []
-        relations:
-          type: array
-          items:
-            $ref: "#/components/schemas/BoardRelationSpec"
-          default: []
-        containers:
-          type: array
-          items:
-            $ref: "#/components/schemas/BoardContainerSpec"
-          default: []
-      required:
-        - id
-        - name
-        - layout
-        - scope
-    HexBoardSpec:
-      type: object
-      description: Shared or per-player authored hex board instance shell
-      properties:
-        id:
-          type: string
-          description: Stable board identifier
-          pattern: "^[a-zA-Z][a-zA-Z0-9_-]*$"
-        name:
-          type: string
-        layout:
-          type: string
-          enum:
-            - hex
-        typeId:
-          type: string
-          description: Optional authored board type identifier
-          nullable: true
-        scope:
-          $ref: "#/components/schemas/TopologyScope"
-        templateId:
-          type: string
-          description: Optional hex board template to clone before applying inline authored additions
-          nullable: true
-        orientation:
-          $ref: "#/components/schemas/HexOrientation"
-          nullable: true
-        boardFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        spaceFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        edgeFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        vertexFieldsSchema:
-          $ref: "#/components/schemas/ObjectSchema"
-          nullable: true
-        fields:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/JsonValue"
-          description: Typed authored board fields validated against boardFieldsSchema
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-        spaces:
-          type: array
-          items:
-            $ref: "#/components/schemas/HexSpaceSpec"
-          default: []
-        edges:
-          type: array
-          items:
-            $ref: "#/components/schemas/HexEdgeSpec"
-          default: []
-        vertices:
-          type: array
-          items:
-            $ref: "#/components/schemas/HexVertexSpec"
-          default: []
-      required:
-        - id
-        - name
-        - layout
-        - scope
     SquareBoardSpec:
       type: object
       description: Shared or per-player authored square board instance shell
@@ -4376,10 +3295,6 @@ components:
           nullable: true
         scope:
           $ref: "#/components/schemas/TopologyScope"
-        templateId:
-          type: string
-          description: Optional square board template to clone before applying inline authored additions
-          nullable: true
         boardFieldsSchema:
           $ref: "#/components/schemas/ObjectSchema"
           nullable: true
@@ -4593,59 +3508,6 @@ components:
           type: string
           description: Optional compact icon or emoji rendered by generic UI resource controls.
           nullable: true
-    SetupOptionChoiceSpec:
-      type: object
-      description: One authored setup option choice
-      properties:
-        id:
-          type: string
-        label:
-          type: string
-        description:
-          type: string
-          nullable: true
-      required:
-        - id
-        - label
-    SetupOptionSpec:
-      type: object
-      description: Authored setup module/variant axis metadata
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-          nullable: true
-        choices:
-          type: array
-          items:
-            $ref: "#/components/schemas/SetupOptionChoiceSpec"
-          default: []
-      required:
-        - id
-        - name
-    SetupProfileSpec:
-      type: object
-      description: "Reducer-consumed authored setup profile, recipe, or loadout metadata"
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-          nullable: true
-        optionValues:
-          type: object
-          additionalProperties:
-            type: string
-          description: Selected setup-option values for this profile
-          nullable: true
-      required:
-        - id
-        - name
     GameTopologyManifest:
       type: object
       description: Authoritative topology manifest for reducer-native games
@@ -4662,12 +3524,6 @@ components:
           items:
             $ref: "#/components/schemas/ZoneSpec"
           description: Shared and per-player authored containers
-          default: []
-        boardTemplates:
-          type: array
-          items:
-            $ref: "#/components/schemas/BoardTemplateSpec"
-          description: Reusable board topology templates
           default: []
         boards:
           type: array
@@ -4699,18 +3555,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResourceDefinition"
-          default: []
-        setupOptions:
-          type: array
-          items:
-            $ref: "#/components/schemas/SetupOptionSpec"
-          description: Authored setup-option metadata consumed by reducer-owned setup flows
-          default: []
-        setupProfiles:
-          type: array
-          items:
-            $ref: "#/components/schemas/SetupProfileSpec"
-          description: "Authored setup recipes, loadouts, or module profiles consumed by reducer setup code"
           default: []
       required:
         - players
@@ -5073,13 +3917,11 @@ components:
           nullable: true
           items:
             $ref: "#/components/schemas/CompilationDiagnostic"
-        appStorageType:
-          $ref: "#/components/schemas/CompiledResultStorageType"
-          description: Where compiled APP (game logic) artifacts are stored
-        appStorageKey:
+        bundleSha256:
           type: string
+          pattern: "^[a-f0-9]{64}$"
           nullable: true
-          description: Key/path for compiled APP artifacts. Null when APP compilation fails.
+          description: SHA-256 of the immutable gameplay bundle. Null for failed compilation.
         uiStorageType:
           $ref: "#/components/schemas/CompiledResultStorageType"
           description: Where compiled UI (frontend) artifacts are stored
@@ -5118,7 +3960,7 @@ components:
         - userId
         - gameRevisionId
         - success
-        - appStorageType
+        - bundleSha256
         - uiStorageType
         - sourceRevisionId
         - createdAt
@@ -5134,23 +3976,48 @@ components:
           description: "List of compiled results, sorted by creation date (newest first)"
       required:
         - results
-    UploadInitialProjectionRequest:
+    PlayableArtifact:
       type: object
-      properties:
-        projectionJson:
-          type: string
-          description: "Reducer-native projection JSON for the preview's initial rendered state"
       required:
-        - projectionJson
-    PreviewScreenshotJobResponse:
-      type: object
+        - sha256
+        - url
       properties:
-        jobId:
+        sha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+          description: SHA-256 of the published artifact bytes.
+        url:
+          type: string
+          format: uri
+          description: Temporary GET URL. Request this revision again if the URL expires.
+    PlayableRevision:
+      type: object
+      description: Immutable reducer and UI download descriptors for a specific successful compilation. URLs are temporary; hosts must verify downloaded bytes against SHA-256 and persist content rather than URLs. Hosts must cache referenced media before declaring a revision available offline.
+      required:
+        - compiledResultId
+        - gameRevisionId
+        - revisionDigest
+        - sdkVersion
+        - manifest
+        - reducer
+        - ui
+      properties:
+        compiledResultId:
           type: string
           format: uuid
-          description: Identifier of the queued preview screenshot job
-      required:
-        - jobId
+        gameRevisionId:
+          type: string
+          format: uuid
+        revisionDigest:
+          type: string
+        sdkVersion:
+          type: string
+        manifest:
+          $ref: "#/components/schemas/GameTopologyManifest"
+        reducer:
+          $ref: "#/components/schemas/PlayableArtifact"
+        ui:
+          $ref: "#/components/schemas/PlayableArtifact"
     SourceChangeMode:
       type: string
       description: How the submitted change set should be applied against the base source revision.
@@ -5280,9 +4147,10 @@ components:
         autoAssignSeats:
           type: boolean
           description: "If true, assign all seats to the host user (skips lobby seat assignment)"
-        setupProfileId:
-          type: string
-          description: Optional authored setup profile to apply when creating the session
+        options:
+          type: object
+          additionalProperties: true
+          description: "Game-owned JSON initialization options, validated by the authored game at initialization."
     SessionActorAuthUser:
       type: object
       description: Authenticated user acting in a session.
@@ -5313,32 +4181,15 @@ components:
           type: string
           format: uuid
           description: demo_sessions.id
-    SessionActorPerfOperator:
-      type: object
-      description: Machine-owned performance run actor for benchmark-created sessions.
-      required:
-        - kind
-        - perfRunId
-      properties:
-        kind:
-          type: string
-          enum:
-            - PERF_OPERATOR
-        perfRunId:
-          type: string
-          format: uuid
-          description: perf_runs.run_id
     SessionActor:
       oneOf:
         - $ref: "#/components/schemas/SessionActorAuthUser"
         - $ref: "#/components/schemas/SessionActorDemoGuest"
-        - $ref: "#/components/schemas/SessionActorPerfOperator"
       discriminator:
         propertyName: kind
         mapping:
           AUTH_USER: "#/components/schemas/SessionActorAuthUser"
           DEMO_GUEST: "#/components/schemas/SessionActorDemoGuest"
-          PERF_OPERATOR: "#/components/schemas/SessionActorPerfOperator"
     SessionGameSourceUserCompiled:
       type: object
       required:
@@ -5598,47 +4449,6 @@ components:
       additionalProperties:
         type: integer
         format: int64
-    JobTaskStatus:
-      type: string
-      description: Status of a user-facing job task
-      enum:
-        - PENDING
-        - RUNNING
-        - COMPLETED
-        - FAILED
-    JobTaskSummary:
-      type: object
-      description: User-facing task progress for an async job
-      properties:
-        taskKey:
-          type: string
-          description: Stable task key
-        title:
-          type: string
-          description: User-facing task title
-        status:
-          $ref: "#/components/schemas/JobTaskStatus"
-        latestStatus:
-          type: string
-          nullable: true
-          description: Latest high-level status for the task
-        orderIndex:
-          type: integer
-          format: int32
-          description: Display order
-        startedAt:
-          type: string
-          format: date-time
-          nullable: true
-        completedAt:
-          type: string
-          format: date-time
-          nullable: true
-      required:
-        - taskKey
-        - title
-        - status
-        - orderIndex
     JobDetailResponse:
       type: object
       description: Detailed information for an async backend job
@@ -5705,11 +4515,11 @@ components:
           type: string
           nullable: true
           description: Opaque identifier for the underlying agent run. Null until the agent has started.
-        tasks:
-          type: array
-          items:
-            $ref: "#/components/schemas/JobTaskSummary"
-          description: Ordered user-facing task progress for this job.
+        agentActivityAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last confirmed activity from the underlying agent run. Null until the agent reports activity.
         createdAppScriptId:
           type: string
           format: uuid
@@ -5727,24 +4537,6 @@ components:
         - status
         - title
         - createdAt
-        - tasks
-    JobEventBatchResponse:
-      type: object
-      description: Bounded long-poll response for async job progress snapshots.
-      properties:
-        cursor:
-          type: string
-          description: Opaque cursor for the returned job snapshot version.
-        snapshot:
-          $ref: "#/components/schemas/JobDetailResponse"
-          nullable: true
-          description: Current job snapshot when the job changed or the caller has no cursor.
-        timedOut:
-          type: boolean
-          description: True when no job update arrived before the bounded wait elapsed.
-      required:
-        - cursor
-        - timedOut
     CreateGameRunRequest:
       type: object
       description: Request to create a coding-agent game build run.
@@ -5781,137 +4573,21 @@ components:
       required:
         - jobId
         - projectId
-    AcceptGameRunStatus:
-      type: string
-      enum:
-        - ACCEPTING
-        - CONFLICTED
-    AcceptGameRunResponse:
-      type: object
-      description: Response for an accepted agent build result request.
-      properties:
-        status:
-          $ref: "#/components/schemas/AcceptGameRunStatus"
-        workJobId:
-          type: string
-          format: uuid
-          nullable: true
-      required:
-        - status
-    CreateSessionFromReducerSnapshotRequest:
-      type: object
-      description: Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
-      properties:
-        compiledResultId:
-          type: string
-          format: uuid
-          description: Compiled result ID that produced the reducer bundle used to create the snapshot.
-        seed:
-          type: integer
-          format: int64
-          description: Deterministic RNG seed associated with the generated base.
-        playerCount:
-          type: integer
-          description: Number of players materialized in the reducer snapshot.
-        setupProfileId:
-          type: string
-          nullable: true
-          description: "Authored setup profile associated with the generated base, if any."
-        baseId:
-          type: string
-          description: Generated base artifact id used to hydrate the reducer shadow.
-        scenarioId:
-          type: string
-          description: Scenario id materialized into this session.
-        reducerState:
-          type: object
-          additionalProperties: true
-          description: Final reducer-native session state after running scenario.when locally.
-        reducerStateVersion:
-          type: integer
-          description: Reducer runtime version corresponding to reducerState.
-        fingerprintMetadata:
-          type: object
-          additionalProperties:
-            type: string
-          description: CLI-computed fingerprint diagnostics for the generated base and scenario materialization.
-      required:
-        - compiledResultId
-        - seed
-        - playerCount
-        - baseId
-        - scenarioId
-        - reducerState
-        - reducerStateVersion
     SessionSnapshotPhase:
       type: string
       enum:
         - lobby
-        - gameplay
-        - ended
-    HostSessionStatus:
-      type: string
-      enum:
-        - active
-        - ended
-    HistoryEntrySummary:
-      type: object
-      description: Summary of a game state history entry.
-      required:
-        - id
-        - generation
-        - version
-        - timestamp
-        - description
-        - isCurrent
-      properties:
-        id:
-          type: string
-        generation:
-          type: integer
-        version:
-          type: integer
-        timestamp:
-          type: string
-          format: date-time
-        description:
-          type: string
-        playerId:
-          type: string
-          nullable: true
-        actionType:
-          type: string
-          nullable: true
-        isCurrent:
-          type: boolean
-    SessionSnapshotHistory:
-      type: object
-      required:
-        - entries
-        - currentIndex
-        - canGoBack
-        - canGoForward
-      properties:
-        entries:
-          type: array
-          items:
-            $ref: "#/components/schemas/HistoryEntrySummary"
-        currentIndex:
-          type: integer
-        canGoBack:
-          type: boolean
-        canGoForward:
-          type: boolean
+        - started
     HostSessionContext:
       type: object
       required:
         - sessionId
         - shortCode
         - phase
-        - status
         - hostActor
         - gameSource
         - switchablePlayerIds
+        - gameplayWebsocketUrl
       properties:
         sessionId:
           type: string
@@ -5922,24 +4598,19 @@ components:
           description: Memorable short code for sharing.
         phase:
           $ref: "#/components/schemas/SessionSnapshotPhase"
-        status:
-          $ref: "#/components/schemas/HostSessionStatus"
         hostActor:
           $ref: "#/components/schemas/SessionActor"
         gameSource:
           $ref: "#/components/schemas/SessionGameSource"
-        setupProfileId:
+        gameplayWebsocketUrl:
           type: string
-          nullable: true
-          description: Selected authored setup profile for this session.
+          format: uri
+          description: Public gameplay websocket endpoint. Connect using the current user or demo credential.
         switchablePlayerIds:
           type: array
           items:
             type: string
           description: Player IDs the authenticated session actor may select.
-        history:
-          $ref: "#/components/schemas/SessionSnapshotHistory"
-          nullable: true
     SeatAssignment:
       type: object
       properties:
@@ -5982,1010 +4653,16 @@ components:
         hostActor:
           $ref: "#/components/schemas/SessionActor"
           description: Session actor that hosts this session.
-        setupProfileId:
-          type: string
-          nullable: true
-          description: Selected authored setup profile for this session.
-    HostLobbySessionSnapshot:
+    SessionControlSnapshot:
       type: object
       required:
-        - type
         - context
         - lobby
       properties:
-        type:
-          type: string
-          enum:
-            - lobby
         context:
           $ref: "#/components/schemas/HostSessionContext"
         lobby:
           $ref: "#/components/schemas/HostLobbyView"
-    SimultaneousPhaseSnapshot:
-      type: object
-      required:
-        - phaseName
-        - interactionId
-        - actorIds
-        - sealedPlayerIds
-        - pendingPlayerIds
-      properties:
-        phaseName:
-          type: string
-        interactionId:
-          type: string
-        actorIds:
-          type: array
-          items:
-            type: string
-        sealedPlayerIds:
-          type: array
-          items:
-            type: string
-        pendingPlayerIds:
-          type: array
-          items:
-            type: string
-    HostGameplaySharedView:
-      type: object
-      required:
-        - activePlayers
-        - currentPhase
-        - currentStage
-        - stageSeats
-      properties:
-        activePlayers:
-          type: array
-          items:
-            type: string
-          description: Player IDs currently active in the game state.
-        currentPhase:
-          type: string
-          description: Current reducer-native gameplay phase.
-        currentStage:
-          type:
-            - string
-            - "null"
-          description: Current stage within the phase. Null when the phase has no active stage.
-        stageSeats:
-          type: array
-          items:
-            type: string
-          description: Player IDs this stage currently admits.
-        simultaneousPhase:
-          anyOf:
-            - $ref: "#/components/schemas/SimultaneousPhaseSnapshot"
-            - type: "null"
-          description: Visibility-safe progress metadata for an active simultaneous-player phase.
-        boardStatic:
-          type:
-            - string
-            - "null"
-          description: JSON-serialized session-scoped static view. Populated on gameplay bootstrap payloads only.
-        boardStaticHash:
-          type:
-            - string
-            - "null"
-          description: Content hash of the session-scoped static view held on the host.
-    InteractionCommitPolicy:
-      type: object
-      description: Draft commit policy consumed by default UI surfaces.
-      required:
-        - mode
-      properties:
-        mode:
-          type: string
-          enum:
-            - manual
-            - autoWhenReady
-    SingleInputSelection:
-      type: object
-      description: Single-value input selection.
-      required:
-        - mode
-      properties:
-        mode:
-          type: string
-          const: single
-    ManyInputSelection:
-      type: object
-      description: Multi-value input selection.
-      required:
-        - mode
-        - min
-      properties:
-        mode:
-          type: string
-          const: many
-        min:
-          type: integer
-        max:
-          type: integer
-          nullable: true
-        distinct:
-          type: boolean
-          nullable: true
-    InputSelection:
-      oneOf:
-        - $ref: "#/components/schemas/SingleInputSelection"
-        - $ref: "#/components/schemas/ManyInputSelection"
-      discriminator:
-        propertyName: mode
-        mapping:
-          single: "#/components/schemas/SingleInputSelection"
-          many: "#/components/schemas/ManyInputSelection"
-    InputDomain:
-      oneOf:
-        - $ref: "#/components/schemas/CardTargetDomain"
-        - $ref: "#/components/schemas/BoardTargetDomain"
-        - $ref: "#/components/schemas/ResourceMapDomain"
-        - $ref: "#/components/schemas/BoundedNumberDomain"
-        - $ref: "#/components/schemas/ChoiceDomain"
-        - $ref: "#/components/schemas/ChoiceListDomain"
-      discriminator:
-        propertyName: type
-        mapping:
-          cardTarget: "#/components/schemas/CardTargetDomain"
-          boardTarget: "#/components/schemas/BoardTargetDomain"
-          resourceMap: "#/components/schemas/ResourceMapDomain"
-          boundedNumber: "#/components/schemas/BoundedNumberDomain"
-          choice: "#/components/schemas/ChoiceDomain"
-          choiceList: "#/components/schemas/ChoiceListDomain"
-    InputDomainDependencyCase:
-      type: object
-      required:
-        - when
-        - domain
-      properties:
-        when:
-          type: object
-          additionalProperties:
-            type: string
-        domain:
-          $ref: "#/components/schemas/InputDomain"
-    EagerInputDomainDependencies:
-      type: object
-      required:
-        - mode
-        - dependentCases
-      properties:
-        mode:
-          type: string
-          enum:
-            - eager
-        dependentCases:
-          type: array
-          items:
-            $ref: "#/components/schemas/InputDomainDependencyCase"
-    ResolvedCardTargetDomain:
-      type: object
-      required:
-        - type
-        - projection
-        - targetKind
-        - zoneIds
-        - eligibleTargets
-      properties:
-        type:
-          type: string
-          enum:
-            - cardTarget
-        projection:
-          type: string
-          enum:
-            - resolved
-        targetKind:
-          type: string
-          enum:
-            - card
-        zoneIds:
-          type: array
-          items:
-            type: string
-        eligibleTargets:
-          type: array
-          items:
-            type: string
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-        dependencies:
-          $ref: "#/components/schemas/EagerInputDomainDependencies"
-          nullable: true
-    InputDomainResolver:
-      type: object
-      required:
-        - inputKey
-      properties:
-        interactionKey:
-          type: string
-          nullable: true
-        inputKey:
-          type: string
-    LazyInputDomainDependencies:
-      type: object
-      required:
-        - mode
-        - dependsOn
-        - resolver
-      properties:
-        mode:
-          type: string
-          enum:
-            - lazy
-        dependsOn:
-          type: array
-          items:
-            type: string
-        resolver:
-          $ref: "#/components/schemas/InputDomainResolver"
-    LazyCardTargetDomain:
-      type: object
-      required:
-        - type
-        - projection
-        - targetKind
-        - zoneIds
-        - dependencies
-      properties:
-        type:
-          type: string
-          enum:
-            - cardTarget
-        projection:
-          type: string
-          enum:
-            - lazy
-        targetKind:
-          type: string
-          enum:
-            - card
-        zoneIds:
-          type: array
-          items:
-            type: string
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-        dependencies:
-          $ref: "#/components/schemas/LazyInputDomainDependencies"
-    CardTargetDomain:
-      oneOf:
-        - $ref: "#/components/schemas/ResolvedCardTargetDomain"
-        - $ref: "#/components/schemas/LazyCardTargetDomain"
-      discriminator:
-        propertyName: projection
-        mapping:
-          resolved: "#/components/schemas/ResolvedCardTargetDomain"
-          lazy: "#/components/schemas/LazyCardTargetDomain"
-    ResolvedBoardTargetDomain:
-      type: object
-      required:
-        - type
-        - projection
-        - targetKind
-        - boardId
-        - eligibleTargets
-      properties:
-        type:
-          type: string
-          enum:
-            - boardTarget
-        projection:
-          type: string
-          enum:
-            - resolved
-        targetKind:
-          type: string
-          enum:
-            - edge
-            - vertex
-            - space
-            - tile
-        boardId:
-          type: string
-        valueKind:
-          type: string
-          enum:
-            - board-id
-            - player-board-space
-          nullable: true
-        eligibleTargets:
-          type: array
-          items:
-            type: string
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-        dependencies:
-          $ref: "#/components/schemas/EagerInputDomainDependencies"
-          nullable: true
-    LazyBoardTargetDomain:
-      type: object
-      required:
-        - type
-        - projection
-        - targetKind
-        - boardId
-        - dependencies
-      properties:
-        type:
-          type: string
-          enum:
-            - boardTarget
-        projection:
-          type: string
-          enum:
-            - lazy
-        targetKind:
-          type: string
-          enum:
-            - edge
-            - vertex
-            - space
-            - tile
-        boardId:
-          type: string
-        valueKind:
-          type: string
-          enum:
-            - board-id
-            - player-board-space
-          nullable: true
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-        dependencies:
-          $ref: "#/components/schemas/LazyInputDomainDependencies"
-    BoardTargetDomain:
-      oneOf:
-        - $ref: "#/components/schemas/ResolvedBoardTargetDomain"
-        - $ref: "#/components/schemas/LazyBoardTargetDomain"
-      discriminator:
-        propertyName: projection
-        mapping:
-          resolved: "#/components/schemas/ResolvedBoardTargetDomain"
-          lazy: "#/components/schemas/LazyBoardTargetDomain"
-    ResourceMapDomainEntry:
-      type: object
-      required:
-        - resourceId
-        - min
-        - max
-      properties:
-        resourceId:
-          type: string
-        label:
-          type: string
-          nullable: true
-        icon:
-          type: string
-          nullable: true
-        min:
-          type: integer
-        max:
-          type: integer
-    ResourceMapDomain:
-      type: object
-      required:
-        - type
-        - resources
-      properties:
-        type:
-          type: string
-          enum:
-            - resourceMap
-        resources:
-          type: array
-          items:
-            $ref: "#/components/schemas/ResourceMapDomainEntry"
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-    BoundedNumberDomain:
-      type: object
-      required:
-        - type
-        - min
-        - max
-      properties:
-        type:
-          type: string
-          enum:
-            - boundedNumber
-        min:
-          type: number
-        max:
-          type: number
-        step:
-          type: number
-          nullable: true
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-    ChoiceDomainOption:
-      type: object
-      required:
-        - value
-        - label
-      properties:
-        value:
-          type: string
-          nullable: true
-        label:
-          type: string
-        icon:
-          type: string
-          nullable: true
-        badge:
-          type: string
-          nullable: true
-        description:
-          type: string
-          nullable: true
-        disabled:
-          type: boolean
-          nullable: true
-        disabledReason:
-          type: string
-          nullable: true
-    ChoiceDomain:
-      type: object
-      required:
-        - type
-        - choices
-      properties:
-        type:
-          type: string
-          enum:
-            - choice
-        choices:
-          type: array
-          items:
-            $ref: "#/components/schemas/ChoiceDomainOption"
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-        dependencies:
-          $ref: "#/components/schemas/EagerInputDomainDependencies"
-          nullable: true
-    ChoiceListDomain:
-      type: object
-      required:
-        - type
-        - choices
-      properties:
-        type:
-          type: string
-          enum:
-            - choiceList
-        choices:
-          type: array
-          items:
-            $ref: "#/components/schemas/ChoiceDomainOption"
-        min:
-          type: number
-          nullable: true
-        max:
-          type: number
-          nullable: true
-        selection:
-          $ref: "#/components/schemas/InputSelection"
-          nullable: true
-        dependencies:
-          $ref: "#/components/schemas/EagerInputDomainDependencies"
-          nullable: true
-    InteractionInputDescriptor:
-      type: object
-      description: Canonical descriptor for one interaction input collector.
-      required:
-        - key
-        - kind
-        - domain
-      properties:
-        key:
-          type: string
-        kind:
-          type: string
-        domain:
-          $ref: "#/components/schemas/InputDomain"
-        defaultValue:
-          description: "Optional default value applied to this input when the player has not\nyet drafted a value. Mirrors the input collector's `defaultValue`\nfrom the authored interaction, so plugins can render a sensible\nstarting state (e.g. a pre-selected resource for a bank trade).\n"
-          $ref: "#/components/schemas/JsonValue"
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-    AvailableInteractionAvailability:
-      type: object
-      required:
-        - status
-      properties:
-        status:
-          type: string
-          enum:
-            - available
-    NotYourTurnInteractionAvailability:
-      type: object
-      required:
-        - status
-        - reason
-      properties:
-        status:
-          type: string
-          enum:
-            - notYourTurn
-        reason:
-          type: string
-    InsufficientResourcesInteractionAvailability:
-      type: object
-      required:
-        - status
-        - reason
-        - missingResources
-      properties:
-        status:
-          type: string
-          enum:
-            - insufficientResources
-        reason:
-          type: string
-        missingResources:
-          type: object
-          description: Resource shortfall by resource id when a costed interaction is not currently affordable.
-          additionalProperties:
-            type: integer
-    BlockedInteractionAvailability:
-      type: object
-      required:
-        - status
-        - reason
-      properties:
-        status:
-          type: string
-          enum:
-            - blocked
-        reason:
-          type: string
-        code:
-          type: string
-          nullable: true
-    InteractionAvailability:
-      oneOf:
-        - $ref: "#/components/schemas/AvailableInteractionAvailability"
-        - $ref: "#/components/schemas/NotYourTurnInteractionAvailability"
-        - $ref: "#/components/schemas/InsufficientResourcesInteractionAvailability"
-        - $ref: "#/components/schemas/BlockedInteractionAvailability"
-      discriminator:
-        propertyName: status
-        mapping:
-          available: "#/components/schemas/AvailableInteractionAvailability"
-          notYourTurn: "#/components/schemas/NotYourTurnInteractionAvailability"
-          insufficientResources: "#/components/schemas/InsufficientResourcesInteractionAvailability"
-          blocked: "#/components/schemas/BlockedInteractionAvailability"
-    InteractionDescriptorBase:
-      type: object
-      description: Authoritative interaction descriptor resolved by the trusted bundle.
-      required:
-        - phaseName
-        - interactionKey
-        - interactionId
-        - commit
-        - inputs
-        - availability
-      properties:
-        phaseName:
-          type: string
-        interactionKey:
-          type: string
-        interactionId:
-          type: string
-        descriptorDigest:
-          type: string
-          description: Canonical interaction descriptor digest used by browser replay/protocol surfaces.
-        draftDigest:
-          type: string
-          description: "Canonical draft digest for the descriptor's current input values."
-        zoneId:
-          type: string
-          nullable: true
-        commit:
-          $ref: "#/components/schemas/InteractionCommitPolicy"
-          description: Draft commit policy materialized by the trusted reducer bundle. Omitted authoring specs default to manual before this descriptor crosses the runtime boundary.
-        inputs:
-          type: array
-          description: "Ordered input descriptors. Each entry is the canonical source for its collector key, collector kind, and valid-value domain."
-          items:
-            $ref: "#/components/schemas/InteractionInputDescriptor"
-        cost:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/JsonValue"
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-        currentResources:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/JsonValue"
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-        availability:
-          $ref: "#/components/schemas/InteractionAvailability"
-    ActionInteractionDescriptor:
-      allOf:
-        - $ref: "#/components/schemas/InteractionDescriptorBase"
-        - type: object
-          required:
-            - kind
-          properties:
-            kind:
-              type: string
-              enum:
-                - action
-    InteractionContextOption:
-      type: object
-      required:
-        - id
-        - label
-      properties:
-        id:
-          type: string
-        label:
-          type: string
-    InteractionContext:
-      type: object
-      required:
-        - to
-      properties:
-        to:
-          type: string
-        title:
-          type: string
-          nullable: true
-        payload:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/JsonValue"
-          x-kotlin-type: kotlinx.serialization.json.JsonElement
-          nullable: true
-        options:
-          type: array
-          nullable: true
-          items:
-            $ref: "#/components/schemas/InteractionContextOption"
-    PromptInteractionDescriptor:
-      allOf:
-        - $ref: "#/components/schemas/InteractionDescriptorBase"
-        - type: object
-          required:
-            - kind
-            - context
-          properties:
-            kind:
-              type: string
-              enum:
-                - prompt
-            context:
-              $ref: "#/components/schemas/InteractionContext"
-    InteractionDescriptor:
-      oneOf:
-        - $ref: "#/components/schemas/ActionInteractionDescriptor"
-        - $ref: "#/components/schemas/PromptInteractionDescriptor"
-      discriminator:
-        propertyName: kind
-        mapping:
-          action: "#/components/schemas/ActionInteractionDescriptor"
-          prompt: "#/components/schemas/PromptInteractionDescriptor"
-    ZoneHandles:
-      type: object
-      required:
-        - cardIds
-        - cardViewsById
-        - playableByCardId
-      properties:
-        cardIds:
-          type: array
-          items:
-            type: string
-        cardViewsById:
-          type: object
-          additionalProperties:
-            type: string
-        playableByCardId:
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              type: string
-    HostGameplaySeatView:
-      type: object
-      required:
-        - actionSetVersion
-        - view
-        - availableInteractionRefs
-        - zones
-      properties:
-        actionSetVersion:
-          type: string
-          description: "Opaque revision token for this seat's available descriptors and input domains."
-        view:
-          type:
-            - string
-            - "null"
-          description: JSON-serialized reducer-projected UI view for this player.
-        availableInteractionRefs:
-          type: array
-          items:
-            type: string
-          description: Descriptor refs for interactions available to this player.
-        zones:
-          type: object
-          description: "Zone handles for this player, keyed by zone id."
-          additionalProperties:
-            $ref: "#/components/schemas/ZoneHandles"
-    HostPlayerGameplayView:
-      type: object
-      required:
-        - version
-        - actionSetVersion
-        - perspectivePlayerId
-        - controllablePlayerIds
-        - shared
-        - interactionsByRef
-        - seats
-      properties:
-        version:
-          type: integer
-          description: Monotonic gameplay version for stale-client detection.
-        actionSetVersion:
-          type: string
-          description: Opaque revision token for the returned descriptors and input domains.
-        perspectivePlayerId:
-          type: string
-          description: Player ID currently selected for rendering and input.
-        controllablePlayerIds:
-          type: array
-          items:
-            type: string
-          description: Player IDs included in this normalized projection envelope.
-        shared:
-          $ref: "#/components/schemas/HostGameplaySharedView"
-        interactionsByRef:
-          type: object
-          description: Deduplicated interaction descriptor registry keyed by stable descriptor ref.
-          additionalProperties:
-            $ref: "#/components/schemas/InteractionDescriptor"
-        seats:
-          type: object
-          description: Player-scoped projections keyed by authorized player id.
-          additionalProperties:
-            $ref: "#/components/schemas/HostGameplaySeatView"
-    HostGameplaySessionSnapshot:
-      type: object
-      required:
-        - type
-        - context
-        - lobby
-        - gameplay
-      properties:
-        type:
-          type: string
-          enum:
-            - gameplay
-        context:
-          $ref: "#/components/schemas/HostSessionContext"
-        lobby:
-          $ref: "#/components/schemas/HostLobbyView"
-        gameplay:
-          $ref: "#/components/schemas/HostPlayerGameplayView"
-    HostEndedSessionSnapshot:
-      type: object
-      required:
-        - type
-        - context
-        - lobby
-      properties:
-        type:
-          type: string
-          enum:
-            - ended
-        context:
-          $ref: "#/components/schemas/HostSessionContext"
-        lobby:
-          $ref: "#/components/schemas/HostLobbyView"
-    HostSessionSnapshot:
-      oneOf:
-        - $ref: "#/components/schemas/HostLobbySessionSnapshot"
-        - $ref: "#/components/schemas/HostGameplaySessionSnapshot"
-        - $ref: "#/components/schemas/HostEndedSessionSnapshot"
-      discriminator:
-        propertyName: type
-        mapping:
-          lobby: "#/components/schemas/HostLobbySessionSnapshot"
-          gameplay: "#/components/schemas/HostGameplaySessionSnapshot"
-          ended: "#/components/schemas/HostEndedSessionSnapshot"
-    HostSessionSnapshotReason:
-      type: string
-      enum:
-        - load
-        - start
-        - switch-player
-        - resync
-    HostSessionSnapshotEvent:
-      type: object
-      required:
-        - type
-        - reason
-        - snapshot
-      properties:
-        type:
-          type: string
-          enum:
-            - session.snapshot
-        reason:
-          $ref: "#/components/schemas/HostSessionSnapshotReason"
-        snapshot:
-          $ref: "#/components/schemas/HostSessionSnapshot"
-    HostSessionLobbyUpdatedEvent:
-      type: object
-      required:
-        - type
-        - context
-        - lobby
-      properties:
-        type:
-          type: string
-          enum:
-            - session.lobbyUpdated
-        context:
-          $ref: "#/components/schemas/HostSessionContext"
-        lobby:
-          $ref: "#/components/schemas/HostLobbyView"
-    HostSessionEventCausation:
-      type: object
-      properties:
-        clientActionId:
-          type: string
-          nullable: true
-    HostSessionGameplayUpdatedEvent:
-      type: object
-      required:
-        - type
-        - context
-        - gameplay
-      properties:
-        type:
-          type: string
-          enum:
-            - session.gameplayUpdated
-        context:
-          $ref: "#/components/schemas/HostSessionContext"
-        gameplay:
-          $ref: "#/components/schemas/HostPlayerGameplayView"
-        causation:
-          $ref: "#/components/schemas/HostSessionEventCausation"
-          nullable: true
-    HostSessionHistoryUpdatedEvent:
-      type: object
-      required:
-        - type
-        - context
-      properties:
-        type:
-          type: string
-          enum:
-            - session.historyUpdated
-        context:
-          $ref: "#/components/schemas/HostSessionContext"
-    HostSessionEndedEvent:
-      type: object
-      required:
-        - type
-        - context
-        - lobby
-      properties:
-        type:
-          type: string
-          enum:
-            - session.ended
-        context:
-          $ref: "#/components/schemas/HostSessionContext"
-        lobby:
-          $ref: "#/components/schemas/HostLobbyView"
-    HostSessionErrorEvent:
-      type: object
-      required:
-        - type
-        - sessionId
-        - message
-        - recoverable
-      properties:
-        type:
-          type: string
-          enum:
-            - session.error
-        sessionId:
-          type: string
-          format: uuid
-        code:
-          type: string
-          nullable: true
-        message:
-          type: string
-        recoverable:
-          type: boolean
-    HostSessionEvent:
-      oneOf:
-        - $ref: "#/components/schemas/HostSessionSnapshotEvent"
-        - $ref: "#/components/schemas/HostSessionLobbyUpdatedEvent"
-        - $ref: "#/components/schemas/HostSessionGameplayUpdatedEvent"
-        - $ref: "#/components/schemas/HostSessionHistoryUpdatedEvent"
-        - $ref: "#/components/schemas/HostSessionEndedEvent"
-        - $ref: "#/components/schemas/HostSessionErrorEvent"
-      discriminator:
-        propertyName: type
-        mapping:
-          session.snapshot: "#/components/schemas/HostSessionSnapshotEvent"
-          session.lobbyUpdated: "#/components/schemas/HostSessionLobbyUpdatedEvent"
-          session.gameplayUpdated: "#/components/schemas/HostSessionGameplayUpdatedEvent"
-          session.historyUpdated: "#/components/schemas/HostSessionHistoryUpdatedEvent"
-          session.ended: "#/components/schemas/HostSessionEndedEvent"
-          session.error: "#/components/schemas/HostSessionErrorEvent"
-    HostSessionEventBatchResponse:
-      type: object
-      description: Bounded long-poll response for selected-perspective host session updates.
-      properties:
-        cursor:
-          type: integer
-          format: int64
-          description: Latest persisted session message id covered by this response.
-        snapshot:
-          $ref: "#/components/schemas/HostSessionSnapshot"
-          nullable: true
-          description: Fresh baseline snapshot when the caller has no cursor or needs resync.
-        events:
-          type: array
-          items:
-            $ref: "#/components/schemas/HostSessionEvent"
-          description: Persisted events visible to the requested session actor after the supplied cursor.
-        timedOut:
-          type: boolean
-          description: True when no visible update arrived before the bounded wait elapsed.
-      required:
-        - cursor
-        - events
-        - timedOut
-    GameplayCapabilityResponse:
-      type: object
-      required:
-        - websocketUrl
-        - token
-        - expiresAt
-        - sessionId
-        - playerId
-        - permissions
-      properties:
-        websocketUrl:
-          type: string
-          format: uri
-        token:
-          type: string
-          minLength: 1
-        expiresAt:
-          type: string
-          format: date-time
-        sessionId:
-          type: string
-          format: uuid
-        playerId:
-          type: string
-          minLength: 1
-        permissions:
-          type: array
-          items:
-            type: string
-            enum:
-              - observe
-              - submit
-              - restore-history
     UpdateSeatRequest:
       type: object
       description: Request to update seat settings (display name and/or player color)
@@ -7163,6 +4840,7 @@ components:
         - playerCount
         - seatBindings
         - reducerArtifactIdentity
+        - reducerArtifactHash
         - gameSource
       properties:
         sessionId:
@@ -7195,13 +4873,82 @@ components:
           description: Ordered runtime player bindings for each canonical demo seat.
           items:
             $ref: "#/components/schemas/DemoSessionSeatBinding"
-        setupProfileId:
-          type: string
-          description: Setup profile selected by default demo behavior; omitted when the manifest has none.
         reducerArtifactIdentity:
           $ref: "#/components/schemas/DemoReducerArtifactIdentity"
+        reducerArtifactHash:
+          type: string
+          description: Legacy digest alias for reducerArtifactIdentity.digest.
+          pattern: "^sha256:[a-f0-9]{64}$"
         gameSource:
           $ref: "#/components/schemas/SessionGameSource"
+    ProjectCommitBuildStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+        - cancelled
+    ProjectCommitBuild:
+      type: object
+      required:
+        - buildJobId
+        - commitOid
+        - treeOid
+        - status
+        - diagnostics
+      properties:
+        buildJobId:
+          type: string
+          format: uuid
+        commitOid:
+          type: string
+        treeOid:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProjectCommitBuildStatus"
+        sourceRevisionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: "Present once source files are captured, including failed manifests and builds."
+        compiledResultId:
+          type: string
+          format: uuid
+          nullable: true
+        gameRevisionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: "Actual revision of the successful compiled result, which can reuse an existing revision."
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompilationDiagnostic"
+    ProjectCommitBuildSources:
+      type: object
+      required:
+        - buildJobId
+        - commitOid
+        - sourceRevisionId
+        - sourceTreeHash
+        - files
+      properties:
+        buildJobId:
+          type: string
+          format: uuid
+        commitOid:
+          type: string
+        sourceRevisionId:
+          type: string
+          format: uuid
+        sourceTreeHash:
+          type: string
+        files:
+          type: object
+          additionalProperties:
+            type: string
+          description: "Immutable captured source text, available even when no valid game manifest exists."
   securitySchemes:
     BearerAuth:
       type: http

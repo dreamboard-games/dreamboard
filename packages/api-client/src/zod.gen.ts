@@ -140,8 +140,7 @@ export const zProject = z.object({
     description: z.optional(z.string()),
     metadata: z.optional(zGameMetadata),
     public: z.boolean().default(false),
-    previewStorageKey: z.optional(z.string()),
-    initialProjectionKey: z.optional(z.string()),
+    thumbnailStorageKey: z.optional(z.string()),
     verified: z.boolean().default(false),
     verifiedAt: z.optional(z.iso.datetime()),
     createdAt: z.iso.datetime(),
@@ -242,252 +241,6 @@ export const zUpdateProjectRequest = z.object({
     description: z.optional(z.string().max(1000)),
     public: z.optional(z.boolean()),
     metadata: z.optional(zGameMetadata)
-});
-
-export const zProjectRepositoryProvisioningState = z.enum([
-    'REQUESTED',
-    'PROVISIONING',
-    'READY',
-    'ERROR',
-    'DELETING',
-    'DELETED'
-]);
-
-/**
- * Environment-local opaque Git repository binding for a project installation.
- */
-export const zProjectRepository = z.object({
-    repoBindingId: z.uuid(),
-    cloneUrl: z.url(),
-    defaultBranch: z.string(),
-    headCommit: z.string(),
-    provisioningState: zProjectRepositoryProvisioningState,
-    desiredGeneration: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    observedGeneration: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    retryable: z.boolean(),
-    errorCode: z.optional(z.string())
-});
-
-export const zProjectBuildTargetProfile = z.enum(['preview', 'release']);
-
-/**
- * Request to ensure a build exists for one exact observed Git commit.
- */
-export const zEnsureProjectBuildRequest = z.object({
-    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/),
-    targetProfile: zProjectBuildTargetProfile
-});
-
-export const zProjectCompiledArtifactStatus = z.enum([
-    'PENDING',
-    'SUCCEEDED',
-    'FAILED'
-]);
-
-/**
- * Server-derived build recipe and compiled artifact state for one exact Git commit.
- */
-export const zProjectBuild = z.object({
-    buildRecipeId: z.uuid(),
-    buildRecipeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-    gameRevisionId: z.uuid(),
-    gitSourceRevisionId: z.uuid(),
-    commitOid: z.string(),
-    treeOid: z.string(),
-    targetProfile: zProjectBuildTargetProfile,
-    compiledArtifactId: z.uuid(),
-    compiledArtifactStatus: zProjectCompiledArtifactStatus,
-    compiledArtifactDigest: z.union([
-        z.string(),
-        z.null()
-    ]),
-    storageKey: z.union([
-        z.string(),
-        z.null()
-    ]),
-    workJobId: z.union([
-        z.uuid(),
-        z.null()
-    ]),
-    enqueued: z.boolean()
-});
-
-export const zProjectCommitSourceValidationStatus = z.enum([
-    'PENDING',
-    'SUCCEEDED',
-    'FAILED'
-]);
-
-/**
- * Server observation and validation state for one exact Git source revision.
- */
-export const zProjectCommitSourceStatus = z.object({
-    observed: z.boolean(),
-    gitSourceRevisionId: z.union([
-        z.uuid(),
-        z.null()
-    ]),
-    treeOid: z.union([
-        z.string(),
-        z.null()
-    ]),
-    refName: z.union([
-        z.string(),
-        z.null()
-    ]),
-    validationStatus: z.union([
-        zProjectCommitSourceValidationStatus,
-        z.null()
-    ]),
-    validationDiagnostics: z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]),
-    observedAt: z.union([
-        z.iso.datetime(),
-        z.null()
-    ])
-});
-
-/**
- * Materialized game revision linked to an exact Git source revision.
- */
-export const zProjectCommitGameRevisionStatus = z.object({
-    gameRevisionId: z.union([
-        z.uuid(),
-        z.null()
-    ]),
-    revisionDigest: z.union([
-        z.string(),
-        z.null()
-    ]),
-    sourceTreeHash: z.union([
-        z.string(),
-        z.null()
-    ])
-});
-
-/**
- * Build recipe and compiled artifact state for a target profile at one exact commit.
- */
-export const zProjectCommitBuildStatus = z.object({
-    targetProfile: zProjectBuildTargetProfile,
-    buildRecipeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-    buildRecipe: z.record(z.string(), z.unknown()),
-    buildRecipeId: z.union([
-        z.uuid(),
-        z.null()
-    ]),
-    compiledArtifactId: z.union([
-        z.uuid(),
-        z.null()
-    ]),
-    compiledArtifactStatus: z.union([
-        zProjectCompiledArtifactStatus,
-        z.null()
-    ]),
-    compiledArtifactDigest: z.union([
-        z.string(),
-        z.null()
-    ]),
-    storageKey: z.union([
-        z.string(),
-        z.null()
-    ]),
-    diagnostics: z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])
-});
-
-export const zProjectPreviewStatus = z.enum([
-    'PENDING_RETENTION',
-    'ACTIVE',
-    'EXPIRED'
-]);
-
-/**
- * Preview aggregate for one exact Git source revision and compiled artifact.
- */
-export const zProjectPreview = z.object({
-    previewId: z.uuid(),
-    gameRevisionId: z.uuid(),
-    compiledArtifactId: z.uuid(),
-    status: zProjectPreviewStatus,
-    sourceRef: z.union([
-        z.string(),
-        z.null()
-    ]),
-    retentionRef: z.union([
-        z.string(),
-        z.null()
-    ]),
-    expiresAt: z.iso.datetime(),
-    createdAt: z.iso.datetime()
-});
-
-export const zProjectReleaseStatus = z.enum([
-    'PENDING_RETENTION',
-    'ACTIVE',
-    'REVOKED'
-]);
-
-/**
- * Release membership for a commit-scoped game revision.
- */
-export const zProjectCommitReleaseStatus = z.object({
-    releaseId: z.uuid(),
-    gameRevisionId: z.uuid(),
-    compiledArtifactId: z.uuid(),
-    status: zProjectReleaseStatus,
-    retentionRef: z.union([
-        z.string(),
-        z.null()
-    ]),
-    current: z.boolean(),
-    createdAt: z.iso.datetime()
-});
-
-/**
- * Server-owned status aggregate for one exact Git commit.
- */
-export const zProjectCommitStatus = z.object({
-    projectId: z.uuid(),
-    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/),
-    source: zProjectCommitSourceStatus,
-    gameRevision: zProjectCommitGameRevisionStatus,
-    builds: z.array(zProjectCommitBuildStatus),
-    previews: z.array(zProjectPreview),
-    releases: z.array(zProjectCommitReleaseStatus)
-});
-
-/**
- * Request to create a preview for one exact observed Git commit.
- */
-export const zCreateProjectPreviewRequest = z.object({
-    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/)
-});
-
-/**
- * Request to publish a release for one exact observed Git commit.
- */
-export const zPublishProjectReleaseRequest = z.object({
-    commitOid: z.string().regex(/^[a-f0-9]{40,64}$/)
-});
-
-/**
- * Release aggregate for one exact Git source revision and compiled artifact.
- */
-export const zProjectRelease = z.object({
-    releaseId: z.uuid(),
-    gameRevisionId: z.uuid(),
-    compiledArtifactId: z.uuid(),
-    status: zProjectReleaseStatus,
-    retentionRef: z.union([
-        z.string(),
-        z.null()
-    ]),
-    createdAt: z.iso.datetime()
 });
 
 /**
@@ -798,34 +551,87 @@ export const zBoardContainerSpec = z.object({
 });
 
 /**
- * Reusable authored board topology template
+ * Shared or per-player authored board instance shell
  */
-export const zGenericBoardTemplateSpec = z.object({
+export const zGenericBoardSpec = z.object({
     id: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/),
     name: z.string(),
     layout: z.enum(['generic']),
     typeId: z.optional(z.string()),
+    scope: zTopologyScope,
     boardFieldsSchema: z.optional(zObjectSchema),
     spaceFieldsSchema: z.optional(zObjectSchema),
     relationFieldsSchema: z.optional(zObjectSchema),
     containerFieldsSchema: z.optional(zObjectSchema),
+    fields: z.optional(z.record(z.string(), zJsonValue)),
     spaces: z.optional(z.array(zBoardSpaceSpec)).default([]),
     relations: z.optional(z.array(zBoardRelationSpec)).default([]),
     containers: z.optional(z.array(zBoardContainerSpec)).default([])
 });
 
+export const zHexCoordinate = z.object({
+    q: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    r: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zHexagonShape = z.object({
+    kind: z.enum(['hexagon']),
+    radius: z.int().gte(0).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    center: z.optional(zHexCoordinate)
+});
+
+export const zHexSpiralShape = z.object({
+    kind: z.enum(['spiral']),
+    radius: z.int().gte(0).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    center: z.optional(zHexCoordinate)
+});
+
+export const zHexRingShape = z.object({
+    kind: z.enum(['ring']),
+    radius: z.int().gte(0).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    center: z.optional(zHexCoordinate)
+});
+
+export const zHexRectangleShape = z.object({
+    kind: z.enum(['rectangle']),
+    width: z.int().gte(1).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    height: z.int().gte(1).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    start: z.optional(zHexCoordinate)
+});
+
+export const zHexCoordinatesShape = z.object({
+    kind: z.enum(['coordinates']),
+    coordinates: z.array(zHexCoordinate)
+});
+
+export const zHexShape = z.union([
+    z.object({
+        kind: z.literal('hexagon')
+    }).and(zHexagonShape),
+    z.object({
+        kind: z.literal('spiral')
+    }).and(zHexSpiralShape),
+    z.object({
+        kind: z.literal('ring')
+    }).and(zHexRingShape),
+    z.object({
+        kind: z.literal('rectangle')
+    }).and(zHexRectangleShape),
+    z.object({
+        kind: z.literal('coordinates')
+    }).and(zHexCoordinatesShape)
+]);
+
 /**
  * Visual orientation for authored hex coordinates
  */
-export const zHexOrientation = z.enum(['pointy-top', 'flat-top']);
+export const zHexOrientation = z.enum(['pointy', 'flat']);
 
 /**
- * One authored hex space in axial coordinates
+ * Metadata overriding a generated hex coordinate
  */
-export const zHexSpaceSpec = z.object({
-    id: z.string(),
-    q: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
-    r: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+export const zHexSpaceOverride = z.object({
+    id: z.optional(z.string()),
     typeId: z.optional(z.string()),
     label: z.optional(z.string()),
     fields: z.optional(z.record(z.string(), zJsonValue))
@@ -872,19 +678,23 @@ export const zHexVertexSpec = z.object({
 });
 
 /**
- * Reusable authored hex board topology template
+ * Shared or per-player authored hex board instance shell
  */
-export const zHexBoardTemplateSpec = z.object({
+export const zHexBoardSpec = z.object({
     id: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/),
     name: z.string(),
     layout: z.enum(['hex']),
     typeId: z.optional(z.string()),
-    orientation: z.optional(zHexOrientation).default('pointy-top'),
+    scope: zTopologyScope,
+    shape: zHexShape,
+    exclude: z.optional(z.array(zHexCoordinate)),
+    orientation: z.optional(zHexOrientation),
     boardFieldsSchema: z.optional(zObjectSchema),
     spaceFieldsSchema: z.optional(zObjectSchema),
     edgeFieldsSchema: z.optional(zObjectSchema),
     vertexFieldsSchema: z.optional(zObjectSchema),
-    spaces: z.optional(z.array(zHexSpaceSpec)).default([]),
+    fields: z.optional(z.record(z.string(), zJsonValue)),
+    spaces: z.optional(z.record(z.string(), zHexSpaceOverride)),
     edges: z.optional(z.array(zHexEdgeSpec)).default([]),
     vertices: z.optional(z.array(zHexVertexSpec)).default([])
 });
@@ -924,80 +734,6 @@ export const zSquareVertexSpec = z.object({
 });
 
 /**
- * Reusable authored square board topology template
- */
-export const zSquareBoardTemplateSpec = z.object({
-    id: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/),
-    name: z.string(),
-    layout: z.enum(['square']),
-    typeId: z.optional(z.string()),
-    boardFieldsSchema: z.optional(zObjectSchema),
-    spaceFieldsSchema: z.optional(zObjectSchema),
-    relationFieldsSchema: z.optional(zObjectSchema),
-    containerFieldsSchema: z.optional(zObjectSchema),
-    edgeFieldsSchema: z.optional(zObjectSchema),
-    vertexFieldsSchema: z.optional(zObjectSchema),
-    spaces: z.optional(z.array(zSquareSpaceSpec)).default([]),
-    relations: z.optional(z.array(zBoardRelationSpec)).default([]),
-    containers: z.optional(z.array(zBoardContainerSpec)).default([]),
-    edges: z.optional(z.array(zSquareEdgeSpec)).default([]),
-    vertices: z.optional(z.array(zSquareVertexSpec)).default([])
-});
-
-export const zBoardTemplateSpec = z.union([
-    z.object({
-        layout: z.literal('generic')
-    }).and(zGenericBoardTemplateSpec),
-    z.object({
-        layout: z.literal('hex')
-    }).and(zHexBoardTemplateSpec),
-    z.object({
-        layout: z.literal('square')
-    }).and(zSquareBoardTemplateSpec)
-]);
-
-/**
- * Shared or per-player authored board instance shell
- */
-export const zGenericBoardSpec = z.object({
-    id: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/),
-    name: z.string(),
-    layout: z.enum(['generic']),
-    typeId: z.optional(z.string()),
-    scope: zTopologyScope,
-    templateId: z.optional(z.string()),
-    boardFieldsSchema: z.optional(zObjectSchema),
-    spaceFieldsSchema: z.optional(zObjectSchema),
-    relationFieldsSchema: z.optional(zObjectSchema),
-    containerFieldsSchema: z.optional(zObjectSchema),
-    fields: z.optional(z.record(z.string(), zJsonValue)),
-    spaces: z.optional(z.array(zBoardSpaceSpec)).default([]),
-    relations: z.optional(z.array(zBoardRelationSpec)).default([]),
-    containers: z.optional(z.array(zBoardContainerSpec)).default([])
-});
-
-/**
- * Shared or per-player authored hex board instance shell
- */
-export const zHexBoardSpec = z.object({
-    id: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/),
-    name: z.string(),
-    layout: z.enum(['hex']),
-    typeId: z.optional(z.string()),
-    scope: zTopologyScope,
-    templateId: z.optional(z.string()),
-    orientation: z.optional(zHexOrientation),
-    boardFieldsSchema: z.optional(zObjectSchema),
-    spaceFieldsSchema: z.optional(zObjectSchema),
-    edgeFieldsSchema: z.optional(zObjectSchema),
-    vertexFieldsSchema: z.optional(zObjectSchema),
-    fields: z.optional(z.record(z.string(), zJsonValue)),
-    spaces: z.optional(z.array(zHexSpaceSpec)).default([]),
-    edges: z.optional(z.array(zHexEdgeSpec)).default([]),
-    vertices: z.optional(z.array(zHexVertexSpec)).default([])
-});
-
-/**
  * Shared or per-player authored square board instance shell
  */
 export const zSquareBoardSpec = z.object({
@@ -1006,7 +742,6 @@ export const zSquareBoardSpec = z.object({
     layout: z.enum(['square']),
     typeId: z.optional(z.string()),
     scope: zTopologyScope,
-    templateId: z.optional(z.string()),
     boardFieldsSchema: z.optional(zObjectSchema),
     spaceFieldsSchema: z.optional(zObjectSchema),
     relationFieldsSchema: z.optional(zObjectSchema),
@@ -1100,50 +835,18 @@ export const zResourceDefinition = z.object({
 });
 
 /**
- * One authored setup option choice
- */
-export const zSetupOptionChoiceSpec = z.object({
-    id: z.string(),
-    label: z.string(),
-    description: z.optional(z.string())
-});
-
-/**
- * Authored setup module/variant axis metadata
- */
-export const zSetupOptionSpec = z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.optional(z.string()),
-    choices: z.optional(z.array(zSetupOptionChoiceSpec)).default([])
-});
-
-/**
- * Reducer-consumed authored setup profile, recipe, or loadout metadata
- */
-export const zSetupProfileSpec = z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.optional(z.string()),
-    optionValues: z.optional(z.record(z.string(), z.string()))
-});
-
-/**
  * Authoritative topology manifest for reducer-native games
  */
 export const zGameTopologyManifest = z.object({
     players: zPlayersDefinition,
     cardSets: z.array(zCardSetDefinition),
     zones: z.optional(z.array(zZoneSpec)).default([]),
-    boardTemplates: z.optional(z.array(zBoardTemplateSpec)).default([]),
     boards: z.optional(z.array(zBoardSpec)).default([]),
     pieceTypes: z.optional(z.array(zPieceTypeSpec)).default([]),
     pieceSeeds: z.optional(z.array(zPieceSeedSpec)).default([]),
     dieTypes: z.optional(z.array(zDieTypeSpec)).default([]),
     dieSeeds: z.optional(z.array(zDieSeedSpec)).default([]),
-    resources: z.optional(z.array(zResourceDefinition)).default([]),
-    setupOptions: z.optional(z.array(zSetupOptionSpec)).default([]),
-    setupProfiles: z.optional(z.array(zSetupProfileSpec)).default([])
+    resources: z.optional(z.array(zResourceDefinition)).default([])
 });
 
 /**
@@ -1312,8 +1015,7 @@ export const zCompiledResult = z.object({
     revisionDigest: z.optional(z.string().regex(/^sha256:[a-f0-9]{64}$/)),
     success: z.boolean().default(true),
     diagnostics: z.optional(z.array(zCompilationDiagnostic)),
-    appStorageType: zCompiledResultStorageType,
-    appStorageKey: z.optional(z.string()),
+    bundleSha256: z.string().regex(/^[a-f0-9]{64}$/),
     uiStorageType: zCompiledResultStorageType,
     uiStorageKey: z.optional(z.string()),
     artifactStorageFingerprint: z.optional(z.string()),
@@ -1332,12 +1034,22 @@ export const zListCompiledResultsResponse = z.object({
     results: z.array(zCompiledResult)
 });
 
-export const zUploadInitialProjectionRequest = z.object({
-    projectionJson: z.string()
+export const zPlayableArtifact = z.object({
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    url: z.url()
 });
 
-export const zPreviewScreenshotJobResponse = z.object({
-    jobId: z.uuid()
+/**
+ * Immutable reducer and UI download descriptors for a specific successful compilation. URLs are temporary; hosts must verify downloaded bytes against SHA-256 and persist content rather than URLs. Hosts must cache referenced media before declaring a revision available offline.
+ */
+export const zPlayableRevision = z.object({
+    compiledResultId: z.uuid(),
+    gameRevisionId: z.uuid(),
+    revisionDigest: z.string(),
+    sdkVersion: z.string(),
+    manifest: zGameTopologyManifest,
+    reducer: zPlayableArtifact,
+    ui: zPlayableArtifact
 });
 
 /**
@@ -1406,7 +1118,7 @@ export const zCreateSessionRequest = z.object({
     seed: z.optional(z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
     playerCount: z.optional(z.int()),
     autoAssignSeats: z.optional(z.boolean()),
-    setupProfileId: z.optional(z.string())
+    options: z.optional(z.record(z.string(), z.unknown()))
 });
 
 /**
@@ -1425,24 +1137,13 @@ export const zSessionActorDemoGuest = z.object({
     demoActorSessionId: z.uuid()
 });
 
-/**
- * Machine-owned performance run actor for benchmark-created sessions.
- */
-export const zSessionActorPerfOperator = z.object({
-    kind: z.enum(['PERF_OPERATOR']),
-    perfRunId: z.uuid()
-});
-
 export const zSessionActor = z.union([
     z.object({
         kind: z.literal('AUTH_USER')
     }).and(zSessionActorAuthUser),
     z.object({
         kind: z.literal('DEMO_GUEST')
-    }).and(zSessionActorDemoGuest),
-    z.object({
-        kind: z.literal('PERF_OPERATOR')
-    }).and(zSessionActorPerfOperator)
+    }).and(zSessionActorDemoGuest)
 ]);
 
 export const zSessionGameSourceUserCompiled = z.object({
@@ -1582,29 +1283,6 @@ export const zCompileJobCacheSummary = z.object({
 export const zJobNumericMetrics = z.record(z.string(), z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }));
 
 /**
- * Status of a user-facing job task
- */
-export const zJobTaskStatus = z.enum([
-    'PENDING',
-    'RUNNING',
-    'COMPLETED',
-    'FAILED'
-]);
-
-/**
- * User-facing task progress for an async job
- */
-export const zJobTaskSummary = z.object({
-    taskKey: z.string(),
-    title: z.string(),
-    status: zJobTaskStatus,
-    latestStatus: z.optional(z.string()),
-    orderIndex: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
-    startedAt: z.optional(z.iso.datetime()),
-    completedAt: z.optional(z.iso.datetime())
-});
-
-/**
  * Detailed information for an async backend job
  */
 export const zJobDetailResponse = z.object({
@@ -1625,18 +1303,9 @@ export const zJobDetailResponse = z.object({
     memory: z.optional(zJobNumericMetrics),
     buildPhase: z.optional(z.string()),
     agentRunId: z.optional(z.string()),
-    tasks: z.array(zJobTaskSummary),
+    agentActivityAt: z.optional(z.iso.datetime()),
     createdAppScriptId: z.optional(z.uuid()),
     createdCompiledResultId: z.optional(z.uuid())
-});
-
-/**
- * Bounded long-poll response for async job progress snapshots.
- */
-export const zJobEventBatchResponse = z.object({
-    cursor: z.string(),
-    snapshot: z.optional(zJobDetailResponse),
-    timedOut: z.boolean()
 });
 
 /**
@@ -1657,70 +1326,16 @@ export const zCreateGameRunResponse = z.object({
     projectId: z.uuid()
 });
 
-export const zAcceptGameRunStatus = z.enum(['ACCEPTING', 'CONFLICTED']);
-
-/**
- * Response for an accepted agent build result request.
- */
-export const zAcceptGameRunResponse = z.object({
-    status: zAcceptGameRunStatus,
-    workJobId: z.optional(z.uuid())
-});
-
-/**
- * Request to create a gameplay session by restoring a reducer-native snapshot produced by the CLI scenario harness.
- */
-export const zCreateSessionFromReducerSnapshotRequest = z.object({
-    compiledResultId: z.uuid(),
-    seed: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    playerCount: z.int(),
-    setupProfileId: z.optional(z.string()),
-    baseId: z.string(),
-    scenarioId: z.string(),
-    reducerState: z.record(z.string(), z.unknown()),
-    reducerStateVersion: z.int(),
-    fingerprintMetadata: z.optional(z.record(z.string(), z.string()))
-});
-
-export const zSessionSnapshotPhase = z.enum([
-    'lobby',
-    'gameplay',
-    'ended'
-]);
-
-export const zHostSessionStatus = z.enum(['active', 'ended']);
-
-/**
- * Summary of a game state history entry.
- */
-export const zHistoryEntrySummary = z.object({
-    id: z.string(),
-    generation: z.int(),
-    version: z.int(),
-    timestamp: z.iso.datetime(),
-    description: z.string(),
-    playerId: z.optional(z.string()),
-    actionType: z.optional(z.string()),
-    isCurrent: z.boolean()
-});
-
-export const zSessionSnapshotHistory = z.object({
-    entries: z.array(zHistoryEntrySummary),
-    currentIndex: z.int(),
-    canGoBack: z.boolean(),
-    canGoForward: z.boolean()
-});
+export const zSessionSnapshotPhase = z.enum(['lobby', 'started']);
 
 export const zHostSessionContext = z.object({
     sessionId: z.uuid(),
     shortCode: z.string(),
     phase: zSessionSnapshotPhase,
-    status: zHostSessionStatus,
     hostActor: zSessionActor,
     gameSource: zSessionGameSource,
-    setupProfileId: z.optional(z.string()),
-    switchablePlayerIds: z.array(z.string()),
-    history: z.optional(zSessionSnapshotHistory)
+    gameplayWebsocketUrl: z.url(),
+    switchablePlayerIds: z.array(z.string())
 });
 
 export const zSeatAssignment = z.object({
@@ -1734,263 +1349,12 @@ export const zSeatAssignment = z.object({
 export const zHostLobbyView = z.object({
     seats: z.array(zSeatAssignment),
     canStart: z.boolean(),
-    hostActor: zSessionActor,
-    setupProfileId: z.optional(z.string())
+    hostActor: zSessionActor
 });
 
-export const zHostLobbySessionSnapshot = z.object({
-    type: z.enum(['lobby']),
+export const zSessionControlSnapshot = z.object({
     context: zHostSessionContext,
     lobby: zHostLobbyView
-});
-
-export const zSimultaneousPhaseSnapshot = z.object({
-    phaseName: z.string(),
-    interactionId: z.string(),
-    actorIds: z.array(z.string()),
-    sealedPlayerIds: z.array(z.string()),
-    pendingPlayerIds: z.array(z.string())
-});
-
-export const zHostGameplaySharedView = z.object({
-    activePlayers: z.array(z.string()),
-    currentPhase: z.string(),
-    currentStage: z.union([
-        z.string(),
-        z.null()
-    ]),
-    stageSeats: z.array(z.string()),
-    simultaneousPhase: z.optional(z.union([
-        zSimultaneousPhaseSnapshot,
-        z.null()
-    ])),
-    boardStatic: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    boardStaticHash: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
-});
-
-/**
- * Draft commit policy consumed by default UI surfaces.
- */
-export const zInteractionCommitPolicy = z.object({
-    mode: z.enum(['manual', 'autoWhenReady'])
-});
-
-/**
- * Single-value input selection.
- */
-export const zSingleInputSelection = z.object({
-    mode: z.literal('single')
-});
-
-/**
- * Multi-value input selection.
- */
-export const zManyInputSelection = z.object({
-    mode: z.literal('many'),
-    min: z.int(),
-    max: z.optional(z.int()),
-    distinct: z.optional(z.boolean())
-});
-
-export const zInputSelection = z.union([
-    z.object({
-        mode: z.literal('single')
-    }).and(zSingleInputSelection),
-    z.object({
-        mode: z.literal('many')
-    }).and(zManyInputSelection)
-]);
-
-export const zInputDomainResolver = z.object({
-    interactionKey: z.optional(z.string()),
-    inputKey: z.string()
-});
-
-export const zLazyInputDomainDependencies = z.object({
-    mode: z.enum(['lazy']),
-    dependsOn: z.array(z.string()),
-    resolver: zInputDomainResolver
-});
-
-export const zLazyCardTargetDomain = z.object({
-    type: z.enum(['cardTarget']),
-    projection: z.enum(['lazy']),
-    targetKind: z.enum(['card']),
-    zoneIds: z.array(z.string()),
-    selection: z.optional(zInputSelection),
-    dependencies: zLazyInputDomainDependencies
-});
-
-export const zLazyBoardTargetDomain = z.object({
-    type: z.enum(['boardTarget']),
-    projection: z.enum(['lazy']),
-    targetKind: z.enum([
-        'edge',
-        'vertex',
-        'space',
-        'tile'
-    ]),
-    boardId: z.string(),
-    valueKind: z.optional(z.enum(['board-id', 'player-board-space'])),
-    selection: z.optional(zInputSelection),
-    dependencies: zLazyInputDomainDependencies
-});
-
-export const zResourceMapDomainEntry = z.object({
-    resourceId: z.string(),
-    label: z.optional(z.string()),
-    icon: z.optional(z.string()),
-    min: z.int(),
-    max: z.int()
-});
-
-export const zResourceMapDomain = z.object({
-    type: z.enum(['resourceMap']),
-    resources: z.array(zResourceMapDomainEntry),
-    selection: z.optional(zInputSelection)
-});
-
-export const zBoundedNumberDomain = z.object({
-    type: z.enum(['boundedNumber']),
-    min: z.number(),
-    max: z.number(),
-    step: z.optional(z.number()),
-    selection: z.optional(zInputSelection)
-});
-
-export const zChoiceDomainOption = z.object({
-    value: z.nullable(z.string()),
-    label: z.string(),
-    icon: z.optional(z.string()),
-    badge: z.optional(z.string()),
-    description: z.optional(z.string()),
-    disabled: z.optional(z.boolean()),
-    disabledReason: z.optional(z.string())
-});
-
-export const zAvailableInteractionAvailability = z.object({
-    status: z.enum(['available'])
-});
-
-export const zNotYourTurnInteractionAvailability = z.object({
-    status: z.enum(['notYourTurn']),
-    reason: z.string()
-});
-
-export const zInsufficientResourcesInteractionAvailability = z.object({
-    status: z.enum(['insufficientResources']),
-    reason: z.string(),
-    missingResources: z.record(z.string(), z.int())
-});
-
-export const zBlockedInteractionAvailability = z.object({
-    status: z.enum(['blocked']),
-    reason: z.string(),
-    code: z.optional(z.string())
-});
-
-export const zInteractionAvailability = z.union([
-    z.object({
-        status: z.literal('available')
-    }).and(zAvailableInteractionAvailability),
-    z.object({
-        status: z.literal('notYourTurn')
-    }).and(zNotYourTurnInteractionAvailability),
-    z.object({
-        status: z.literal('insufficientResources')
-    }).and(zInsufficientResourcesInteractionAvailability),
-    z.object({
-        status: z.literal('blocked')
-    }).and(zBlockedInteractionAvailability)
-]);
-
-export const zInteractionContextOption = z.object({
-    id: z.string(),
-    label: z.string()
-});
-
-export const zInteractionContext = z.object({
-    to: z.string(),
-    title: z.optional(z.string()),
-    payload: z.optional(z.record(z.string(), zJsonValue)),
-    options: z.optional(z.array(zInteractionContextOption))
-});
-
-export const zZoneHandles = z.object({
-    cardIds: z.array(z.string()),
-    cardViewsById: z.record(z.string(), z.string()),
-    playableByCardId: z.record(z.string(), z.array(z.string()))
-});
-
-export const zHostGameplaySeatView = z.object({
-    actionSetVersion: z.string(),
-    view: z.union([
-        z.string(),
-        z.null()
-    ]),
-    availableInteractionRefs: z.array(z.string()),
-    zones: z.record(z.string(), zZoneHandles)
-});
-
-export const zHostEndedSessionSnapshot = z.object({
-    type: z.enum(['ended']),
-    context: zHostSessionContext,
-    lobby: zHostLobbyView
-});
-
-export const zHostSessionSnapshotReason = z.enum([
-    'load',
-    'start',
-    'switch-player',
-    'resync'
-]);
-
-export const zHostSessionLobbyUpdatedEvent = z.object({
-    type: z.enum(['session.lobbyUpdated']),
-    context: zHostSessionContext,
-    lobby: zHostLobbyView
-});
-
-export const zHostSessionEventCausation = z.object({
-    clientActionId: z.optional(z.string())
-});
-
-export const zHostSessionHistoryUpdatedEvent = z.object({
-    type: z.enum(['session.historyUpdated']),
-    context: zHostSessionContext
-});
-
-export const zHostSessionEndedEvent = z.object({
-    type: z.enum(['session.ended']),
-    context: zHostSessionContext,
-    lobby: zHostLobbyView
-});
-
-export const zHostSessionErrorEvent = z.object({
-    type: z.enum(['session.error']),
-    sessionId: z.uuid(),
-    code: z.optional(z.string()),
-    message: z.string(),
-    recoverable: z.boolean()
-});
-
-export const zGameplayCapabilityResponse = z.object({
-    websocketUrl: z.url(),
-    token: z.string().min(1),
-    expiresAt: z.iso.datetime(),
-    sessionId: z.uuid(),
-    playerId: z.string().min(1),
-    permissions: z.array(z.enum([
-        'observe',
-        'submit',
-        'restore-history'
-    ]))
 });
 
 /**
@@ -2073,218 +1437,36 @@ export const zDemoSessionResponse = z.object({
     selectedPlayerId: z.optional(z.string()),
     playerCount: z.int().gte(1),
     seatBindings: z.array(zDemoSessionSeatBinding).min(1),
-    setupProfileId: z.optional(z.string()),
     reducerArtifactIdentity: zDemoReducerArtifactIdentity,
+    reducerArtifactHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
     gameSource: zSessionGameSource
 });
 
-export const zInputDomain = z.union([
-    z.object({
-        type: z.literal('cardTarget')
-    }).and(z.lazy(() => z.lazy((): any => zCardTargetDomain))),
-    z.object({
-        type: z.literal('boardTarget')
-    }).and(z.lazy(() => z.lazy((): any => zBoardTargetDomain))),
-    z.object({
-        type: z.literal('resourceMap')
-    }).and(zResourceMapDomain),
-    z.object({
-        type: z.literal('boundedNumber')
-    }).and(zBoundedNumberDomain),
-    z.object({
-        type: z.literal('choice')
-    }).and(z.lazy(() => z.lazy((): any => zChoiceDomain))),
-    z.object({
-        type: z.literal('choiceList')
-    }).and(z.lazy(() => z.lazy((): any => zChoiceListDomain)))
+export const zProjectCommitBuildStatus = z.enum([
+    'queued',
+    'running',
+    'succeeded',
+    'failed',
+    'cancelled'
 ]);
 
-export const zInputDomainDependencyCase = z.object({
-    when: z.record(z.string(), z.string()),
-    domain: zInputDomain
+export const zProjectCommitBuild = z.object({
+    buildJobId: z.uuid(),
+    commitOid: z.string(),
+    treeOid: z.string(),
+    status: zProjectCommitBuildStatus,
+    sourceRevisionId: z.optional(z.uuid()),
+    compiledResultId: z.optional(z.uuid()),
+    gameRevisionId: z.optional(z.uuid()),
+    diagnostics: z.array(zCompilationDiagnostic)
 });
 
-export const zEagerInputDomainDependencies = z.object({
-    mode: z.enum(['eager']),
-    dependentCases: z.array(zInputDomainDependencyCase)
-});
-
-export const zResolvedCardTargetDomain = z.object({
-    type: z.enum(['cardTarget']),
-    projection: z.enum(['resolved']),
-    targetKind: z.enum(['card']),
-    zoneIds: z.array(z.string()),
-    eligibleTargets: z.array(z.string()),
-    selection: z.optional(zInputSelection),
-    dependencies: z.optional(zEagerInputDomainDependencies)
-});
-
-export const zCardTargetDomain = z.union([
-    z.object({
-        projection: z.literal('resolved')
-    }).and(zResolvedCardTargetDomain),
-    z.object({
-        projection: z.literal('lazy')
-    }).and(zLazyCardTargetDomain)
-]);
-
-export const zResolvedBoardTargetDomain = z.object({
-    type: z.enum(['boardTarget']),
-    projection: z.enum(['resolved']),
-    targetKind: z.enum([
-        'edge',
-        'vertex',
-        'space',
-        'tile'
-    ]),
-    boardId: z.string(),
-    valueKind: z.optional(z.enum(['board-id', 'player-board-space'])),
-    eligibleTargets: z.array(z.string()),
-    selection: z.optional(zInputSelection),
-    dependencies: z.optional(zEagerInputDomainDependencies)
-});
-
-export const zBoardTargetDomain = z.union([
-    z.object({
-        projection: z.literal('resolved')
-    }).and(zResolvedBoardTargetDomain),
-    z.object({
-        projection: z.literal('lazy')
-    }).and(zLazyBoardTargetDomain)
-]);
-
-export const zChoiceDomain = z.object({
-    type: z.enum(['choice']),
-    choices: z.array(zChoiceDomainOption),
-    selection: z.optional(zInputSelection),
-    dependencies: z.optional(zEagerInputDomainDependencies)
-});
-
-export const zChoiceListDomain = z.object({
-    type: z.enum(['choiceList']),
-    choices: z.array(zChoiceDomainOption),
-    min: z.optional(z.number()),
-    max: z.optional(z.number()),
-    selection: z.optional(zInputSelection),
-    dependencies: z.optional(zEagerInputDomainDependencies)
-});
-
-/**
- * Canonical descriptor for one interaction input collector.
- */
-export const zInteractionInputDescriptor = z.object({
-    key: z.string(),
-    kind: z.string(),
-    domain: zInputDomain,
-    defaultValue: z.optional(zJsonValue)
-});
-
-/**
- * Authoritative interaction descriptor resolved by the trusted bundle.
- */
-export const zInteractionDescriptorBase = z.object({
-    phaseName: z.string(),
-    interactionKey: z.string(),
-    interactionId: z.string(),
-    descriptorDigest: z.optional(z.string()),
-    draftDigest: z.optional(z.string()),
-    zoneId: z.optional(z.string()),
-    commit: zInteractionCommitPolicy,
-    inputs: z.array(zInteractionInputDescriptor),
-    cost: z.optional(z.record(z.string(), zJsonValue)),
-    currentResources: z.optional(z.record(z.string(), zJsonValue)),
-    availability: zInteractionAvailability
-});
-
-export const zActionInteractionDescriptor = zInteractionDescriptorBase.and(z.object({
-    kind: z.enum(['action'])
-}));
-
-export const zPromptInteractionDescriptor = zInteractionDescriptorBase.and(z.object({
-    kind: z.enum(['prompt']),
-    context: zInteractionContext
-}));
-
-export const zInteractionDescriptor = z.union([
-    z.object({
-        kind: z.literal('action')
-    }).and(zActionInteractionDescriptor),
-    z.object({
-        kind: z.literal('prompt')
-    }).and(zPromptInteractionDescriptor)
-]);
-
-export const zHostPlayerGameplayView = z.object({
-    version: z.int(),
-    actionSetVersion: z.string(),
-    perspectivePlayerId: z.string(),
-    controllablePlayerIds: z.array(z.string()),
-    shared: zHostGameplaySharedView,
-    interactionsByRef: z.record(z.string(), zInteractionDescriptor),
-    seats: z.record(z.string(), zHostGameplaySeatView)
-});
-
-export const zHostGameplaySessionSnapshot = z.object({
-    type: z.enum(['gameplay']),
-    context: zHostSessionContext,
-    lobby: zHostLobbyView,
-    gameplay: zHostPlayerGameplayView
-});
-
-export const zHostSessionSnapshot = z.union([
-    z.object({
-        type: z.literal('lobby')
-    }).and(zHostLobbySessionSnapshot),
-    z.object({
-        type: z.literal('gameplay')
-    }).and(zHostGameplaySessionSnapshot),
-    z.object({
-        type: z.literal('ended')
-    }).and(zHostEndedSessionSnapshot)
-]);
-
-export const zHostSessionSnapshotEvent = z.object({
-    type: z.enum(['session.snapshot']),
-    reason: zHostSessionSnapshotReason,
-    snapshot: zHostSessionSnapshot
-});
-
-export const zHostSessionGameplayUpdatedEvent = z.object({
-    type: z.enum(['session.gameplayUpdated']),
-    context: zHostSessionContext,
-    gameplay: zHostPlayerGameplayView,
-    causation: z.optional(zHostSessionEventCausation)
-});
-
-export const zHostSessionEvent = z.union([
-    z.object({
-        type: z.literal('session.snapshot')
-    }).and(zHostSessionSnapshotEvent),
-    z.object({
-        type: z.literal('session.lobbyUpdated')
-    }).and(zHostSessionLobbyUpdatedEvent),
-    z.object({
-        type: z.literal('session.gameplayUpdated')
-    }).and(zHostSessionGameplayUpdatedEvent),
-    z.object({
-        type: z.literal('session.historyUpdated')
-    }).and(zHostSessionHistoryUpdatedEvent),
-    z.object({
-        type: z.literal('session.ended')
-    }).and(zHostSessionEndedEvent),
-    z.object({
-        type: z.literal('session.error')
-    }).and(zHostSessionErrorEvent)
-]);
-
-/**
- * Bounded long-poll response for selected-perspective host session updates.
- */
-export const zHostSessionEventBatchResponse = z.object({
-    cursor: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    snapshot: z.optional(zHostSessionSnapshot),
-    events: z.array(zHostSessionEvent),
-    timedOut: z.boolean()
+export const zProjectCommitBuildSources = z.object({
+    buildJobId: z.uuid(),
+    commitOid: z.string(),
+    sourceRevisionId: z.uuid(),
+    sourceTreeHash: z.string(),
+    files: z.record(z.string(), z.string())
 });
 
 /**
@@ -2469,125 +1651,6 @@ export const zEnsureProjectData = z.object({
  */
 export const zEnsureProjectResponse = zProject;
 
-export const zGetProjectRepositoryData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Repository binding found
- */
-export const zGetProjectRepositoryResponse = zProjectRepository;
-
-export const zEnsureProjectRepositoryData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Repository binding ensured
- */
-export const zEnsureProjectRepositoryResponse = zProjectRepository;
-
-export const zRetryProjectRepositoryReconciliationData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Repository reconciliation requested
- */
-export const zRetryProjectRepositoryReconciliationResponse = zProjectRepository;
-
-export const zEnsureProjectBuildData = z.object({
-    body: zEnsureProjectBuildRequest,
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Existing or newly queued project build
- */
-export const zEnsureProjectBuildResponse = zProjectBuild;
-
-export const zGetProjectCommitStatusData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid(),
-        commitOid: z.string().regex(/^[a-f0-9]{40,64}$/)
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Server state for the requested commit
- */
-export const zGetProjectCommitStatusResponse = zProjectCommitStatus;
-
-export const zGetProjectBuildData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid(),
-        buildRecipeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/)
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Project build found
- */
-export const zGetProjectBuildResponse = zProjectBuild;
-
-export const zCreateProjectPreviewData = z.object({
-    body: zCreateProjectPreviewRequest,
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Pending-retention project preview
- */
-export const zCreateProjectPreviewResponse = zProjectPreview;
-
-export const zPublishProjectReleaseData = z.object({
-    body: zPublishProjectReleaseRequest,
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Pending-retention project release
- */
-export const zPublishProjectReleaseResponse = zProjectRelease;
-
-export const zGetCurrentProjectReleaseData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Current active project release
- */
-export const zGetCurrentProjectReleaseResponse = zProjectRelease;
-
 export const zGetProjectBySlugData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -2699,44 +1762,19 @@ export const zGetProjectCompiledResultData = z.object({
  */
 export const zGetProjectCompiledResultResponse = zCompiledResult;
 
-export const zUploadProjectInitialProjectionData = z.object({
-    body: zUploadInitialProjectionRequest,
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Initial projection uploaded successfully
- */
-export const zUploadProjectInitialProjectionResponse = z.void();
-
-export const zQueueProjectPreviewScreenshotData = z.object({
+export const zGetProjectPlayableRevisionData = z.object({
     body: z.optional(z.never()),
     path: z.object({
-        projectId: z.uuid()
+        projectId: z.uuid(),
+        compiledResultId: z.uuid()
     }),
     query: z.optional(z.never())
 });
 
 /**
- * Preview screenshot job queued
+ * Immutable playable code and manifest
  */
-export const zQueueProjectPreviewScreenshotResponse = zPreviewScreenshotJobResponse;
-
-export const zFetchProjectPreviewImageData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Preview image retrieved successfully
- */
-export const zFetchProjectPreviewImageResponse = z.string();
+export const zGetProjectPlayableRevisionResponse = zPlayableRevision;
 
 export const zEnsureProjectDevCompileData = z.object({
     body: zEnsureDevCompileRequest,
@@ -2829,22 +1867,6 @@ export const zGetJobData = z.object({
  */
 export const zGetJobResponse = zJobDetailResponse;
 
-export const zGetJobEventBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        jobId: z.uuid()
-    }),
-    query: z.optional(z.object({
-        afterCursor: z.optional(z.string()),
-        waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000)
-    }))
-});
-
-/**
- * Job event batch
- */
-export const zGetJobEventBatchResponse = zJobEventBatchResponse;
-
 export const zCreateGameRunData = z.object({
     body: zCreateGameRunRequest,
     path: z.optional(z.never()),
@@ -2864,35 +1886,48 @@ export const zCancelGameRunData = z.object({
     query: z.optional(z.never())
 });
 
-export const zAcceptGameRunData = z.object({
+export const zGetSessionByShortCodeData = z.object({
     body: z.optional(z.never()),
     path: z.object({
-        jobId: z.uuid()
+        shortCode: z.string()
+    }),
+    query: z.optional(z.object({
+        playerId: z.optional(z.string())
+    }))
+});
+
+/**
+ * Session found successfully
+ */
+export const zGetSessionByShortCodeResponse = zSessionControlSnapshot;
+
+export const zGetSessionSnapshotData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        sessionId: z.uuid()
+    }),
+    query: z.optional(z.object({
+        playerId: z.optional(z.string())
+    }))
+});
+
+/**
+ * Session snapshot retrieved successfully
+ */
+export const zGetSessionSnapshotResponse = zSessionControlSnapshot;
+
+export const zStartGameData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        sessionId: z.uuid()
     }),
     query: z.optional(z.never())
 });
 
 /**
- * Agent build result accept queued
+ * Game started successfully
  */
-export const zAcceptGameRunResponse2 = zAcceptGameRunResponse;
-
-export const zCreateGameplayCapabilityData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid(),
-        playerId: z.string()
-    }),
-    query: z.optional(z.never()),
-    headers: z.optional(z.object({
-        'X-Dreamboard-Browser-Origin': z.optional(z.string())
-    }))
-});
-
-/**
- * Gameplay capability issued successfully
- */
-export const zCreateGameplayCapabilityResponse = zGameplayCapabilityResponse;
+export const zStartGameResponse = zSessionControlSnapshot;
 
 export const zAddSeatData = z.object({
     body: z.optional(z.never()),
@@ -2903,9 +1938,9 @@ export const zAddSeatData = z.object({
 });
 
 /**
- * Seat added successfully
+ * Seat added and resulting lobby returned successfully
  */
-export const zAddSeatResponse = zSeatAssignment;
+export const zAddSeatResponse = zSessionControlSnapshot;
 
 export const zRemoveSeatData = z.object({
     body: z.optional(z.never()),
@@ -2917,9 +1952,9 @@ export const zRemoveSeatData = z.object({
 });
 
 /**
- * Seat removed successfully
+ * Seat removed and resulting lobby returned successfully
  */
-export const zRemoveSeatResponse = z.void();
+export const zRemoveSeatResponse = zSessionControlSnapshot;
 
 export const zUpdateSeatData = z.object({
     body: zUpdateSeatRequest,
@@ -2933,7 +1968,7 @@ export const zUpdateSeatData = z.object({
 /**
  * Seat updated successfully
  */
-export const zUpdateSeatResponse = zSeatAssignment;
+export const zUpdateSeatResponse = zSessionControlSnapshot;
 
 export const zAssignSeatData = z.object({
     body: z.optional(z.never()),
@@ -2945,9 +1980,9 @@ export const zAssignSeatData = z.object({
 });
 
 /**
- * Seat assigned successfully
+ * Seat assigned and resulting lobby returned successfully
  */
-export const zAssignSeatResponse = z.void();
+export const zAssignSeatResponse = zSessionControlSnapshot;
 
 export const zUnassignSeatData = z.object({
     body: z.optional(z.never()),
@@ -2959,9 +1994,9 @@ export const zUnassignSeatData = z.object({
 });
 
 /**
- * Seat unassigned successfully
+ * Seat unassigned and resulting lobby returned successfully
  */
-export const zUnassignSeatResponse = z.void();
+export const zUnassignSeatResponse = zSessionControlSnapshot;
 
 export const zGetProjectUiBundleData = z.object({
     body: z.optional(z.never()),
@@ -3027,7 +2062,7 @@ export const zGetDemoGameThumbnailData = z.object({
 export const zGetDemoGameThumbnailResponse = z.string();
 
 export const zCreateDemoGameSessionData = z.object({
-    body: z.optional(zCreateDemoSessionRequest),
+    body: zCreateDemoSessionRequest,
     path: z.object({
         slug: z.string()
     }),
@@ -3038,110 +2073,6 @@ export const zCreateDemoGameSessionData = z.object({
  * Demo session created successfully
  */
 export const zCreateDemoGameSessionResponse = zDemoSessionResponse;
-
-export const zCreateDemoGameplayCapabilityData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid(),
-        playerId: z.string()
-    }),
-    query: z.optional(z.never()),
-    headers: z.optional(z.object({
-        'X-Dreamboard-Browser-Origin': z.optional(z.string())
-    }))
-});
-
-/**
- * Demo gameplay capability issued successfully
- */
-export const zCreateDemoGameplayCapabilityResponse = zGameplayCapabilityResponse;
-
-export const zFetchDemoUiBundleData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.object({
-        sessionId: z.uuid()
-    })
-});
-
-/**
- * HTML content of the UI bundle
- */
-export const zFetchDemoUiBundleResponse = z.string();
-
-export const zCreateProjectSessionFromReducerSnapshotData = z.object({
-    body: zCreateSessionFromReducerSnapshotRequest,
-    path: z.object({
-        projectId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Session materialized successfully
- */
-export const zCreateProjectSessionFromReducerSnapshotResponse = zHostSessionSnapshot;
-
-export const zGetSessionByShortCodeData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        shortCode: z.string()
-    }),
-    query: z.optional(z.object({
-        playerId: z.optional(z.string())
-    }))
-});
-
-/**
- * Session found successfully
- */
-export const zGetSessionByShortCodeResponse = zHostSessionSnapshot;
-
-export const zGetSessionSnapshotData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid()
-    }),
-    query: z.optional(z.object({
-        playerId: z.optional(z.string())
-    }))
-});
-
-/**
- * Session snapshot retrieved successfully
- */
-export const zGetSessionSnapshotResponse = zHostSessionSnapshot;
-
-export const zGetSessionLobbyEventBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid()
-    }),
-    query: z.object({
-        afterCursor: z.optional(z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
-        waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000),
-        clientId: z.string(),
-        clientSource: z.optional(z.string())
-    })
-});
-
-/**
- * Lobby session event batch
- */
-export const zGetSessionLobbyEventBatchResponse = zHostSessionEventBatchResponse;
-
-export const zStartGameData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Game started successfully
- */
-export const zStartGameResponse = zHostSessionSnapshot;
 
 export const zGetDemoSessionByShortCodeData = z.object({
     body: z.optional(z.never()),
@@ -3156,7 +2087,7 @@ export const zGetDemoSessionByShortCodeData = z.object({
 /**
  * Demo session found successfully
  */
-export const zGetDemoSessionByShortCodeResponse = zHostSessionSnapshot;
+export const zGetDemoSessionByShortCodeResponse = zSessionControlSnapshot;
 
 export const zGetDemoSessionSnapshotData = z.object({
     body: z.optional(z.never()),
@@ -3171,25 +2102,7 @@ export const zGetDemoSessionSnapshotData = z.object({
 /**
  * Demo session snapshot retrieved successfully
  */
-export const zGetDemoSessionSnapshotResponse = zHostSessionSnapshot;
-
-export const zGetDemoSessionLobbyEventBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        sessionId: z.uuid()
-    }),
-    query: z.object({
-        afterCursor: z.optional(z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })),
-        waitMs: z.optional(z.int().gte(0).lte(25000)).default(25000),
-        clientId: z.string(),
-        clientSource: z.optional(z.string())
-    })
-});
-
-/**
- * Demo lobby session event batch
- */
-export const zGetDemoSessionLobbyEventBatchResponse = zHostSessionEventBatchResponse;
+export const zGetDemoSessionSnapshotResponse = zSessionControlSnapshot;
 
 export const zStartDemoGameData = z.object({
     body: z.optional(z.never()),
@@ -3202,4 +2115,45 @@ export const zStartDemoGameData = z.object({
 /**
  * Demo game started successfully
  */
-export const zStartDemoGameResponse = zHostSessionSnapshot;
+export const zStartDemoGameResponse = zSessionControlSnapshot;
+
+export const zGetDemoSessionUiBundleData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        sessionId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * HTML content of the UI bundle
+ */
+export const zGetDemoSessionUiBundleResponse = z.string();
+
+export const zGetProjectCommitBuildData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid(),
+        buildJobId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Inspect an exact commit build
+ */
+export const zGetProjectCommitBuildResponse = zProjectCommitBuild;
+
+export const zGetProjectCommitBuildSourcesData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        projectId: z.uuid(),
+        buildJobId: z.uuid()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Read source files from an exact commit build
+ */
+export const zGetProjectCommitBuildSourcesResponse = zProjectCommitBuildSources;
