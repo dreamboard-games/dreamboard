@@ -1,4 +1,4 @@
-import type { ReducerBundleContract } from "@dreamboard-games/sdk/reducer-contract";
+import type { ReducerBundleContract } from "@dreamboard-games/sdk/reducer";
 export type Operation =
   | {
       operation: "initialize";

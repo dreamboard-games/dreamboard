@@ -1,143 +1,76 @@
 import { z } from "zod";
 import { createGame } from "@dreamboard-games/sdk/reducer";
-import {
-  createManifestStringLiteralSchema,
-  type RuntimeTableRecord,
-} from "@dreamboard-games/sdk/reducer/advanced";
-const perPlayer = (ids: readonly string[], create: () => unknown) =>
-  Object.fromEntries(ids.map((id) => [id, create()]));
-function createModel() {
-  const playerIds = ["player-1", "player-2"] as const;
-  const phaseNames = ["play"] as const;
-  const cardIds = ["card-1", "card-2"] as const;
-  const handIds = ["hand"] as const;
-  const emptyIds = [] as const;
-  const literalIds = createManifestStringLiteralSchema;
-  return {
-    manifest: {
-      literals: {
-        playerIds,
-        phaseNames,
-        boardLayouts: emptyIds,
-        setupOptionIds: emptyIds,
-        setupProfileIds: emptyIds,
-        cardSetIds: ["cards"] as const,
-        cardTypes: ["action"] as const,
-        deckIds: emptyIds,
-        handIds,
-        sharedZoneIds: emptyIds,
-        playerZoneIds: handIds,
-        zoneIds: handIds,
-        cardIds,
-        resourceIds: emptyIds,
-        pieceTypeIds: emptyIds,
-        pieceIds: emptyIds,
-        dieTypeIds: emptyIds,
-        dieIds: emptyIds,
-        boardTemplateIds: emptyIds,
-        boardTypeIds: emptyIds,
-        boardBaseIds: emptyIds,
-        boardIds: emptyIds,
-        boardContainerIds: emptyIds,
-        relationTypeIds: emptyIds,
-        edgeIds: emptyIds,
-        edgeTypeIds: emptyIds,
-        vertexIds: emptyIds,
-        vertexTypeIds: emptyIds,
-        spaceIds: emptyIds,
-        spaceTypeIds: emptyIds,
-        handVisibilityById: { hand: "ownerOnly" } as const,
-        zoneVisibilityById: { hand: "ownerOnly" } as const,
-        setupChoiceIdsByOptionId: {},
-        cardSetIdByCardId: { "card-1": "cards", "card-2": "cards" },
-        cardTypeByCardId: { "card-1": "action", "card-2": "action" },
-        cardSetIdsBySharedZoneId: {},
-        cardSetIdsByPlayerZoneId: { hand: ["cards"] },
-      },
-      ids: {
-        playerId: literalIds(playerIds),
-        phaseName: literalIds(phaseNames),
-        boardLayout: z.never(),
-        setupOptionId: z.never(),
-        setupProfileId: z.never(),
-        cardSetId: literalIds(["cards"] as const),
-        cardType: literalIds(["action"] as const),
-        cardId: literalIds(cardIds),
-        deckId: z.never(),
-        handId: literalIds(handIds),
-        sharedZoneId: z.never(),
-        playerZoneId: literalIds(handIds),
-        zoneId: literalIds(handIds),
-        resourceId: z.never(),
-        pieceTypeId: z.never(),
-        pieceId: z.never(),
-        dieId: z.never(),
-        dieTypeId: z.never(),
-        boardTypeId: z.never(),
-        boardId: z.never(),
-        boardBaseId: z.never(),
-        boardContainerId: z.never(),
-        relationTypeId: z.never(),
-        edgeId: z.never(),
-        edgeTypeId: z.never(),
-        vertexId: z.never(),
-        vertexTypeId: z.never(),
-        spaceId: z.never(),
-        spaceTypeId: z.never(),
-      },
-      defaults: {
-        zones: () => ({ shared: {}, perPlayer: {}, visibility: {} }),
-        decks: () => ({}),
-        hands: () => ({ hand: perPlayer([], () => []) }),
-        handVisibility: () => ({}),
-        ownerOfCard: () => ({}),
-        visibility: () => ({}),
-        resources: () => perPlayer([], () => ({})),
-      },
-      setupOptionsById: {},
-      setupChoiceIdsByOptionId: {},
-      setupProfilesById: {},
-      tableSchema: z.custom<RuntimeTableRecord>(),
-      runtimeSchema: z.any(),
-      createGameStateSchema: () => z.any(),
-    },
-    state: {
-      public: z.object({ count: z.number() }),
-      private: z.object({}),
-      hidden: z.object({}),
-    },
-    phases: { play: z.object({}) },
-    errors: { NOPE: "Not allowed." },
-  };
-}
-
-const game = createGame(createModel());
+import manifest from "../manifest";
+const game = createGame({
+  manifest,
+  options: z.strictObject({ start: z.number().int().default(0) }),
+  state: {
+    public: z.object({ count: z.number(), roll: z.number().nullable() }),
+    private: z.object({ secret: z.string() }),
+    hidden: z.object({ secret: z.string() }),
+  },
+  phases: { play: z.object({}) },
+  errors: { NOPE: "Choose the accepted option." },
+});
+const play = game.phase("play");
 export default game.assemble({
   initial: {
-    public: () => ({ count: 0 }),
-    private: () => ({}),
-    hidden: () => ({}),
+    public: ({ options }) => ({ count: options.start, roll: null }),
+    private: ({ playerId }) => ({ secret: `secret-${playerId}` }),
+    hidden: () => ({ secret: "host-only" }),
   },
   initialPhase: "play",
   phases: {
-    play: game.phase("play").define({
+    play: play.define({
       kind: "player",
       initialState: () => ({}),
-      actor: ({ q }) => q.player.order()[0],
+      enter({ tx, state }) {
+        tx.setActivePlayers([state.table.playerOrder[0]]);
+      },
       interactions: {
-        increment: {
+        increment: play.interaction({
           inputs: {},
-          reduce: ({ state, accept }) =>
-            accept({
-              ...state,
-              publicState: { count: state.publicState.count + 1 },
-            }),
-        },
+          reduce({ tx, state }) {
+            tx.patchPublicState({ count: state.publicState.count + 1 });
+          },
+        }),
+        choose: play.interaction({
+          steps: play
+            .steps()
+            .input(
+              "choice",
+              play.inputs.form.choice({
+                choices: [
+                  { value: "accept", label: "Accept" },
+                  { value: "reject", label: "Reject" },
+                ],
+                defaultValue: () => undefined,
+              }),
+            )
+            .input("confirm", () => ({
+              ...play.inputs.form.choice({
+                choices: [{ value: null, label: "Confirm" }],
+                defaultValue: () => undefined,
+              }),
+              schema: z.null(),
+            })),
+          reduce({ tx, input, random, state }) {
+            const roll = random.integer({ minInclusive: 1, maxInclusive: 6 });
+            tx.patchPublicState({ count: state.publicState.count + 1, roll });
+            tx.emit({
+              kind: "systemAction",
+              procedureId: "choose",
+              title: "Choice accepted",
+            });
+            if (input.params.choice === "reject")
+              return tx.reject("NOPE", "Choose the accepted option.");
+          },
+        }),
       },
     }),
   },
-  views: {
-    shared: { project: ({ state }) => ({ count: state.publicState.count }) },
-    player: { project: ({ shared }) => shared },
-  },
+  view: game.view(({ state, playerId }) => ({
+    ...state.publicState,
+    secret: state.privateState[playerId].secret,
+  })),
 });

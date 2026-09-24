@@ -2,10 +2,11 @@ import {
   materializePluginGameplayFrame,
   encodeCanonicalPluginRuntimeJson,
   type SubmitInteractionCommand,
+  type CancelInteractionCommand,
   type InteractionResult,
   type PluginGameplayFrame,
   type PluginPlayerSummary,
-} from "@dreamboard-games/sdk/plugin-runtime-contract";
+} from "@dreamboard-games/sdk";
 import type { BrowserGameplayRuntime, GameplaySnapshot } from "./index.js";
 import { PluginBridge } from "./plugin-bridge.js";
 export interface GameplayUIOptions {
@@ -51,8 +52,8 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       reportError(error);
     }
   }
-  async function submit(
-    command: SubmitInteractionCommand,
+  async function execute(
+    command: SubmitInteractionCommand | CancelInteractionCommand,
   ): Promise<InteractionResult> {
     const identity = encodeCanonicalPluginRuntimeJson(command);
     const recorded = commands.get(command.clientActionId);
@@ -72,12 +73,21 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       encodeCanonicalPluginRuntimeJson(frame.basis)
     )
       throw new Error("The view changed; try again");
-    const dispatched = await options.runtime.dispatch({
-      kind: "interaction",
-      playerId: snapshot.playerId,
-      interactionId: command.interactionId,
-      params: command.params,
-    });
+    const actor = command.basis.perspectivePlayerId;
+    const dispatched = await options.runtime.dispatch(
+      command.type === "interaction.submit"
+        ? {
+            kind: "interaction",
+            playerId: actor,
+            interactionId: command.interactionId,
+            params: command.params,
+          }
+        : {
+            kind: "interaction.cancel",
+            playerId: actor,
+            interactionId: command.interactionId,
+          },
+    );
     const result: InteractionResult =
       dispatched.kind === "accept"
         ? {
@@ -162,7 +172,15 @@ export function mountGameplayUI(options: GameplayUIOptions) {
     bridge.onPluginMessage("runtime.error", (message) =>
       options.onError?.(new Error(message.message)),
     );
-    bridge.onPluginMessage("interaction.submit", (command) => {
+    mountedBridge.onPluginMessage("runtime.resume", () => {
+      void queue(async () => {
+        if (mountedBridge === bridge) mountedBridge.sendGameplayFrame(frame);
+      }).catch(reportError);
+    });
+    const receiveCommand = (
+      incoming: SubmitInteractionCommand | CancelInteractionCommand,
+    ) => {
+      const command = structuredClone(incoming);
       const requester = mountedBridge;
       void queue(async () => {
         // A command queued by a retired seat/source must never receive or mutate
@@ -170,7 +188,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
         if (requester !== bridge) return;
         let result: InteractionResult;
         try {
-          result = await submit(command);
+          result = await execute(command);
         } catch (error) {
           result = {
             type: "interaction.result",
@@ -186,7 +204,9 @@ export function mountGameplayUI(options: GameplayUIOptions) {
           notify(() => requester.sendSubmitResult(result));
         }
       }).catch(reportError);
-    });
+    };
+    mountedBridge.onPluginMessage("interaction.submit", receiveCommand);
+    mountedBridge.onPluginMessage("interaction.cancel", receiveCommand);
     iframe.onload = () => {
       const sendInit = () => {
         if (++attempts > 40) {
@@ -220,6 +240,22 @@ export function mountGameplayUI(options: GameplayUIOptions) {
         }
         return next;
       }),
+    checkpoint: () => queue(() => options.runtime.checkpoint()),
+    restore: (checkpoint: unknown) => {
+      const original = structuredClone(checkpoint);
+      return queue(async () => {
+        const next = await options.runtime.restore(original);
+        commands.clear();
+        if (!disposed) {
+          stopHandshake();
+          bridge.disconnect();
+          iframe.remove();
+          updateSnapshot(next);
+          mount();
+        }
+        return next;
+      });
+    },
     reset: () =>
       queue(async () => {
         const next = await options.runtime.reset();

@@ -6,12 +6,13 @@ const { values } = parseArgs({
     port: { type: "string", default: "5173" },
     players: { type: "string", default: "2" },
     seed: { type: "string", default: "1" },
+    options: { type: "string", default: "{}" },
     help: { type: "boolean" },
   },
 });
 if (values.help)
   console.log(
-    "dreamboard-dev [--port 5173] [--players 2] [--seed 1]\nRun from a game project containing manifest.ts, app/game.ts, and ui/App.tsx.",
+    "dreamboard-dev [--port 5173] [--players 2] [--seed 1] [--options '{}']\nRun from a game project containing manifest.ts, app/index.ts, and ui/index.tsx.",
   );
 else {
   const host = await startDevHost({
@@ -19,6 +20,7 @@ else {
     port: Number(values.port),
     players: Number(values.players),
     seed: Number(values.seed),
+    options: JSON.parse(values.options),
   });
   console.log(`Dreamboard local play: ${host.url}`);
   for (const signal of ["SIGINT", "SIGTERM"] as const)

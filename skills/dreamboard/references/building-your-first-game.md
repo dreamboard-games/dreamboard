@@ -1,92 +1,77 @@
-1. Describe the goal, setup, player choices, and ending in `rule.md`.
-2. Declare players and components in `manifest.ts`.
-3. Implement the game in `app/game.ts` using the SDK reducer authoring API.
-4. Render its public and player-specific projection in `ui/App.tsx`.
-5. Add Vitest tests for the main turn, invalid moves, and the ending.
-6. Run `pnpm check`, then `pnpm dev`.
+# Build a first game
 
-Play through each seat and use Reset game to repeat the same seed. Refresh after code edits. Keep media inside the project so the host can embed it for offline use. Local authoring does not require an account or remote project.
+Begin with a deliberately small rule: two seats share a counter, and player1 can
+increment it. Use this to prove the complete authoring/iframe path before adding
+turn changes, scoring or an ending. Describe the real game in `rule.md`, then
+expand rules and tests together.
 
-## Example: Race to Ten
+`manifest.ts`:
 
-Two players take turns rolling one shared die and adding the result to their score. The first to reach ten wins. Begin with a fixed sequence `1, 2, 3, 4, 5, 6` so tests can describe an exact game; then replace it with the SDK runtime-owned randomness. Never call `Math.random()` inside a reducer.
-
-## Write `rule.md`
-
-```md
-# Race to Ten
-
-## Overview
-
-- Players: 2
-- Objective: be the first player to reach 10 points
-- Duration: 3 to 5 minutes
-
-## Components
-
-- 1 shared six-sided die
-- visible score totals for each player
-- no hidden information
-
-## Setup
-
-1. Seat two players.
-2. Set both scores to 0.
-3. Clear the die value.
-4. Player 1 takes the first turn.
-
-## Gameplay
-
-### Phase 1: takeTurn
-
-- Acting player: the current player only
-- Allowed actions: `rollDie`
-- Validation: only the active player may act, and no actions are legal after a winner exists
-- Completion:
-  - `rollDie` sets the shared die to a new value
-  - the acting player adds that value to their score
-  - if the acting player reaches 10 points, the game ends immediately
-  - otherwise the turn passes to the other player
-
-## Scoring and progression
-
-- `rollDie` increases the acting player's score by the rolled value
-
-## Winning conditions
-
-- End trigger: a player reaches 10 points
-- Winner determination: the player who reached 10 points wins
-- Tie-breaker: not applicable because turns resolve one at a time
-
-## Special rules and edge cases
-
-- Actions after game end are illegal
-- Out-of-turn actions are illegal
-- For this tutorial implementation, the die value cycles deterministically from 1 to 6 so the example stays reproducible
+```ts
+import { defineTopologyManifest } from "@dreamboard-games/sdk/reducer";
+export default defineTopologyManifest({
+  players: { minPlayers: 2, maxPlayers: 2 },
+  cardSets: [],
+  zones: [],
+  boards: [],
+});
 ```
 
-For a fuller reference, see [Rule authoring](/docs/reference/rule-authoring).
+`app/game.ts`:
 
-## Connect rules to components
+```ts
+import { z } from "zod";
+import { createGame } from "@dreamboard-games/sdk/reducer";
+import manifest from "../manifest";
 
-Declare the shared die, two players, and turn phases in `manifest.ts`. Use the installed SDK authoring API rather than inventing a second table or copying generated files. Keep scores in public state; every player is allowed to see them. A more complex card game would keep hands in player state and the deck order in hidden state.
+const model = createGame({
+  manifest,
+  state: {
+    public: z.object({ count: z.number().int() }),
+    private: z.object({}),
+    hidden: z.object({}),
+  },
+  phases: { play: z.object({}) },
+});
+const play = model.phase("play");
+export default model.assemble({
+  initial: { public: () => ({ count: 0 }) },
+  initialPhase: "play",
+  phases: {
+    play: play.define({
+      kind: "player",
+      initialState: () => ({}),
+      enter({ tx, state }) {
+        tx.setActivePlayers([state.table.playerOrder[0]]);
+      },
+      interactions: {
+        increment: play.interaction({
+          inputs: {},
+          reduce({ tx, state }) {
+            tx.patchPublicState({ count: state.publicState.count + 1 });
+          },
+        }),
+      },
+    }),
+  },
+  view: ({ state }) => ({ count: state.publicState.count }),
+});
+```
 
-## Implement one turn
+`app/index.ts`:
 
-The `rollDie` interaction belongs to the active player. Reject an out-of-turn submission and reject every action after a winner exists. On acceptance, update the shared die, add its value to the actor's score, then either record the winner or advance to the next player. Put those changes in one reducer transition so the UI cannot observe a half-completed turn.
+```ts
+import { createReducerBundle } from "@dreamboard-games/sdk/reducer";
+import game from "./game";
+export default createReducerBundle(game);
+```
 
-Use the SDK's runtime-owned roll effect when introducing randomness. The seed belongs to setup, allowing the same game to replay deterministically.
+Add the UI from [interface](game-interface.md). Run TypeScript and Vitest, then the
+actual local host. Assert initial count0, accepted increment to1 and wrong-seat
+rejection without state change. Switch seats in the browser: the second seat must
+not gain an enabled action merely because the UI displays the same public count.
 
-## Project and render
-
-Project each player's score, the active player, the current die, and the winner. Render legal interactions from SDK descriptors; do not implement a separate UI rule for when rolling is allowed. Show the score table, the die, an active-player label, and a roll control. Show the terminal outcome when the game ends.
-
-## Prove the behavior
-
-Add Vitest cases for zero initial scores, the first roll, alternating players, the winning roll, out-of-turn rejection, and rejection after the ending. Verify that rejected actions leave state unchanged. Keep a fixed seed in any test that uses runtime randomness.
-
-Run `pnpm check`, then play the same sequence in `pnpm dev`. Switch seats after each turn. Reset and repeat the seed. Refresh after source edits and confirm the host starts a new source revision rather than restoring incompatible state.
-
-## Extend the game
-
-Add setup profiles for the target score, a second phase, or a meaningful choice before rolling. Extend tests with each rule. Keep reducer state authoritative and make the UI a projection of it.
+When extending the game, add JSON-native initialization options to the bound
+model, ordinary phases/transactions, and explicit terminal outcomes. Use seeded
+transaction RNG for randomness. Keep state in the session rather than module
+globals. Include a complete ending scenario once the rules define one.

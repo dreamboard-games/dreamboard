@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { REDUCER_CONTRACT_VERSION } from "@dreamboard-games/sdk/reducer-contract";
+import { REDUCER_CONTRACT_VERSION } from "@dreamboard-games/sdk/reducer";
 const runtime = await readFile(
   new URL("../dist/index.js", import.meta.url),
   "utf8",
 );
 const state = {
   domain: {
-    table: {},
+    table: { playerOrder: ["alice", "bob"] },
     publicState: { count: 0 },
     privateState: { alice: { secret: "A" }, bob: { secret: "B" } },
     hiddenState: { secret: "host-only" },
@@ -16,16 +16,18 @@ const state = {
   },
   runtime: {
     rng: { seed: 1, cursor: 0, trace: [] },
-    setup: null,
+    options: {},
+    pending: {},
+    events: [],
     simultaneous: { current: null },
     lastTransition: null,
   },
 };
 const source = `export default {
  reducerContractVersion:${JSON.stringify(REDUCER_CONTRACT_VERSION)},
- initialize(){return {state:${JSON.stringify(state)}}},
+ initialize(input){const state=${JSON.stringify(state)};state.domain.table.playerOrder=input.playerIds;state.runtime.options=input.options??{};return {state}},
  dispatch({state,input}){if(input.interactionId==='hang')while(true){};state.domain.publicState.count++;return {kind:'accept',state,trace:[],events:[]}},
- project({state,playerIds}){return {sharedView:state.domain.publicState,seats:Object.fromEntries(playerIds.map(id=>[id,{view:state.domain.privateState[id]}]))}},
+ project({state,playerIds}){return {events:state.runtime.events,interactionsByRef:{},seats:Object.fromEntries(playerIds.map(id=>[id,{view:{...state.domain.publicState,...state.domain.privateState[id]},availableInteractionRefs:[],zones:{}}]))}},
  boardStatic(){return null}
 }`;
 test.beforeEach(async ({ page }) => {
@@ -95,13 +97,23 @@ test("offline initialize, serialized dispatch, seat projection, persistence and 
     };
   }, source);
   expect(result.start.projection.seats).toEqual({
-    alice: { view: { secret: "A" } },
+    alice: {
+      view: { count: 0, secret: "A" },
+      availableInteractionRefs: [],
+      zones: {},
+    },
   });
   expect(result.switched.projection.seats).toEqual({
-    bob: { view: { secret: "B" } },
+    bob: {
+      view: { count: 2, secret: "B" },
+      availableInteractionRefs: [],
+      zones: {},
+    },
   });
-  expect(result.resumed.projection.sharedView).toEqual({ count: 2 });
-  expect(result.reset.projection.sharedView).toEqual({ count: 0 });
+  expect(result.resumed.projection.seats.alice.view.count).toBe(2);
+  expect(result.reset.playerId).toBe("bob");
+  expect(result.reset.projection.seats.bob.view.count).toBe(0);
+  expect(result.reset.projection.seats.alice).toBeUndefined();
   expect(result.counts).toEqual([0, 1, 2, 0]);
   expect(JSON.stringify(result.start)).not.toContain("host-only");
 });
@@ -132,18 +144,18 @@ test("terminates an infinite worker and resets the session", async ({
     return { error, reset };
   }, source);
   expect(result.error).toContain("timed out");
-  expect(result.reset.projection.sharedView).toEqual({ count: 0 });
+  expect(result.reset.projection.seats.alice.view.count).toBe(0);
   expect(await page.locator("iframe").count()).toBe(0);
 });
 test("opaque worker cannot access storage or network", async ({ page }) => {
   const malicious = source.replace(
-    "initialize(){return",
-    `async initialize(){
+    "initialize(input){",
+    `async initialize(input){
  let storage=false,network=false;
  try{await indexedDB.open('parent-private');storage=true}catch{}
  try{await fetch('http://localhost:4199/secret',{credentials:'include'});network=true}catch{}
  if(storage||network)throw new Error('Isolation failed');
- return`,
+ `,
   );
   const result = await page.evaluate(async (source) => {
     localStorage.setItem("credential", "do-not-read");
@@ -156,7 +168,7 @@ test("opaque worker cannot access storage or network", async ({ page }) => {
     game.dispose();
     return result;
   }, malicious);
-  expect(result.projection.sharedView).toEqual({ count: 0 });
+  expect(result.projection.seats.alice.view.count).toBe(0);
 });
 test("failed persistence leaves committed state unchanged", async ({
   page,
@@ -188,7 +200,7 @@ test("failed persistence leaves committed state unchanged", async ({
     return { error, snapshot };
   }, source);
   expect(result.error).toContain("Disk full");
-  expect(result.snapshot.projection.sharedView).toEqual({ count: 0 });
+  expect(result.snapshot.projection.seats.alice.view.count).toBe(0);
 });
 test("each reducer operation loads a fresh module", async ({ page }) => {
   const mutating = source
@@ -259,8 +271,8 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
       });
     },
     source.replace(
-      "view:state.domain.privateState[id]",
-      "view:{...state.domain.publicState,...state.domain.privateState[id],imageUrl:'https://images.test/card'},availableInteractionRefs:[],zones:{}",
+      "view:{...state.domain.publicState,...state.domain.privateState[id]}",
+      "view:{...state.domain.publicState,...state.domain.privateState[id],imageUrl:'https://images.test/card'}",
     ),
   );
   const game = page.frameLocator('iframe[title="Game"]');
@@ -337,17 +349,17 @@ async function mountRetryGame(
           { playerId: "bob", displayName: "Bob" },
         ],
         onSnapshot: (snapshot: any) => {
-          if (failNotification && snapshot.projection.sharedView.count > 0)
+          if (
+            failNotification &&
+            snapshot.projection.seats[snapshot.playerId].view.count > 0
+          )
             throw new Error("Notification failed");
         },
         onError: (error: unknown) => host.errors.push(String(error)),
       });
     },
     {
-      source: source.replace(
-        "view:state.domain.privateState[id]",
-        "view:{...state.domain.publicState,...state.domain.privateState[id]},availableInteractionRefs:[],zones:{}",
-      ),
+      source,
       failNotification,
     },
   );
@@ -593,16 +605,14 @@ test("a command queued behind a seat switch cannot act for or notify the new sea
       ui.locator("body").evaluate(() => (window as any).frame?.view.count),
     )
     .toBe(0);
-  await ui
-    .locator("body")
-    .evaluate(
-      (_body, command) =>
-        (window as any).submit({
-          ...command,
-          basis: (window as any).frame.basis,
-        }),
-      command,
-    );
+  await ui.locator("body").evaluate(
+    (_body, command) =>
+      (window as any).submit({
+        ...command,
+        basis: (window as any).frame.basis,
+      }),
+    command,
+  );
   await expect
     .poll(() =>
       ui.locator("body").evaluate(() => (window as any).results.length),
@@ -616,4 +626,188 @@ test("a command queued behind a seat switch cannot act for or notify the new sea
   expect(await page.evaluate(() => (window as any).persisted)).toEqual([
     0, 1, 0, 1,
   ]);
+});
+
+test("cancel retries share identity admission and resume republishes without dispatch", async ({
+  page,
+}) => {
+  const ui = await mountRetryGame(page);
+  const basis = await ui
+    .locator("body")
+    .evaluate(() => (window as any).frame.basis);
+  const command = {
+    type: "interaction.cancel",
+    clientActionId: "cancel-once",
+    basis,
+    interactionId: "increment",
+  };
+  await ui.locator("body").evaluate((_body, command) => {
+    (window as any).submit(command);
+    (window as any).submit(command);
+  }, command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(2);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([0, 1]);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() =>
+        (window as any).results.every((result: any) => result.accepted),
+      ),
+  ).toBe(true);
+  const before = await ui.locator("body").evaluate(() => ({
+    count: (window as any).framesSeen.length,
+    version: (window as any).frame.basis.version,
+  }));
+  await ui
+    .locator("body")
+    .evaluate(() => (window as any).submit({ type: "runtime.resume" }));
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).framesSeen.length),
+    )
+    .toBe(before.count + 1);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).frame.basis.version),
+  ).toBe(before.version);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([0, 1]);
+  await ui.locator("body").evaluate(
+    (_body, command) =>
+      (window as any).submit({
+        ...command,
+        type: "interaction.submit",
+        params: {},
+      }),
+    command,
+  );
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(3);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).results.at(-1).accepted),
+  ).toBe(false);
+});
+
+test("checkpoint restoration replaces the UI lifetime with a fresh revision", async ({
+  page,
+}) => {
+  const ui = await mountRetryGame(page);
+  const before = await ui
+    .locator("body")
+    .evaluate(() => (window as any).frame.basis.version);
+  await page.evaluate(async () => {
+    const host = window as any;
+    const checkpoint = await host.ui.checkpoint();
+    host.originalCheckpoint = JSON.parse(JSON.stringify(checkpoint));
+    await host.ui.restore(host.originalCheckpoint);
+  });
+  const restored = page.frameLocator('iframe[title="Game"]');
+  await expect
+    .poll(() =>
+      restored
+        .locator("body")
+        .evaluate(() => (window as any).frame?.basis.version),
+    )
+    .toBeGreaterThan(before);
+  expect(
+    await page.evaluate(
+      async () =>
+        JSON.stringify(await (window as any).ui.checkpoint()) ===
+        JSON.stringify((window as any).originalCheckpoint),
+    ),
+  ).toBe(true);
+});
+
+test("restored checkpoints retain options, events, pending choices and RNG without replay", async ({
+  page,
+}) => {
+  const result = await page.evaluate(async (source) => {
+    const runtime = (window as any).runtimeModule.createBrowserGameplayRuntime({
+      reducerSource: source,
+      initialize: {
+        table: {},
+        playerIds: ["alice", "bob"],
+        options: { target: 7 },
+      },
+      persist: async () => {},
+    });
+    await runtime.start();
+    const checkpoint = JSON.parse(JSON.stringify(await runtime.checkpoint()));
+    checkpoint.state.runtime.pending.alice = {
+      phaseName: "play",
+      interactionId: "choose",
+      values: ["first"],
+    };
+    checkpoint.state.runtime.rng.cursor = 9;
+    checkpoint.state.runtime.events = [
+      { kind: "systemAction", procedureId: "saved", title: "Saved event" },
+    ];
+    const restored = await runtime.restore(checkpoint);
+    const switched = await runtime.selectSeat("bob");
+    const after = await runtime.checkpoint();
+    const malformed = structuredClone(checkpoint);
+    malformed.state.domain.table.playerOrder.reverse();
+    let rejected = false;
+    try {
+      await runtime.restore(malformed);
+    } catch {
+      rejected = true;
+    }
+    const unchanged =
+      JSON.stringify(await runtime.checkpoint()) === JSON.stringify(after);
+    runtime.dispose();
+    return { restored, switched, after, checkpoint, rejected, unchanged };
+  }, source);
+  expect(result.after).toEqual(result.checkpoint);
+  expect(result.restored.events).toEqual(
+    result.checkpoint.state.runtime.events,
+  );
+  expect(result.switched.events).toEqual(result.restored.events);
+  expect(result.after.state.runtime.options).toEqual({ target: 7 });
+  expect(result.rejected).toBe(true);
+  expect(result.unchanged).toBe(true);
+  expect(JSON.stringify(result.restored)).not.toContain("host-only");
+});
+
+test("queued direct commands preserve the caller's original values", async ({
+  page,
+}) => {
+  const result = await page.evaluate(
+    async (source) => {
+      const runtime = (
+        window as any
+      ).runtimeModule.createBrowserGameplayRuntime({
+        reducerSource: source,
+        initialize: { table: {}, playerIds: ["alice"] },
+        persist: async () => {},
+      });
+      await runtime.start();
+      const input = {
+        kind: "interaction",
+        playerId: "alice",
+        interactionId: "increment",
+        params: { value: "original" },
+      };
+      const pending = runtime.dispatch(input);
+      input.params.value = "changed";
+      await pending;
+      const checkpoint = await runtime.checkpoint();
+      runtime.dispose();
+      return checkpoint.state.domain.publicState.observed;
+    },
+    source.replace(
+      "state.domain.publicState.count++;",
+      "state.domain.publicState.observed=input.params.value;state.domain.publicState.count++;",
+    ),
+  );
+  expect(result).toBe("original");
 });

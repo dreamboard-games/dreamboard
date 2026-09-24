@@ -3,9 +3,9 @@ title: "Quickstart"
 description: "Check and play an ordinary TypeScript game project locally."
 ---
 
-A Dreamboard game is a TypeScript project with `manifest.ts`, `app/game.ts`, `app/index.ts`, and `ui/App.tsx`. The manifest describes the components and setup; the game implements rules; the UI renders a player's projection.
+A Dreamboard game is a TypeScript project with `manifest.ts`, `app/game.ts`, `app/index.ts`, and `ui/index.tsx`. The manifest describes the components; the game implements rules; the UI renders a player's projection.
 
-Install a matching published SDK and `@dreamboard-games/dev-host` release in the project. Use normal project scripts:
+Install a matching published SDK and `@dreamboard-games/dev-host` release in the project, plus React, React DOM and `@tanstack/react-store@0.11.1` for the React adapter. Use normal project scripts:
 
 ```json
 {
@@ -18,7 +18,7 @@ Install a matching published SDK and `@dreamboard-games/dev-host` release in the
 
 Run `pnpm check`, then `pnpm dev --players 2 --seed 1`. Open the local URL. No account, backend, or remote project is required. Refresh after editing source to rebuild.
 
-Use the player selector to inspect each seat. Reset starts the same seed again. Browser storage resumes the same source revision, seed, and player count. Authored UI receives only the selected player's projection.
+Use the player selector to inspect each seat. Reset starts the same seed again. Browser storage resumes the same source revision, seed, player count, and initialization options. Save checkpoint captures serialized state; Restore checkpoint restores it with a fresh UI lifetime and revision, preserving committed selections and seeded randomness. Authored UI receives only the selected player's projection.
 
 Imported images and fonts are embedded. Remote URLs and network requests are blocked in authored code. Once loaded, a game continues playing without a network connection; reloading the page still requires the local development server.
 

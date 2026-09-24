@@ -80,7 +80,7 @@ Declare the shared die, two players, and turn phases in `manifest.ts`. Use the i
 
 The `rollDie` interaction belongs to the active player. Reject an out-of-turn submission and reject every action after a winner exists. On acceptance, update the shared die, add its value to the actor's score, then either record the winner or advance to the next player. Put those changes in one reducer transition so the UI cannot observe a half-completed turn.
 
-Use the SDK's runtime-owned roll effect when introducing randomness. The seed belongs to setup, allowing the same game to replay deterministically.
+Use the SDK's seeded `tx.roll(dieId)` transaction method when introducing randomness. The seed belongs to setup, allowing the same game to replay deterministically.
 
 ## Project and render
 
@@ -94,4 +94,4 @@ Run `pnpm check`, then play the same sequence in `pnpm dev`. Switch seats after 
 
 ## Extend the game
 
-Add setup profiles for the target score, a second phase, or a meaningful choice before rolling. Extend tests with each rule. Keep reducer state authoritative and make the UI a projection of it.
+Declare model initialization options for the target score, a second phase, or a meaningful choice before rolling. Extend tests with each rule. Keep reducer state authoritative and make the UI a projection of it.

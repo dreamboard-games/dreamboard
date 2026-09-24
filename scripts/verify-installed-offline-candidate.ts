@@ -34,6 +34,7 @@ await writeFile(
       "@dreamboard-games/dev-host": `file:${path.join(candidate, host.file)}`,
       "@dreamboard-games/browser-gameplay-runtime": `file:${runtimeFile}`,
       "@dreamboard-games/sdk": receipt.sdkVersion,
+      "@tanstack/react-store": "0.11.1",
       react: "19.2.7",
       "react-dom": "19.2.7",
       zod: "4.4.3",
@@ -128,7 +129,7 @@ try {
         checks: [
           "installed launcher",
           "compiled fixture",
-          "SDK stylesheet and Tailwind",
+          "authored stylesheet and Tailwind",
           "offline SDK submission",
           "seat switch",
           "reset",

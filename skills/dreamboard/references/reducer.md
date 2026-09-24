@@ -1,82 +1,72 @@
-A reducer owns game rules and authoritative state. Import the public authoring API from `@dreamboard-games/sdk/reducer`. Keep the default game definition in `app/game.ts`; export its reducer bundle from `app/index.ts`. Both the local host and cloud compiler consume that authored entrypoint.
+# Reducer authoring
 
-```ts
-import { createReducerBundle } from "@dreamboard-games/sdk/reducer";
-import game from "./game";
-export default createReducerBundle(game);
-```
+Use `createGame(model)` from `/reducer`, `model.phase(name)` for bound helpers,
+and `model.assemble` for initial state, phases and one view. Import the authored
+manifest normally; optional `compileManifest(manifest)` gives canonical ID schemas,
+initial tables and static boards without generated authoring files. The
+[first-game example](building-your-first-game.md) contains a complete definition.
 
-## Authoring without generated files
+## State and transactions
 
-Import the authored manifest normally. With the SDK's `compileManifest` authoring release, `createGame` accepts that manifest and infers its component identities:
+Public, private, hidden, phase and table state have one authoritative owner.
+Ordinary records represent per-player data. `model.types` contains phantom State,
+Tx and Queries type carriers; do not read them at runtime.
 
-```ts
-import { z } from "zod";
-import { createGame } from "@dreamboard-games/sdk/reducer";
-import manifest from "../manifest";
+Mutation callbacks receive tx. Use named methods such as patchPublicState,
+patchPhaseState, setActivePlayers, transition, endGame, roll, shuffle and deal.
+`state`/`q` describe the initial callback snapshot; tx.state/tx.q observe earlier
+mutations in the same transaction. Bare return accepts; return tx.reject(code)
+rejects without persisting state, RNG or emitted-event changes. Return lifecycle
+results rather than constructing an alternate state engine.
 
-const game = createGame({
-  manifest,
-  state: {
-    public: z.object({ count: z.number().int() }),
-    private: z.object({}),
-    hidden: z.object({}),
-  },
-  phases: { play: z.object({}) },
-  errors: { LIMIT_REACHED: "The counter cannot increase further." },
-});
-```
+Perform initialization mutations in phase entry. Declare options once as a
+JSON-native Zod schema on createGame; the host supplies JSON and the reducer
+validates/persists parsed options. Runtime transforms/coercion are not a wire
+options contract. Use normal actor rules and explicit resource mutations rather
+than implicit costs or metadata-driven setup execution.
 
-Use `game.phase("play")` for helpers bound to that phase and `game.assemble(...)` to combine initial state, phases, and views into the exported definition. Types come from the authored values. Do not materialize or commit a parallel generated manifest contract.
+## Independent inputs and committed steps
 
-`compileManifest(manifest)` exposes literal identities, ID schemas, defaults, table schema, static boards, records, and initial-table construction when tooling needs those explicitly. The SDK owns this translation; a host must not create a second manifest compiler.
+Keep independent choices in `inputs: { ... }` and submit them together. Use
+`phase.steps().input(key, collector).input(key, ({ selected }) => collector)` only
+when a later domain depends on earlier choices. The earlier selected values are
+typed; duplicate keys and RNG input collectors are excluded.
 
-## State ownership
+Every completed step is committed private server state. A many selection is one
+atomic step. Use explicit null for a no-target value. On an accepted state change,
+revalidate in order: retain the valid prefix and drop from the first invalid
+value onward. Unavailable interactions and every actual phase entry clear pending
+choices, including leave/reenter of the same phase name. Reconnect and checkpoint
+restore preserve persisted choices; restore does not replay the reducer.
 
-| State   | Meaning                          | Example                             |
-| ------- | -------------------------------- | ----------------------------------- |
-| Public  | Shared rule state                | Score totals, round, visible market |
-| Private | State belonging to a player      | Hand or private objective           |
-| Hidden  | Reducer-only state               | Undrawn deck order                  |
-| Phase   | Data needed by the current phase | Pending choice or resolution stage  |
-| Table   | Manifest-owned component state   | Cards, zones, pieces, dice, boards  |
+The final command validates all accumulated params, then executes the reducer
+once. Rejection retains the earlier persisted prefix and discards transaction/RNG
+changes. A blocked current domain can still allow cancellation. Do not recreate
+dependency graphs or client-side command replay.
 
-Projection controls what reaches a player. Private state is not automatically safe merely because it is named private: the authored view must select only the intended player's information. Never send the full session state to the UI.
+## Selected-seat projection and events
 
-## Interactions and phases
+Author one record-valued view. Include public facts and only that seat's allowed
+private facts. Spectator custom view is empty; never pick a player as fallback.
+The own key boards is reserved for manifest-derived static geometry. Transport
+accepts object/null views, not primitive/array views. Ordinary memoize(fn) caches a
+single object argument with WeakMap identity; there is no injected resolver.
 
-Declare the acting player or players for each phase. An interaction describes its inputs, legality, and accepted transition. Use manifest identities and bound helpers so parameters refer to actual components.
+`tx.emit` emits **public display events only**. The latest accepted outer operation
+replaces runtime.events, including events from automatic entries. Empty step or
+cancel operations clear the batch. Rejection preserves the old batch. Private
+messages belong in the authored seat view. Do not store hidden card/resource
+identities in public display details.
 
-For a counter game, reject incrementing beyond the limit; on acceptance, update the count and either keep the phase or end the game. For a card game, validate ownership and destination, move the card, then advance turn in one accepted transition. A rejected input must leave state unchanged.
+## Execution boundary
 
-The UI renders the reducer's available interactions. Do not duplicate legality rules in React. The reducer still validates submitted inputs, including stale or manually forged ones.
+`app/index.ts` exports `createReducerBundle(game)`. Its contract contains
+reducerContractVersion, initialize, dispatch, project and boardStatic. Use the
+published `/reducer` ABI and schemas, and root canonical protocol types/schemas at
+host boundaries; do not import private source paths or maintain parallel DTOs.
 
-## Randomness and effects
-
-Use the SDK's runtime-owned randomness and effects. Do not call `Math.random`, read wall-clock time, or perform network requests inside rules. Store progression in session state rather than a module variable. Identical seed, initial state, and accepted inputs must produce the same result.
-
-Each browser operation loads a fresh reducer module in a worker. A timeout terminates that worker. Module globals cannot act as persistent game state.
-
-## Views and boards
-
-Define shared and player views from authoritative state. Shared views contain information every player may see; player views add only that seat's visible data. Project board topology through the SDK's static board support and dynamic state through the normal player projection.
-
-Keep UI layout decisions in React. Reducer views should describe game facts and available choices, rather than pixels or component trees.
-
-## Host boundary
-
-`createReducerBundle(game)` produces the five-member portable ABI:
-
-| Member                       | Purpose                                                  |
-| ---------------------------- | -------------------------------------------------------- |
-| `reducerContractVersion`     | Exact protocol version                                   |
-| `initialize(request)`        | Create the full initial state and optional ending/events |
-| `dispatch({state,input})`    | Accept with a new state, or reject                       |
-| `project({state,playerIds})` | Produce seat projections                                 |
-| `boardStatic()`              | Return static board projection or null                   |
-
-Use `ReducerWire` and published SDK schemas from `@dreamboard-games/sdk/reducer-contract` at runtime boundaries. Full state is serializable and is persisted by the trusted host before a new projection is published. Author code must not depend on a specific backend or browser host.
-
-## Verification
-
-Run project TypeScript and Vitest checks through `pnpm check`. Test setup, accepted and rejected inputs, turn changes, hidden information, seeded randomness, and endings. Then run `pnpm dev`, switch seats, and repeat a complete game after reset.
+The offline host persists authoritative state before publishing a projection.
+Reducer execution lives in a terminable worker inside a separate opaque iframe.
+Keep progression in serialized state; module globals, wall-clock reads,
+Math.random and network requests are not game authority. Seeded transaction RNG
+makes replay deterministic; rejection consumes no accepted randomness.

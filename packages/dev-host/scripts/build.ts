@@ -14,9 +14,3 @@ await build({
   format: "esm",
   outdir: "dist",
 });
-await build({
-  entryPoints: ["src/seeded-shuffle.ts"],
-  platform: "browser",
-  format: "esm",
-  outdir: "dist",
-});
