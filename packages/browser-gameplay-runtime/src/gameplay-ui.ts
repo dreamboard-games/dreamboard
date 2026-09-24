@@ -143,7 +143,17 @@ export function mountGameplayUI(options: GameplayUIOptions) {
         zones: Object.fromEntries(
           Object.entries(frame.zones).map(([id, zone]) => [
             id,
-            { ...zone, cardViewsById: replaceAssets(zone.cardViewsById) },
+            {
+              ...zone,
+              cardViewsById: Object.fromEntries(
+                Object.entries(zone.cardViewsById).map(([cardId, encoded]) => [
+                  cardId,
+                  encodeCanonicalPluginRuntimeJson(
+                    replaceAssets(JSON.parse(encoded)),
+                  ),
+                ]),
+              ),
+            },
           ]),
         ),
       };
