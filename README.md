@@ -26,12 +26,11 @@ Use Node 24 and pnpm. `pnpm check` builds the public packages and executes brows
 
 `pnpm verify:package` creates tarballs and a SHA-512 receipt under `build/release-candidate` and verifies package identities, compiled entrypoints, and the installed candidate in Chromium and WebKit. Commit all source changes first: candidate packing rejects a dirty working tree, and publication requires the same source commit and exact tarball integrities. The manually dispatched release workflow uploads this immutable candidate for review. Its explicit `publish` input enables npm publication through the protected release environment, rechecking exact registry integrity before and after publishing.
 
-The no-generated-source authoring API is being delivered in the corresponding SDK change. This branch uses the real published SDK `0.5.0-alpha.1` until that candidate is published and repinned; do not substitute a private workspace SDK dependency.
+Both packages consume the exact published SDK `0.5.0-alpha.3`; do not substitute a private workspace SDK dependency.
 
-The next reserved public cohort is browser runtime `0.1.0-alpha.2` and dev-host
-`0.2.0-alpha.2`, targeting SDK `0.5.0-alpha.3`. Publish the SDK first, then repin
-both public packages to that exact npm version and refresh the lockfile before
-verification. The current SDK dependency remains unchanged until publication.
+The prepared public cohort is browser runtime `0.1.0-alpha.2` and dev-host
+`0.2.0-alpha.2`, using SDK `0.5.0-alpha.3`. The SDK is published first; both public packages are pinned to that exact npm
+version in the lockfile before verification.
 The dev-host's `workspace:*` runtime dependency is rewritten by `pnpm pack` to the
 exact candidate runtime version; candidate verification enforces that match.
 

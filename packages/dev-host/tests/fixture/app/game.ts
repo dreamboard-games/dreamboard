@@ -62,7 +62,8 @@ export default game.assemble({
               procedureId: "choose",
               title: "Choice accepted",
             });
-            if (input.params.choice === "reject") return tx.reject("NOPE");
+            if (input.params.choice === "reject")
+              return tx.reject("NOPE", "Choose the accepted option.");
           },
         }),
       },

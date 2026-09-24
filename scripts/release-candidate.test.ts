@@ -23,7 +23,7 @@ function candidate() {
   const receipt = {
     schemaVersion: 2,
     sourceCommit: "abc",
-    sdkVersion: "0.5.0-alpha.1",
+    sdkVersion: "0.5.0-alpha.3",
     packages,
   };
   const manifests = packages.map((entry) => ({

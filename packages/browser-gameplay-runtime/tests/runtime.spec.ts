@@ -111,7 +111,9 @@ test("offline initialize, serialized dispatch, seat projection, persistence and 
     },
   });
   expect(result.resumed.projection.seats.alice.view.count).toBe(2);
-  expect(result.reset.projection.seats.alice.view.count).toBe(0);
+  expect(result.reset.playerId).toBe("bob");
+  expect(result.reset.projection.seats.bob.view.count).toBe(0);
+  expect(result.reset.projection.seats.alice).toBeUndefined();
   expect(result.counts).toEqual([0, 1, 2, 0]);
   expect(JSON.stringify(result.start)).not.toContain("host-only");
 });
