@@ -35,5 +35,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install browser runtimes
+        run: pnpm --dir packages/browser-gameplay-runtime exec playwright install --with-deps chromium webkit
+
       - name: Check repository
         run: pnpm check

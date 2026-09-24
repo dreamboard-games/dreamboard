@@ -5,3 +5,4 @@ packages:
   - "packages/cli-core"
   - "packages/dev-host"
   - "packages/typescript-config"
+  - "packages/browser-gameplay-runtime"
