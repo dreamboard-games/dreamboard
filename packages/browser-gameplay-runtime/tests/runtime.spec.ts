@@ -221,7 +221,7 @@ test("each reducer operation loads a fresh module", async ({ page }) => {
     game.dispose();
   }, mutating);
 });
-test("shared UI bridge renders only a seat and submits offline interactions", async ({
+test("shared UI bridge hydrates encoded card assets privately and submits offline interactions", async ({
   page,
   context,
 }) => {
@@ -241,7 +241,7 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
         persist: async () => {},
       });
       const initialSnapshot = await runtime.start();
-      const html = `<button id="increment">Increment</button><pre></pre><script>
+      const html = `<button id="increment">Increment</button><img alt="Visible card"><pre></pre><script>
   let host,frame;
   setTimeout(()=>addEventListener('message',event=>{
    if(event.source!==parent)return;
@@ -250,6 +250,8 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
    }
    if(event.data.payload.type==='gameplay.frame'){
     frame=event.data.payload.frame;document.querySelector('pre').textContent=JSON.stringify(frame);
+    const card=JSON.parse(frame.zones.hand.cardViewsById[frame.basis.perspectivePlayerId+'-card']);
+    document.querySelector('img').src=card.art.imageUrl;
    }
   }), 600);
   document.querySelector('button').onclick=()=>parent.postMessage({...host,sequence:2,payload:{type:'interaction.submit',clientActionId:crypto.randomUUID(),basis:frame.basis,interactionId:'increment',params:{}}},'*');
@@ -262,7 +264,8 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
         sessionId: "test",
         assets: {
           alice: "do-not-replace-basis",
-          "https://images.test/card": "data:image/png;base64,AA==",
+          "https://images.test/card":
+            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
         },
         players: [
           { playerId: "alice", displayName: "Alice" },
@@ -270,16 +273,38 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
         ],
       });
     },
-    source.replace(
-      "view:{...state.domain.publicState,...state.domain.privateState[id]}",
-      "view:{...state.domain.publicState,...state.domain.privateState[id],imageUrl:'https://images.test/card'}",
-    ),
+    source
+      .replace(
+        "view:{...state.domain.publicState,...state.domain.privateState[id]}",
+        "view:{...state.domain.publicState,...state.domain.privateState[id],imageUrl:'https://images.test/card'}",
+      )
+      .replace(
+        "zones:{}",
+        "zones:{hand:{cardIds:[id+'-card','hidden-card'],cardViewsById:{[id+'-card']:JSON.stringify({id:id+'-card',secret:state.domain.privateState[id].secret,art:{imageUrl:'https://images.test/card'}})},playableByCardId:{}}}",
+      ),
   );
   const game = page.frameLocator('iframe[title="Game"]');
   await expect(game.locator("pre")).toContainText('"secret":"A"');
   await expect(game.locator("pre")).not.toContainText("host-only");
   await expect(game.locator("pre")).not.toContainText('"secret":"B"');
-  await expect(game.locator("pre")).toContainText("data:image/png;base64,AA==");
+  await expect(game.locator("pre")).toContainText("data:image/gif;base64,");
+  await expect(game.locator("pre")).not.toContainText(
+    "https://images.test/card",
+  );
+  await expect
+    .poll(() =>
+      game
+        .getByRole("img", { name: "Visible card" })
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBe(1);
+  const cardViews = await game
+    .locator("pre")
+    .evaluate(
+      (element) => JSON.parse(element.textContent!).zones.hand.cardViewsById,
+    );
+  expect(Object.keys(cardViews)).toEqual(["alice-card"]);
+  expect(JSON.parse(cardViews["alice-card"]).secret).toBe("A");
   await page.evaluate(() => {
     (window as any).oldFrame = document.querySelector('iframe[title="Game"]');
   });
@@ -289,6 +314,20 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
   await page.evaluate(() => (window as any).ui.selectSeat("bob"));
   await expect(game.locator("pre")).toContainText('"secret":"B"');
   await expect(game.locator("pre")).not.toContainText('"secret":"A"');
+  await expect
+    .poll(() =>
+      game
+        .getByRole("img", { name: "Visible card" })
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBe(1);
+  const bobCardViews = await game
+    .locator("pre")
+    .evaluate(
+      (element) => JSON.parse(element.textContent!).zones.hand.cardViewsById,
+    );
+  expect(Object.keys(bobCardViews)).toEqual(["bob-card"]);
+  expect(JSON.parse(bobCardViews["bob-card"]).secret).toBe("B");
   expect(
     await page.evaluate(() => (window as any).oldSeatFrames),
   ).not.toContain("bob");
