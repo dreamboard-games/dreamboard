@@ -35,7 +35,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
     tail = result.catch(() => {});
     return result;
   }
-  function publish(next: GameplaySnapshot) {
+  function updateSnapshot(next: GameplaySnapshot) {
     if (disposed) return;
     snapshot = next;
     version++;
@@ -49,20 +49,28 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       actionSetVersion: `${options.sessionId}:${version}`,
     });
     if (options.assets) {
-      frame = JSON.parse(
-        JSON.stringify(frame, (_key, value) =>
-          typeof value === "string"
-            ? (options.assets?.[value] ?? value)
-            : value,
+      const replaceAssets = <T>(value: T): T =>
+        JSON.parse(
+          JSON.stringify(value, (_key, value) =>
+            typeof value === "string"
+              ? (options.assets?.[value] ?? value)
+              : value,
+          ),
+        );
+      frame = {
+        ...frame,
+        view: replaceAssets(frame.view),
+        zones: Object.fromEntries(
+          Object.entries(frame.zones).map(([id, zone]) => [
+            id,
+            { ...zone, cardViewsById: replaceAssets(zone.cardViewsById) },
+          ]),
         ),
-      ) as PluginGameplayFrame;
+      };
     }
-    bridge?.sendGameplayFrame(frame);
     options.onSnapshot?.(next);
   }
   function mount() {
-    bridge?.disconnect();
-    iframe?.remove();
     iframe = document.createElement("iframe");
     iframe.title = "Game";
     iframe.sandbox.add("allow-scripts");
@@ -92,7 +100,8 @@ export function mountGameplayUI(options: GameplayUIOptions) {
             params: command.params,
           });
           if (result.kind === "accept") {
-            publish(result.snapshot);
+            updateSnapshot(result.snapshot);
+            if (!disposed) bridge.sendGameplayFrame(frame);
             requester.sendSubmitResult({
               type: "interaction.result",
               clientActionId: command.clientActionId,
@@ -124,14 +133,16 @@ export function mountGameplayUI(options: GameplayUIOptions) {
         players: options.players,
       });
   }
-  publish(snapshot);
+  updateSnapshot(snapshot);
   mount();
   return {
     selectSeat: (playerId: string) =>
       queue(async () => {
         const next = await options.runtime.selectSeat(playerId);
         if (!disposed) {
-          publish(next);
+          bridge.disconnect();
+          iframe.remove();
+          updateSnapshot(next);
           mount();
         }
         return next;
@@ -140,7 +151,9 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       queue(async () => {
         const next = await options.runtime.reset();
         if (!disposed) {
-          publish(next);
+          bridge.disconnect();
+          iframe.remove();
+          updateSnapshot(next);
           mount();
         }
         return next;

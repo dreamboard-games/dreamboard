@@ -216,6 +216,13 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
   await page.evaluate(
     async (source) => {
       const module = (window as any).runtimeModule;
+      (window as any).oldSeatFrames = [];
+      const send = module.PluginBridge.prototype.sendGameplayFrame;
+      module.PluginBridge.prototype.sendGameplayFrame = function (frame: any) {
+        if (this.iframe === (window as any).oldFrame)
+          (window as any).oldSeatFrames.push(frame.basis.perspectivePlayerId);
+        return send.call(this, frame);
+      };
       const runtime = module.createBrowserGameplayRuntime({
         reducerSource: source,
         initialize: { table: {}, playerIds: ["alice", "bob"] },
@@ -241,6 +248,10 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
         runtime,
         initialSnapshot,
         sessionId: "test",
+        assets: {
+          alice: "do-not-replace-basis",
+          "https://images.test/card": "data:image/png;base64,AA==",
+        },
         players: [
           { playerId: "alice", displayName: "Alice" },
           { playerId: "bob", displayName: "Bob" },
@@ -249,17 +260,24 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
     },
     source.replace(
       "view:state.domain.privateState[id]",
-      "view:{...state.domain.publicState,...state.domain.privateState[id]},availableInteractionRefs:[],zones:{}",
+      "view:{...state.domain.publicState,...state.domain.privateState[id],imageUrl:'https://images.test/card'},availableInteractionRefs:[],zones:{}",
     ),
   );
   const game = page.frameLocator('iframe[title="Game"]');
   await expect(game.locator("pre")).toContainText('"secret":"A"');
   await expect(game.locator("pre")).not.toContainText("host-only");
   await expect(game.locator("pre")).not.toContainText('"secret":"B"');
+  await expect(game.locator("pre")).toContainText("data:image/png;base64,AA==");
+  await page.evaluate(() => {
+    (window as any).oldFrame = document.querySelector('iframe[title="Game"]');
+  });
   await context.setOffline(true);
   await game.getByRole("button").click();
   await expect(game.locator("pre")).toContainText('"count":1');
   await page.evaluate(() => (window as any).ui.selectSeat("bob"));
   await expect(game.locator("pre")).toContainText('"secret":"B"');
   await expect(game.locator("pre")).not.toContainText('"secret":"A"');
+  expect(
+    await page.evaluate(() => (window as any).oldSeatFrames),
+  ).not.toContain("bob");
 });
