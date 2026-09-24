@@ -3,6 +3,11 @@
   "version": "0.1.0-alpha.1",
   "type": "module",
   "description": "Offline browser gameplay in an opaque sandbox and terminable worker.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamboard-games/dreamboard.git",
+    "directory": "packages/browser-gameplay-runtime"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

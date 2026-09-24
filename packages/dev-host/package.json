@@ -3,6 +3,11 @@
   "version": "0.2.0-alpha.1",
   "type": "module",
   "description": "Project-local offline Dreamboard development host.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamboard-games/dreamboard.git",
+    "directory": "packages/dev-host"
+  },
   "bin": {
     "dreamboard-dev": "./dist/cli.js"
   },
