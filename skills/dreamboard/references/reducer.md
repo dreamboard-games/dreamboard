@@ -1,4 +1,10 @@
-A reducer owns game rules and authoritative state. Import the public authoring API from `@dreamboard-games/sdk/reducer`. Keep the default game definition in `app/game.ts`; the local host builds the reducer bundle from that definition.
+A reducer owns game rules and authoritative state. Import the public authoring API from `@dreamboard-games/sdk/reducer`. Keep the default game definition in `app/game.ts`; export its reducer bundle from `app/index.ts`. Both the local host and cloud compiler consume that authored entrypoint.
+
+```ts
+import { createReducerBundle } from "@dreamboard-games/sdk/reducer";
+import game from "./game";
+export default createReducerBundle(game);
+```
 
 ## Authoring without generated files
 

@@ -1,3 +1,7 @@
+import {
+  validateCandidateCohort,
+  type PackageManifest,
+} from "./release-candidate-validation.ts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -11,6 +15,7 @@ const receipt = JSON.parse(
 );
 if (receipt.schemaVersion !== 2 || receipt.packages.length !== 2)
   throw new Error("Expected browser runtime and offline dev host candidate");
+const manifests: PackageManifest[] = [];
 for (const entry of receipt.packages) {
   const file = path.join(destination, entry.file);
   const bytes = await readFile(file);
@@ -24,12 +29,7 @@ for (const entry of receipt.packages) {
       encoding: "utf8",
     }),
   );
-  if (manifest.name !== entry.name || manifest.version !== entry.version)
-    throw new Error("Package identity mismatch");
-  if (manifest.dependencies["@dreamboard-games/sdk"] !== receipt.sdkVersion)
-    throw new Error("SDK dependency does not match candidate receipt");
-  if (JSON.stringify(manifest).includes("workspace:"))
-    throw new Error("Unresolved workspace dependency");
+  manifests.push(manifest);
   const listing = execFileSync("tar", ["-tf", file], { encoding: "utf8" });
   if (!listing.includes("package/dist/index.js"))
     throw new Error("Missing entrypoint");
@@ -39,6 +39,7 @@ for (const entry of receipt.packages) {
   )
     throw new Error("Missing launcher");
 }
+validateCandidateCohort(receipt, manifests);
 console.log(
   "Verified offline package identities, compiled entrypoints, and sha512 integrity.",
 );

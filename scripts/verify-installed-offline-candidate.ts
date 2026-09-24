@@ -19,6 +19,7 @@ const host = receipt.packages.find(
   (entry: { name: string }) => entry.name === "@dreamboard-games/dev-host",
 );
 const runtimeFile = path.join(candidate, runtime.file);
+const runtimeOverride = `${runtime.name}@${runtime.version}`;
 await cp(path.join(root, "packages/dev-host/tests/fixture"), project, {
   recursive: true,
 });
@@ -28,7 +29,7 @@ await writeFile(
     private: true,
     type: "module",
     packageManager: "pnpm@10.4.1",
-    pnpm: { overrides: { "@dreamboard-games/browser-gameplay-runtime": `file:${runtimeFile}` } },
+    pnpm: { overrides: { [runtimeOverride]: `file:${runtimeFile}` } },
     dependencies: {
       "@dreamboard-games/dev-host": `file:${path.join(candidate, host.file)}`,
       "@dreamboard-games/browser-gameplay-runtime": `file:${runtimeFile}`,
@@ -44,7 +45,11 @@ await writeFile(
 // consumers still install the public npm versions after an approved release.
 await writeFile(
   path.join(project, "pnpm-workspace.yaml"),
-  `packages: []\noverrides:\n  '@dreamboard-games/browser-gameplay-runtime': ${JSON.stringify(`file:${runtimeFile}`)}\n`,
+  `packages: []\noverrides:\n  ${JSON.stringify(runtimeOverride)}: ${JSON.stringify(`file:${runtimeFile}`)}\n`,
+);
+await writeFile(
+  path.join(project, ".npmrc"),
+  "registry=https://registry.npmjs.org/\n@dreamboard-games:registry=https://registry.npmjs.org/\n",
 );
 try {
   execFileSync("pnpm", ["install", "--ignore-scripts"], {
@@ -117,6 +122,7 @@ try {
       {
         sourceCommit: receipt.sourceCommit,
         sdkVersion: receipt.sdkVersion,
+        packages: receipt.packages,
         project,
         browsers: ["chromium", "webkit"],
         checks: [

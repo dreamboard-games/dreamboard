@@ -3,7 +3,7 @@ title: "Quickstart"
 description: "Check and play an ordinary TypeScript game project locally."
 ---
 
-A Dreamboard game is a TypeScript project with `manifest.ts`, `app/game.ts`, and `ui/App.tsx`. The manifest describes the components and setup; the game implements rules; the UI renders a player's projection.
+A Dreamboard game is a TypeScript project with `manifest.ts`, `app/game.ts`, `app/index.ts`, and `ui/App.tsx`. The manifest describes the components and setup; the game implements rules; the UI renders a player's projection.
 
 Install a matching published SDK and `@dreamboard-games/dev-host` release in the project. Use normal project scripts:
 
@@ -21,3 +21,5 @@ Run `pnpm check`, then `pnpm dev --players 2 --seed 1`. Open the local URL. No a
 Use the player selector to inspect each seat. Reset starts the same seed again. Browser storage resumes the same source revision, seed, and player count. Authored UI receives only the selected player's projection.
 
 Imported images and fonts are embedded. Remote URLs and network requests are blocked in authored code. Once loaded, a game continues playing without a network connection; reloading the page still requires the local development server.
+
+The cloud compiler currently accepts UTF-8 source files. Binary PNG/JPEG images and font files that work as local imports must be embedded as data URLs before committing a cloud-buildable project; binary source files receive an explicit diagnostic. Remote manifest media requires a trusted host to cache it for offline use.

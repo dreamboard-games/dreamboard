@@ -1,3 +1,4 @@
+import { validateInstalledProof } from "./release-candidate-validation.ts";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -9,6 +10,19 @@ const destination = path.resolve(
 const receipt = JSON.parse(
   await readFile(path.join(destination, "receipt.json"), "utf8"),
 );
+validateInstalledProof(
+  receipt,
+  JSON.parse(
+    await readFile(path.join(destination, "installed-proof.json"), "utf8"),
+  ),
+);
+if (
+  execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim() !==
+  receipt.sourceCommit
+)
+  throw new Error(
+    "Publication checkout must match the verified candidate source commit",
+  );
 const tag = process.env.NPM_TAG;
 if (!tag || !["alpha", "beta", "latest"].includes(tag))
   throw new Error("NPM_TAG must be alpha, beta, or latest");
@@ -19,7 +33,14 @@ function registryIntegrity(name: string, version: string): string | null {
     return JSON.parse(
       execFileSync(
         "npm",
-        ["view", `${name}@${version}`, "dist.integrity", "--json"],
+        [
+          "view",
+          `${name}@${version}`,
+          "dist.integrity",
+          "--json",
+          "--registry",
+          "https://registry.npmjs.org/",
+        ],
         { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
       ),
     );
@@ -50,6 +71,8 @@ for (const entry of unpublished) {
       "--tag",
       tag,
       "--provenance",
+      "--registry",
+      "https://registry.npmjs.org/",
     ],
     { stdio: "inherit" },
   );

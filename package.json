@@ -6,7 +6,7 @@
   "description": "Dreamboard offline authoring tools, browser runtime, docs, and skills.",
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "check": "pnpm -r --workspace-concurrency=1 --if-present check",
+    "check": "vitest run scripts/release-candidate.test.ts && pnpm -r --workspace-concurrency=1 --if-present check",
     "candidate:pack": "node scripts/build-authoring-release-candidate.ts",
     "candidate:verify": "node scripts/verify-authoring-release-candidate.ts && node scripts/verify-installed-offline-candidate.ts",
     "verify:package": "pnpm check && pnpm candidate:pack && pnpm candidate:verify",
@@ -24,8 +24,9 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "mint": "4.2.626",
     "tsx": "^4.22.4",
-    "@playwright/test": "1.61.1"
+    "vitest": "4.1.10"
   }
 }

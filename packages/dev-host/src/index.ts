@@ -39,12 +39,10 @@ export async function buildProject(projectRoot: string) {
     stdin: {
       resolveDir: projectRoot,
       contents: `
-import game from './app/game.ts';
+import bundle from './app/index.ts';
 import manifest from './manifest.ts';
-import { createReducerBundle } from '@dreamboard-games/sdk/reducer';
 import { materializeManifestTable } from '@dreamboard-games/sdk/reducer-contract';
 import { seededShuffle } from ${JSON.stringify(fileURLToPath(new URL("./seeded-shuffle.js", import.meta.url)))};
-const bundle=createReducerBundle(game);
 export default {...bundle,initialize(input){return bundle.initialize({...input,table:materializeManifestTable({manifest,playerIds:input.playerIds,shuffleItems:seededShuffle(input.rngSeed ?? 1)})})}};
 `,
     },

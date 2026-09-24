@@ -35,7 +35,7 @@ Choose one clear interaction for each visible control. Preserve keyboard operati
 
 ## Offline assets
 
-Import images and fonts from local project files so the dev host embeds them. Authored UI has a restrictive Content Security Policy: remote network calls, remote images, and external scripts cannot be used. The product may provide cached media through the trusted host's asset mapping; reducer state remains unchanged.
+The local dev host embeds images and fonts imported from project files. The cloud compiler currently accepts UTF-8 source files only, so binary image/font imports must be embedded as data URLs for cloud builds. Authored UI has a restrictive Content Security Policy: remote network calls, remote images, and external scripts cannot be used. The product may provide cached media through the trusted host's asset mapping; reducer state remains unchanged.
 
 Refresh the local page after source edits. After loading, gameplay and seat switching continue without a network connection. Reloading the dev host page requires the local server.
 
