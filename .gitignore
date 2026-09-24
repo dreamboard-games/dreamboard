@@ -13,3 +13,5 @@ __pycache__/
 .DS_Store
 .dreamboard-dev/
 .idea/
+test-results/
+playwright-report/
