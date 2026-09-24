@@ -85,22 +85,24 @@ export function validateInstalledProof(
     );
 }
 
-/** npm can accept a publication before its version metadata becomes readable. */
+/** Publish-time scanning can delay visibility beyond 15 minutes.
+ * https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/
+ */
 export async function verifyPublishedIntegrity(
   entry: CandidatePackage,
   readIntegrity: (name: string, version: string) => string | null,
 ): Promise<void> {
-  for (let attempt = 0; attempt < 31; attempt++) {
+  for (let attempt = 0; attempt < 121; attempt++) {
     const integrity = readIntegrity(entry.name, entry.version);
     if (integrity === entry.integrity) return;
     if (integrity !== null)
       throw new Error(
         `Published integrity mismatch: ${entry.name}@${entry.version}`,
       );
-    if (attempt < 30)
+    if (attempt < 120)
       await new Promise<void>((resolve) => setTimeout(resolve, 10_000));
   }
   throw new Error(
-    `Published version did not become visible within 5 minutes: ${entry.name}@${entry.version}`,
+    `Published version did not become visible within 20 minutes: ${entry.name}@${entry.version}`,
   );
 }

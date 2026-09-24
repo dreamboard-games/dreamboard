@@ -129,7 +129,7 @@ test("fails immediately for a published integrity mismatch", async () => {
     vi.useRealTimers();
   }
 });
-test("bounds missing-version convergence to five minutes", async () => {
+test("bounds missing-version convergence to twenty minutes", async () => {
   vi.useFakeTimers();
   try {
     const read = vi.fn().mockReturnValue(null);
@@ -137,10 +137,10 @@ test("bounds missing-version convergence to five minutes", async () => {
       candidate().receipt.packages[0]!,
       read,
     );
-    const rejected = expect(verified).rejects.toThrow("within 5 minutes");
-    await vi.advanceTimersByTimeAsync(300_000);
+    const rejected = expect(verified).rejects.toThrow("within 20 minutes");
+    await vi.advanceTimersByTimeAsync(1_200_000);
     await rejected;
-    expect(read).toHaveBeenCalledTimes(31);
+    expect(read).toHaveBeenCalledTimes(121);
     expect(vi.getTimerCount()).toBe(0);
   } finally {
     vi.useRealTimers();
