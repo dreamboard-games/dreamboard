@@ -5,28 +5,19 @@ import {
 } from "@dreamboard-games/sdk/reducer-contract";
 import { canonicalizePluginRuntimeJson } from "@dreamboard-games/sdk/plugin-runtime-contract";
 import type { WorkerApi, WorkerRequest } from "./contract.js";
-let game: ReducerBundleContract | undefined;
 async function execute(request: WorkerRequest): Promise<string> {
-  if (!game) {
-    const url = URL.createObjectURL(
-      new Blob([request.source], { type: "text/javascript" }),
-    );
-    try {
-      const module = await import(url);
-      assertReducerBundleContract(module.default, "browser worker");
-      game = module.default;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
+  const url = `data:text/javascript;charset=utf-8,${encodeURIComponent(request.source)}`;
+  const module = await import(url);
+  assertReducerBundleContract(module.default, "browser worker");
+  const game: ReducerBundleContract = module.default;
   let result: unknown;
   if (request.operation === "initialize")
-    result = await game!.initialize(request.input);
+    result = await game.initialize(request.input);
   else if (request.operation === "dispatch")
-    result = await game!.dispatch(request.input);
+    result = await game.dispatch(request.input);
   else if (request.operation === "project")
-    result = await game!.project(request.input);
-  else result = await game!.boardStatic();
+    result = await game.project(request.input);
+  else result = await game.boardStatic();
   const json = JSON.stringify(canonicalizePluginRuntimeJson(result));
   if (new TextEncoder().encode(json).length > 8 * 1024 * 1024)
     throw new Error("Game response exceeds 8 MiB");

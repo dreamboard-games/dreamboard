@@ -172,3 +172,4 @@ export type BrowserGameplayRuntime = ReturnType<
   typeof createBrowserGameplayRuntime
 >;
 export { PluginBridge } from "./plugin-bridge.js";
+export { mountGameplayUI, type GameplayUIOptions } from "./gameplay-ui.js";

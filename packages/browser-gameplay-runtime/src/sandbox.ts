@@ -9,7 +9,7 @@ export function createSandbox(timeoutMs: number) {
   frame.sandbox.add("allow-scripts");
   const channel = new MessageChannel();
   const source = JSON.stringify(__WORKER_SOURCE__).replaceAll("<", "\\u003c");
-  frame.srcdoc = `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src data:; connect-src 'none'; child-src 'none'; form-action 'none'; base-uri 'none'"><script>
+  frame.srcdoc = `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' data:; worker-src data:; connect-src 'none'; child-src 'none'; form-action 'none'; base-uri 'none'"><script>
 addEventListener('message', function connect(event) {
   if (event.source !== parent || !event.ports[0]) return;
   removeEventListener('message', connect);
@@ -18,7 +18,7 @@ addEventListener('message', function connect(event) {
   let worker;
   let timer;
   port.onmessage = event => {
-    if (event.data === 'dispose') { clearTimeout(timer); worker?.terminate(); URL.revokeObjectURL(url); port.close(); return; }
+    if (event.data === 'dispose') { clearTimeout(timer); worker?.terminate(); port.close(); return; }
     worker = new Worker(url, {type:'module'});
     worker.onmessage = event => { clearTimeout(timer); worker.terminate(); port.postMessage(event.data); };
     worker.onerror = event => { clearTimeout(timer); worker.terminate(); port.postMessage({fatal:'Game worker failed: ' + event.message}); };

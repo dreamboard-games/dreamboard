@@ -209,3 +209,57 @@ test("each reducer operation loads a fresh module", async ({ page }) => {
     game.dispose();
   }, mutating);
 });
+test("shared UI bridge renders only a seat and submits offline interactions", async ({
+  page,
+  context,
+}) => {
+  await page.evaluate(
+    async (source) => {
+      const module = (window as any).runtimeModule;
+      const runtime = module.createBrowserGameplayRuntime({
+        reducerSource: source,
+        initialize: { table: {}, playerIds: ["alice", "bob"] },
+        persist: async () => {},
+      });
+      const initialSnapshot = await runtime.start();
+      const html = `<button id="increment">Increment</button><pre></pre><script>
+  let host,frame;
+  addEventListener('message',event=>{
+   if(event.source!==parent)return;
+   if(event.data.payload.type==='runtime.init'){
+    host=event.data;parent.postMessage({...host,sequence:1,payload:{type:'runtime.ready'}},event.origin);
+   }
+   if(event.data.payload.type==='gameplay.frame'){
+    frame=event.data.payload.frame;document.querySelector('pre').textContent=JSON.stringify(frame);
+   }
+  });
+  document.querySelector('button').onclick=()=>parent.postMessage({...host,sequence:2,payload:{type:'interaction.submit',clientActionId:crypto.randomUUID(),basis:frame.basis,interactionId:'increment',params:{}}},'*');
+  </script>`;
+      (window as any).ui = module.mountGameplayUI({
+        container: document.body,
+        html,
+        runtime,
+        initialSnapshot,
+        sessionId: "test",
+        players: [
+          { playerId: "alice", displayName: "Alice" },
+          { playerId: "bob", displayName: "Bob" },
+        ],
+      });
+    },
+    source.replace(
+      "view:state.domain.privateState[id]",
+      "view:{...state.domain.publicState,...state.domain.privateState[id]},availableInteractionRefs:[],zones:{}",
+    ),
+  );
+  const game = page.frameLocator('iframe[title="Game"]');
+  await expect(game.locator("pre")).toContainText('"secret":"A"');
+  await expect(game.locator("pre")).not.toContainText("host-only");
+  await expect(game.locator("pre")).not.toContainText('"secret":"B"');
+  await context.setOffline(true);
+  await game.getByRole("button").click();
+  await expect(game.locator("pre")).toContainText('"count":1');
+  await page.evaluate(() => (window as any).ui.selectSeat("bob"));
+  await expect(game.locator("pre")).toContainText('"secret":"B"');
+  await expect(game.locator("pre")).not.toContainText('"secret":"A"');
+});

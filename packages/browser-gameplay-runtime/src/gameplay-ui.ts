@@ -1,0 +1,154 @@
+import {
+  materializePluginGameplayFrame,
+  type PluginGameplayFrame,
+  type PluginPlayerSummary,
+} from "@dreamboard-games/sdk/plugin-runtime-contract";
+import type { BrowserGameplayRuntime, GameplaySnapshot } from "./index.js";
+import { PluginBridge } from "./plugin-bridge.js";
+export interface GameplayUIOptions {
+  container: HTMLElement;
+  html: string;
+  assets?: Readonly<Record<string, string>>;
+  runtime: BrowserGameplayRuntime;
+  initialSnapshot: GameplaySnapshot;
+  sessionId: string;
+  players: readonly PluginPlayerSummary[];
+  onSnapshot?: (snapshot: GameplaySnapshot) => void;
+  onError?: (error: unknown) => void;
+}
+const policy = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">`;
+/** Mounts authored UI independently from the reducer sandbox. The caller owns
+ * runtime lifetime; disposing this adapter removes only its UI and bridge. */
+export function mountGameplayUI(options: GameplayUIOptions) {
+  let snapshot = options.initialSnapshot;
+  let version = 0;
+  let frame: PluginGameplayFrame;
+  let bridge: PluginBridge;
+  let iframe: HTMLIFrameElement;
+  let disposed = false;
+  let tail: Promise<unknown> = Promise.resolve();
+  function queue<T>(run: () => Promise<T>): Promise<T> {
+    const result = tail.then(() => {
+      if (disposed) throw new Error("Game UI disposed");
+      return run();
+    });
+    tail = result.catch(() => {});
+    return result;
+  }
+  function publish(next: GameplaySnapshot) {
+    if (disposed) return;
+    snapshot = next;
+    version++;
+    frame = materializePluginGameplayFrame({
+      currentPhase: next.currentPhase,
+      activePlayers: next.activePlayers,
+      dynamicProjection: next.projection,
+      staticProjection: next.boardStatic,
+      perspectivePlayerId: next.playerId,
+      version,
+      actionSetVersion: `${options.sessionId}:${version}`,
+    });
+    if (options.assets) {
+      frame = JSON.parse(
+        JSON.stringify(frame, (_key, value) =>
+          typeof value === "string"
+            ? (options.assets?.[value] ?? value)
+            : value,
+        ),
+      ) as PluginGameplayFrame;
+    }
+    bridge?.sendGameplayFrame(frame);
+    options.onSnapshot?.(next);
+  }
+  function mount() {
+    bridge?.disconnect();
+    iframe?.remove();
+    iframe = document.createElement("iframe");
+    iframe.title = "Game";
+    iframe.sandbox.add("allow-scripts");
+    iframe.srcdoc = policy + options.html;
+    options.container.append(iframe);
+    bridge = new PluginBridge(iframe);
+    bridge.onPluginMessage("runtime.ready", () =>
+      bridge.sendGameplayFrame(frame),
+    );
+    bridge.onPluginMessage("runtime.error", (message) =>
+      options.onError?.(new Error(message.message)),
+    );
+    bridge.onPluginMessage("interaction.submit", (command) => {
+      const requester = bridge;
+      void queue(async () => {
+        try {
+          if (
+            command.basis.version !== frame.basis.version ||
+            command.basis.actionSetVersion !== frame.basis.actionSetVersion ||
+            command.basis.perspectivePlayerId !== snapshot.playerId
+          )
+            throw new Error("The view changed; try again");
+          const result = await options.runtime.dispatch({
+            kind: "interaction",
+            playerId: snapshot.playerId,
+            interactionId: command.interactionId,
+            params: command.params,
+          });
+          if (result.kind === "accept") {
+            publish(result.snapshot);
+            requester.sendSubmitResult({
+              type: "interaction.result",
+              clientActionId: command.clientActionId,
+              accepted: true,
+            });
+          } else
+            requester.sendSubmitResult({
+              type: "interaction.result",
+              clientActionId: command.clientActionId,
+              accepted: false,
+              errorCode: result.errorCode,
+              message: result.message,
+            });
+        } catch (error) {
+          requester.sendSubmitResult({
+            type: "interaction.result",
+            clientActionId: command.clientActionId,
+            accepted: false,
+            errorCode: "local_execution_failed",
+            message: String(error),
+          });
+          options.onError?.(error);
+        }
+      }).catch((error) => options.onError?.(error));
+    });
+    iframe.onload = () =>
+      bridge.sendInit({
+        sessionId: options.sessionId,
+        players: options.players,
+      });
+  }
+  publish(snapshot);
+  mount();
+  return {
+    selectSeat: (playerId: string) =>
+      queue(async () => {
+        const next = await options.runtime.selectSeat(playerId);
+        if (!disposed) {
+          publish(next);
+          mount();
+        }
+        return next;
+      }),
+    reset: () =>
+      queue(async () => {
+        const next = await options.runtime.reset();
+        if (!disposed) {
+          publish(next);
+          mount();
+        }
+        return next;
+      }),
+    dispose: () => {
+      disposed = true;
+      bridge.disconnect();
+      iframe.remove();
+    },
+  };
+}
