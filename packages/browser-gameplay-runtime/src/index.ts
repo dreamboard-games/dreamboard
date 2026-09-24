@@ -1,8 +1,8 @@
 import {
   ReducerWireZod,
   type ReducerWire,
-} from "@dreamboard-games/sdk/reducer-contract";
-import type { z } from "zod";
+} from "@dreamboard-games/sdk/reducer";
+import { z } from "zod";
 import { createSandbox } from "./sandbox.js";
 import type { Operation, WorkerRequest } from "./contract.js";
 export interface SavedGame {
@@ -32,7 +32,10 @@ export interface BrowserGameplayOptions {
 export function createBrowserGameplayRuntime(options: BrowserGameplayOptions) {
   let sandbox: ReturnType<typeof createSandbox> | undefined;
   let saved: SavedGame | undefined;
-  let playerId = options.initialize.playerIds[0];
+  const initialization = ReducerWireZod.InitializeRequestSchema.parse(
+    options.initialize,
+  );
+  let playerId = initialization.playerIds[0];
   if (!playerId) throw new Error("At least one player is required");
   let tail: Promise<unknown> = Promise.resolve();
   let disposed = false;
@@ -66,7 +69,6 @@ export function createBrowserGameplayRuntime(options: BrowserGameplayOptions) {
   }
   async function project(
     game: SavedGame,
-    events: ReducerWire.GameEvent[] = [],
     perspective = playerId,
   ): Promise<GameplaySnapshot> {
     const projection = await call(
@@ -90,11 +92,11 @@ export function createBrowserGameplayRuntime(options: BrowserGameplayOptions) {
       projection: { ...projection, seats: { [perspective]: seat } },
       boardStatic,
       terminal: game.terminal,
-      events,
+      events: projection.events,
     };
   }
-  async function commit(next: SavedGame, events: ReducerWire.GameEvent[]) {
-    const snapshot = await project(next, events);
+  async function commit(next: SavedGame) {
+    const snapshot = await project(next);
     await options.persist(structuredClone(next));
     if (disposed) throw new Error("Game runtime disposed");
     saved = next;
@@ -102,33 +104,44 @@ export function createBrowserGameplayRuntime(options: BrowserGameplayOptions) {
   }
   async function initialize() {
     const result = await call(
-      { operation: "initialize", input: options.initialize },
+      { operation: "initialize", input: initialization },
       ReducerWireZod.InitializeResultSchema,
     );
-    return commit(
-      { state: result.state, terminal: result.terminal ?? null },
-      result.events ?? [],
-    );
+    return commit({ state: result.state, terminal: result.terminal ?? null });
+  }
+  function parseCheckpoint(value: unknown): SavedGame {
+    const checkpoint = z
+      .strictObject({
+        state: ReducerWireZod.ReducerSessionStateSchema,
+        terminal: ReducerWireZod.GameOutcomeSchema.nullable(),
+      })
+      .parse(value);
+    const table = checkpoint.state.domain.table;
+    if (
+      !table ||
+      typeof table !== "object" ||
+      Array.isArray(table) ||
+      JSON.stringify(table.playerOrder) !==
+        JSON.stringify(initialization.playerIds)
+    )
+      throw new Error("Checkpoint player roster does not match this session");
+    return checkpoint;
   }
   return {
     start: () =>
       queue(async () => {
         if (saved) return project(saved);
         if (options.restored) {
-          saved = {
-            state: ReducerWireZod.ReducerSessionStateSchema.parse(
-              options.restored.state,
-            ),
-            terminal: ReducerWireZod.GameOutcomeSchema.nullable().parse(
-              options.restored.terminal,
-            ),
-          };
-          return project(saved);
+          const next = parseCheckpoint(options.restored);
+          const snapshot = await project(next);
+          saved = next;
+          return snapshot;
         }
         return initialize();
       }),
-    dispatch: (input: ReducerWire.GameInput) =>
-      queue(async () => {
+    dispatch: (value: ReducerWire.GameInput) => {
+      const input = ReducerWireZod.GameInputSchema.parse(value);
+      return queue(async () => {
         if (!saved) throw new Error("Start the game first");
         if (input.playerId !== playerId)
           throw new Error("Input must belong to the selected seat");
@@ -140,18 +153,28 @@ export function createBrowserGameplayRuntime(options: BrowserGameplayOptions) {
         if (result.kind === "reject") return result;
         return {
           kind: "accept" as const,
-          snapshot: await commit(
-            { state: result.state, terminal: result.terminal ?? null },
-            result.events,
-          ),
+          snapshot: await commit({
+            state: result.state,
+            terminal: result.terminal ?? null,
+          }),
         };
+      });
+    },
+    checkpoint: () =>
+      queue(async () => {
+        if (!saved) throw new Error("Start the game first");
+        return structuredClone(saved);
       }),
+    restore: (value: unknown) => {
+      const next = parseCheckpoint(value);
+      return queue(() => commit(next));
+    },
     selectSeat: (nextPlayerId: string) =>
       queue(async () => {
-        if (!options.initialize.playerIds.includes(nextPlayerId))
+        if (!initialization.playerIds.includes(nextPlayerId))
           throw new Error("Unknown player");
         if (!saved) throw new Error("Start the game first");
-        const snapshot = await project(saved, [], nextPlayerId);
+        const snapshot = await project(saved, nextPlayerId);
         playerId = nextPlayerId;
         return snapshot;
       }),

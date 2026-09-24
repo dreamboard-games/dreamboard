@@ -2,8 +2,8 @@ import { createBirpc } from "birpc";
 import {
   assertReducerBundleContract,
   type ReducerBundleContract,
-} from "@dreamboard-games/sdk/reducer-contract";
-import { canonicalizePluginRuntimeJson } from "@dreamboard-games/sdk/plugin-runtime-contract";
+} from "@dreamboard-games/sdk/reducer";
+import { canonicalizePluginRuntimeJson } from "@dreamboard-games/sdk";
 import type { WorkerApi, WorkerRequest } from "./contract.js";
 async function execute(request: WorkerRequest): Promise<string> {
   const url = `data:text/javascript;charset=utf-8,${encodeURIComponent(request.source)}`;

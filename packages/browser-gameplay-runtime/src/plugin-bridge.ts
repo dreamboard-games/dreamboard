@@ -4,14 +4,14 @@ import type {
   PluginGameplayFrame,
   PluginSessionDescriptor,
   PluginToHostPayload,
-} from "@dreamboard-games/sdk/plugin-runtime-contract";
+} from "@dreamboard-games/sdk";
 import {
   DREAMBOARD_PLUGIN_PROTOCOL,
   DREAMBOARD_PLUGIN_PROTOCOL_VERSION,
   HostToPluginEnvelopeSchema,
   PluginToHostEnvelopeSchema,
   HostToPluginPayloadSchema,
-} from "@dreamboard-games/sdk/plugin-runtime-contract";
+} from "@dreamboard-games/sdk";
 import type { LoggerLike } from "./logger.js";
 import { consoleLogger } from "./logger.js";
 
