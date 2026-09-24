@@ -1,8 +1,6 @@
 packages:
-  - "apps/dreamboard-cli"
   - "packages/agent-skills"
-  - "packages/api-client"
-  - "packages/cli-core"
+  - "packages/browser-gameplay-runtime"
   - "packages/dev-host"
   - "packages/typescript-config"
-  - "packages/browser-gameplay-runtime"
+  - "packages/api-client"

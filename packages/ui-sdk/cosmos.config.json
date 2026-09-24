@@ -1,9 +1,0 @@
-{
-  "plugins": ["react-cosmos-plugin-vite"],
-  "watchDirs": ["src"],
-  "staticPath": "public",
-  "dom": {
-    "containerQuerySelector": "#root"
-  },
-  "globalDecorators": ["./cosmos.decorator.tsx"]
-}
