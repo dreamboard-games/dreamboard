@@ -2,29 +2,17 @@
   "name": "dreamboard",
   "version": "0.0.1",
   "private": true,
-  "description": "Dreamboard public source repo: the dreamboard CLI, docs, skills, and public packages.",
+  "type": "module",
+  "description": "Dreamboard offline authoring tools, browser runtime, docs, and skills.",
   "scripts": {
-    "build": "pnpm -r --if-present run build",
-    "check": "pnpm -r --workspace-concurrency=1 --if-present run check",
-    "bump": "pnpm --dir apps/dreamboard-cli exec tsx ../../scripts/bump-authoring-package.ts",
-    "cli:dev": "pnpm --dir apps/dreamboard-cli run dev",
-    "cli:stage:publish": "pnpm --dir apps/dreamboard-cli run stage:publish",
-    "cli:pack:publish": "pnpm --dir apps/dreamboard-cli run pack:publish",
-    "dev-host:stage:publish": "pnpm --dir packages/dev-host run stage:publish",
-    "dev-host:pack:publish": "pnpm --dir packages/dev-host run pack:publish",
-    "agent-skills:stage:publish": "pnpm --dir packages/agent-skills run stage:publish",
-    "agent-skills:pack:publish": "pnpm --dir packages/agent-skills run pack:publish",
-    "candidate:pack": "tsx scripts/build-authoring-release-candidate.ts",
-    "candidate:verify": "tsx scripts/verify-authoring-release-candidate.ts",
-    "candidate:registry": "tsx scripts/check-authoring-release-candidate-registry.ts",
-    "docs:broken-links": "pnpm mint broken-links",
-    "docs:dev": "pnpm mint dev",
-    "skills:sync-docs": "pnpm --dir apps/dreamboard-cli run sync:skill-docs",
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm -r --workspace-concurrency=1 --if-present check",
+    "candidate:pack": "node scripts/build-authoring-release-candidate.ts",
+    "candidate:verify": "node scripts/verify-authoring-release-candidate.ts",
+    "verify:package": "pnpm check && pnpm candidate:pack && pnpm candidate:verify",
     "docs:validate": "pnpm mint validate",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "test": "pnpm -r --if-present run test",
-    "verify:package": "pnpm run check && pnpm run candidate:pack && pnpm run candidate:verify",
-    "verify:release": "pnpm run verify:package && pnpm run candidate:registry -- --expect unpublished"
+    "docs:broken-links": "pnpm mint broken-links",
+    "docs:dev": "pnpm mint dev"
   },
   "packageManager": "pnpm@10.4.1",
   "engines": {
@@ -35,7 +23,6 @@
       "esbuild"
     ]
   },
-  "type": "module",
   "devDependencies": {
     "mint": "4.2.626",
     "tsx": "^4.22.4"

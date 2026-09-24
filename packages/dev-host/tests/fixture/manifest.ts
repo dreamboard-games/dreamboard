@@ -1,0 +1,15 @@
+export default {
+  players: { minPlayers: 2, maxPlayers: 2, optimalPlayers: 2 },
+  cardSets: [],
+  zones: [],
+  boards: [],
+  boardTemplates: [],
+  pieceTypes: [],
+  pieceSeeds: [],
+  dieTypes: [],
+  dieSeeds: [],
+  resources: [],
+  setupOptions: [],
+  setupProfiles: [],
+  phaseNames: ["play"],
+};

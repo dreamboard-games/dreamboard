@@ -1,216 +1,58 @@
-name: Release authoring packages
-
+name: Offline authoring packages
 on:
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: "Git tag to create. Must match v<CLI version>."
-        required: true
-        type: string
-      npm_tag:
-        description: "npm dist-tag to assign after exact-version verification"
-        required: true
-        default: alpha
-        type: choice
-        options:
-          - alpha
-          - beta
-          - latest
-      resume_existing:
-        description: "Resume a partial release only when existing package integrity matches this candidate"
-        required: true
-        default: false
+      publish:
+        description: Publish the verified candidate to npm
         type: boolean
-
+        default: false
+      npm_tag:
+        description: npm dist-tag
+        type: choice
+        default: alpha
+        options: [alpha, beta, latest]
 concurrency:
   group: release-authoring-packages
   cancel-in-progress: false
-
 jobs:
-  verify:
-    name: Build and verify immutable candidate
+  candidate:
     runs-on: ubuntu-latest
-    outputs:
-      release_tag: ${{ steps.release_meta.outputs.release_tag }}
-      npm_tag: ${{ steps.release_meta.outputs.npm_tag }}
-      package_version: ${{ steps.release_meta.outputs.package_version }}
-    env:
-      DEFAULT_BRANCH: main
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
         with:
           version: 10.4.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24"
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build and verify package candidate
-        run: pnpm verify:package
-
-      - name: Validate exact registry state
-        run: |
-          expectation=unpublished
-          if [ "${{ inputs.resume_existing }}" = "true" ]; then
-            expectation=resume
-          fi
-          pnpm candidate:registry -- --expect "$expectation"
-
-      - name: Validate release metadata
-        id: release_meta
-        run: |
-          npm_tag="${{ inputs.npm_tag }}"
-          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ] && [ "${npm_tag}" != "alpha" ]; then
-            echo "Releases from ${GITHUB_REF_NAME} must use the alpha npm tag." >&2
-            exit 1
-          fi
-
-          package_version="$(jq -r '.releaseSet.packages.cli.version' build/release-candidate/receipt.json)"
-          expected_tag="v${package_version}"
-          release_tag="${{ inputs.release_tag }}"
-          if [ "${release_tag}" != "${expected_tag}" ]; then
-            echo "Release tag ${release_tag} does not match ${expected_tag}." >&2
-            exit 1
-          fi
-          if gh release view "${release_tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "GitHub release ${release_tag} already exists." >&2
-            exit 1
-          fi
-
-          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
-          echo "npm_tag=${npm_tag}" >> "$GITHUB_OUTPUT"
-          echo "package_version=${package_version}" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Upload verified candidate
-        uses: actions/upload-artifact@v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir packages/browser-gameplay-runtime exec playwright install --with-deps chromium webkit
+      - run: pnpm verify:package
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: authoring-release-candidate
+          name: offline-authoring-candidate
           path: build/release-candidate
           if-no-files-found: error
-          retention-days: 14
-
   publish:
-    name: Publish verified tarballs
-    needs: verify
+    if: inputs.publish
+    needs: candidate
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      contents: write
       id-token: write
+      contents: read
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24"
           registry-url: https://registry.npmjs.org
-
-      - name: Download verified candidate
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: authoring-release-candidate
+          name: offline-authoring-candidate
           path: build/release-candidate
-
-      - name: Revalidate candidate and registry state
-        run: |
-          expectation=unpublished
-          if [ "${{ inputs.resume_existing }}" = "true" ]; then
-            expectation=resume
-          fi
-          node scripts/check-authoring-release-candidate-registry.ts \
-            --candidate build/release-candidate/receipt.json \
-            --expect "$expectation"
-
-      - name: Publish dev-host then CLI
-        run: |
-          set -euo pipefail
-
-          publish_candidate() {
-            key="$1"
-            name="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .name' build/release-candidate/receipt.json)"
-            version="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .version' build/release-candidate/receipt.json)"
-            file="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .file' build/release-candidate/receipt.json)"
-            expected_integrity="$(jq -r --arg key "$key" '.packages[] | select(.key == $key) | .integrity' build/release-candidate/receipt.json)"
-
-            if existing_integrity="$(npm view "${name}@${version}" dist.integrity --json 2>/dev/null | jq -r '.')"; then
-              if [ "${{ inputs.resume_existing }}" != "true" ]; then
-                echo "${name}@${version} already exists; refusing a normal release." >&2
-                exit 1
-              fi
-              if [ "$existing_integrity" != "$expected_integrity" ]; then
-                echo "${name}@${version} exists with different integrity." >&2
-                exit 1
-              fi
-              echo "Resuming after verified existing ${name}@${version}."
-              return
-            fi
-
-            npm publish "build/release-candidate/${file}" \
-              --tag "${{ needs.verify.outputs.npm_tag }}" \
-              --provenance
-          }
-
-          publish_candidate devHost
-          publish_candidate cli
-
-      - name: Verify published integrity
-        run: |
-          for attempt in 1 2 3 4 5 6; do
-            if node scripts/check-authoring-release-candidate-registry.ts \
-              --candidate build/release-candidate/receipt.json \
-              --expect published; then
-              exit 0
-            fi
-            if [ "$attempt" = "6" ]; then
-              exit 1
-            fi
-            sleep 10
-          done
-
-      - name: Create GitHub release
-        run: |
-          release_args=(
-            "${{ needs.verify.outputs.release_tag }}"
-            --repo "${GITHUB_REPOSITORY}"
-            --target "${GITHUB_SHA}"
-            --title "${{ needs.verify.outputs.release_tag }}"
-            --generate-notes
-          )
-          if [ "${{ needs.verify.outputs.npm_tag }}" != "latest" ]; then
-            release_args+=(--prerelease)
-          fi
-          gh release create "${release_args[@]}" \
-            build/release-candidate/*.tgz \
-            build/release-candidate/receipt.json
+      - run: node scripts/publish-authoring-release-candidate.ts
         env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Job summary
-        run: |
-          {
-            echo "Published verified authoring candidate"
-            echo "- CLI: \`@dreamboard-games/cli@${{ needs.verify.outputs.package_version }}\`"
-            echo "- release tag: \`${{ needs.verify.outputs.release_tag }}\`"
-            echo "- npm tag: \`${{ needs.verify.outputs.npm_tag }}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+          NPM_TAG: ${{ inputs.npm_tag }}

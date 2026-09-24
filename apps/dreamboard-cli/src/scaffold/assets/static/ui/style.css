@@ -1,4 +1,0 @@
-@import "@dreamboard-games/sdk/ui/plugin-styles.css";
-
-@source "../ui/**/*.{ts,tsx}";
-@source "../shared/**/*.{ts,tsx}";

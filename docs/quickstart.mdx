@@ -1,99 +1,23 @@
 ---
 title: "Quickstart"
-description: "Install Dreamboard, create a game, and iterate on manifest-driven scaffolding."
+description: "Check and play an ordinary TypeScript game project locally."
 ---
 
-Install Dreamboard:
+A Dreamboard game is a TypeScript project with `manifest.ts`, `app/game.ts`, and `ui/App.tsx`. The manifest describes the components and setup; the game implements rules; the UI renders a player's projection.
 
-```bash
-npm install -g dreamboard
+Install a matching published SDK and `@dreamboard-games/dev-host` release in the project. Use normal project scripts:
+
+```json
+{
+  "scripts": {
+    "check": "tsc --noEmit && vitest run",
+    "dev": "dreamboard-dev"
+  }
+}
 ```
 
-Log in:
+Run `pnpm check`, then `pnpm dev --players 2 --seed 1`. Open the local URL. No account, backend, or remote project is required. Refresh after editing source to rebuild.
 
-```bash
-dreamboard auth login
-```
+Use the player selector to inspect each seat. Reset starts the same seed again. Browser storage resumes the same source revision, seed, and player count. Authored UI receives only the selected player's projection.
 
-Create a project:
-
-```bash
-dreamboard project create my-game --description "A trick-taking card game"
-cd my-game
-```
-
-Edit `rule.md` and `manifest.json`. Use
-[CLI](/docs/reference/cli) for command behavior,
-[Rule authoring](/docs/reference/rule-authoring) for the rules document and
-[Manifest authoring](/docs/reference/manifest-authoring) for the manifest
-schema.
-
-Commit and push your authored source with Git:
-
-```bash
-git add .
-git commit -m "Create my game"
-git push -u origin main
-```
-
-Check server state for the pushed commit:
-
-```bash
-dreamboard project status --commit HEAD --wait
-```
-
-Verify the exact commit:
-
-```bash
-dreamboard verify --commit HEAD
-```
-
-Author reducer proof in `test/scenarios/*.scenario.ts`. The test family returns
-one JSON envelope by default:
-
-```bash
-# Observe the node after every `given` command.
-dreamboard test inspect test/scenarios/first-turn.scenario.ts \
-  --perspective player:0
-
-# Enumerate accepted next commands, then copy one candidates[].command to source.
-dreamboard test explore test/scenarios/first-turn.scenario.ts \
-  --perspective player:0 --limit 50 --max-evaluations 5000
-
-# Replay the authored scenario and run its assertions.
-dreamboard test --scenario test/scenarios/first-turn.scenario.ts
-```
-
-Inspection and exploration require `player:<zero-based-seat>` or `spectator`.
-Use `--at setup|given:<n>|when:<n>` to select a prefix. For reducer-owned
-randomness, compare at most 64 inclusive safe-integer seeds with
-`--seed-range <start>:<end>`, check one using `--seed <n>`, then persist the
-selected number in `scenario.setup.seed`.
-
-Start a local server to play the project:
-
-```bash
-dreamboard dev
-```
-
-To open an authored prefix instead, use:
-
-```bash
-dreamboard dev --from-scenario test/scenarios/first-turn.scenario.ts --at given:2
-```
-
-Useful follow-up commands:
-
-- `dreamboard project clone <project>` clones an existing project repository.
-- `dreamboard test` replays scenarios and returns a stable JSON result.
-- `dreamboard test inspect <path> --perspective <value>` observes one replay
-  node.
-- `dreamboard test explore <path> --perspective <value>` returns canonical
-  commands to copy into the scenario.
-- `dreamboard build --commit HEAD` creates a server build for a pushed commit.
-- `dreamboard preview --commit HEAD` creates a preview for a pushed commit.
-
-For a concise command reference, see [Dreamboard command reference](/docs/reference/cli).
-
-For a full walkthrough, continue with
-[Building your first game](/docs/tutorials/building-your-first-game).
+Imported images and fonts are embedded. Remote URLs and network requests are blocked in authored code. Once loaded, a game continues playing without a network connection; reloading the page still requires the local development server.
