@@ -31,7 +31,6 @@ export async function buildProject(projectRoot: string) {
     platform: "browser" as const,
     target: "es2022",
     loader: assets,
-    alias: { "@shared": path.join(projectRoot, "shared") },
     define: { "process.env.NODE_ENV": '"development"' },
   };
   const reducer = await build({

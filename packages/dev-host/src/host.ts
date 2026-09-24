@@ -47,7 +47,7 @@ async function main() {
     onError: report,
     onSnapshot: (snapshot) => {
       errorElement.textContent = "";
-      status.textContent = snapshot.terminal ? "Game ended" : "Local play · remote media blocked";
+      status.textContent = snapshot.terminal ? "Game ended" : "Local play";
     },
   });
   const seats = document.querySelector<HTMLSelectElement>("#seat")!;
