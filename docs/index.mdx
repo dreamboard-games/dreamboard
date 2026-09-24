@@ -30,7 +30,7 @@ You do not need to write these by hand on day one. The point is that Dreamboard 
 
 ### `manifest.json`
 
-The manifest defines the components in your game: player count, boards, cards, pieces, dice, zones, and setup options.
+The manifest defines the components in your game: player count, boards, cards, pieces, dice, zones, and visibility. Initialization options belong to the game model.
 
 ```json
 {
@@ -45,7 +45,10 @@ The manifest defines the components in your game: player count, boards, cards, p
   ],
   "pieceTypes": [{ "id": "climber", "name": "Climber" }],
   "dieTypes": [{ "id": "d6", "name": "D6" }],
-  "dieSeeds": [{ "id": "die-a", "typeId": "d6" }, { "id": "die-b", "typeId": "d6" }]
+  "dieSeeds": [
+    { "id": "die-a", "typeId": "d6" },
+    { "id": "die-b", "typeId": "d6" }
+  ]
 }
 ```
 
@@ -54,59 +57,22 @@ The manifest defines the components in your game: player count, boards, cards, p
 The reducer is where the rules live. It decides what a player is allowed to do, what is illegal, and how the game changes after each move.
 
 ```ts
-import { z } from "zod";
-import {
-  defineAction,
-  definePhase,
-  setActivePlayers,
-} from "@dreamboard/app-sdk/reducer";
+import { game } from "./game-model";
 
-const choosePairing = defineAction<GameContract>()({
-  params: z.object({
-    sums: z.tuple([z.number(), z.number()]),
-  }),
-  validate({ state, input }) {
-    const legalPairings = state.publicState.legalPairings;
-    const isLegal = legalPairings.some(
-      ([left, right]) =>
-        left === input.params.sums[0] && right === input.params.sums[1],
-    );
-
-    if (!isLegal) {
-      return {
-        errorCode: "ILLEGAL_PAIRING",
-        message: "That dice pairing is not legal for this roll.",
-      };
-    }
-
-    return null;
-  },
-  reduce({ state, input, accept, effects }) {
-    return accept(
-      {
-        ...state,
-        publicState: {
-          ...state.publicState,
-          temporaryColumns: [
-            ...state.publicState.temporaryColumns,
-            ...input.params.sums,
-          ],
-        },
-      },
-      [effects.transition("rollOrStop")],
-    );
-  },
-});
-
-export const turn = definePhase<GameContract>()({
+const play = game.phase("play");
+export const turn = play.define({
   kind: "player",
-  state: z.object({}),
   initialState: () => ({}),
-  enter({ state, accept }) {
-    return accept(setActivePlayers(state, [state.publicState.currentPlayerId]));
+  enter({ state, tx }) {
+    tx.setActivePlayers([state.publicState.currentPlayerId]);
   },
-  actions: {
-    choosePairing,
+  interactions: {
+    continue: play.interaction({
+      inputs: {},
+      reduce({ tx }) {
+        return tx.transition("rollOrStop");
+      },
+    }),
   },
 });
 ```
@@ -116,30 +82,27 @@ export const turn = definePhase<GameContract>()({
 The UI shows players what is happening and sends their choices back to the rules engine. It does not need to reimplement the rules.
 
 ```tsx
-export function PlayerView() {
-  const actions = useActions();
+import { useGame } from "./game";
 
+export function PlayerView() {
+  const next = useGame((game) => game.interactions.get("play.continue"));
   return (
-    <>
+    <main>
       <h1>Can't Stop</h1>
-      <button
-        onClick={() => actions.dispatch({ type: "choosePairing", params: { sums: [6, 8] } })}
-      >
-        Advance 6 and 8
-      </button>
-    </>
+      {next && <button {...next.getSubmitProps()}>Continue</button>}
+    </main>
   );
 }
 ```
 
 ## How Dreamboard compares
 
-| Platform | Best fit | Where Dreamboard is different |
-| --- | --- | --- |
-| Board Game Arena | Polished online adaptations on the BGA platform | Dreamboard is aimed at earlier-stage prototyping and does not assume you are ready for a platform-specific implementation or a developer-heavy workflow |
-| Tabletopia | Browser-based sandbox playtesting with no-programming setup | Dreamboard focuses on rule-enforced multiplayer instead of manual sandbox play |
-| Tabletop Simulator | Open-ended physics sandbox, Workshop mods, and deep simulation freedom | Dreamboard focuses on faster structured iteration, mobile-friendly play, and shareable web rooms instead of a general-purpose simulation sandbox |
-| Screentop.gg | Very fast collaborative browser prototypes and instant invite-link playtests | Dreamboard adds rule enforcement and stronger guardrails when the prototype needs more than a shared sandbox |
+| Platform           | Best fit                                                                     | Where Dreamboard is different                                                                                                                           |
+| ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Board Game Arena   | Polished online adaptations on the BGA platform                              | Dreamboard is aimed at earlier-stage prototyping and does not assume you are ready for a platform-specific implementation or a developer-heavy workflow |
+| Tabletopia         | Browser-based sandbox playtesting with no-programming setup                  | Dreamboard focuses on rule-enforced multiplayer instead of manual sandbox play                                                                          |
+| Tabletop Simulator | Open-ended physics sandbox, Workshop mods, and deep simulation freedom       | Dreamboard focuses on faster structured iteration, mobile-friendly play, and shareable web rooms instead of a general-purpose simulation sandbox        |
+| Screentop.gg       | Very fast collaborative browser prototypes and instant invite-link playtests | Dreamboard adds rule enforcement and stronger guardrails when the prototype needs more than a shared sandbox                                            |
 
 ## Why this matters
 

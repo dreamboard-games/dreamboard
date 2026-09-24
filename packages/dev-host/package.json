@@ -30,7 +30,8 @@
     "zod": "4.4.3",
     "postcss": "8.5.28",
     "@tailwindcss/postcss": "^4.3.0",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "@tanstack/react-store": "0.11.1"
   },
   "devDependencies": {
     "@types/node": "^24.12.4",

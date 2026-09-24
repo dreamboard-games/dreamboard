@@ -1,10 +1,9 @@
+import type { RuntimeJson } from "@dreamboard-games/sdk";
 import { createServer } from "node:http";
 import { build } from "esbuild";
 import postcss from "postcss";
 import tailwindcss from "@tailwindcss/postcss";
 import { readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import path from "node:path";
 export interface DevHostOptions {
@@ -12,6 +11,7 @@ export interface DevHostOptions {
   port?: number;
   players?: number;
   seed?: number;
+  options?: Record<string, RuntimeJson>;
 }
 const assets = {
   ".png": "dataurl",
@@ -41,15 +41,12 @@ export async function buildProject(projectRoot: string) {
       contents: `
 import bundle from './app/index.ts';
 import manifest from './manifest.ts';
-import { materializeManifestTable } from '@dreamboard-games/sdk/reducer-contract';
-import { seededShuffle } from ${JSON.stringify(fileURLToPath(new URL("./seeded-shuffle.js", import.meta.url)))};
-export default {...bundle,initialize(input){return bundle.initialize({...input,table:materializeManifestTable({manifest,playerIds:input.playerIds,shuffleItems:seededShuffle(input.rngSeed ?? 1)})})}};
+import { compileManifest } from '@dreamboard-games/sdk/reducer';
+const compiled = compileManifest(manifest);
+export default {...bundle,initialize(input){return bundle.initialize({...input,table:compiled.createInitialTable({playerIds:input.playerIds})})}};
 `,
     },
   });
-  const style = existsSync(path.join(projectRoot, "ui/style.css"))
-    ? `import './ui/style.css';`
-    : "";
   const ui = await build({
     ...common,
     plugins: [
@@ -76,11 +73,7 @@ export default {...bundle,initialize(input){return bundle.initialize({...input,t
       resolveDir: projectRoot,
       loader: "tsx",
       contents: `
-import {createElement} from 'react';import {createRoot} from 'react-dom/client';
-import {PluginRuntime} from '@dreamboard-games/sdk/runtime';
-import '@dreamboard-games/sdk/ui/plugin-styles.css';
-import App from './ui/App.tsx';${style}
-createRoot(document.getElementById('root')).render(createElement(PluginRuntime,null,createElement(App)));
+import './ui/index.tsx';
 `,
     },
   });
@@ -145,6 +138,7 @@ export async function startDevHost(options: DevHostOptions) {
                 (_, i) => `player-${i + 1}`,
               ),
               seed: options.seed ?? 1,
+              options: options.options ?? {},
             }),
           );
         return;
@@ -159,7 +153,7 @@ export async function startDevHost(options: DevHostOptions) {
           "Cache-Control": "no-store",
         })
         .end(
-          `<!doctype html><meta name="viewport" content="width=device-width"><title>Dreamboard local play</title><style>body{margin:0;font:16px system-ui;background:#faf8f2;color:#282621}header{padding:12px;display:flex;gap:16px;align-items:center}button,select{font:inherit;padding:6px}iframe{width:100%;height:calc(100vh - 70px);border:0}#error{color:#b42318;white-space:pre-wrap;padding:12px}</style><header><strong>Local play</strong><select id="seat" aria-label="Playing as"></select><button id="reset">Reset game</button><span id="status">Loading…</span></header><div id="error" role="alert"></div><script type="module" src="/host.js"></script>`,
+          `<!doctype html><meta name="viewport" content="width=device-width"><title>Dreamboard local play</title><style>*{box-sizing:border-box}body{margin:0;height:100dvh;display:flex;flex-direction:column;font:16px system-ui;background:#faf8f2;color:#282621}header{padding:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}button,select{font:inherit;padding:6px;max-width:100%}iframe{width:100%;flex:1;min-height:0;border:0}#error{color:#b42318;white-space:pre-wrap;padding:12px;max-height:30vh;overflow:auto}#error:empty{display:none}</style><header><strong>Local play</strong><select id="seat" aria-label="Playing as"></select><button id="reset">Reset game</button><button id="checkpoint">Save checkpoint</button><button id="restore" disabled>Restore checkpoint</button><span id="status">Loading…</span></header><div id="error" role="alert"></div><script type="module" src="/host.js"></script>`,
         );
     } catch (error) {
       res.writeHead(500, { "Content-Type": "text/plain" }).end(String(error));

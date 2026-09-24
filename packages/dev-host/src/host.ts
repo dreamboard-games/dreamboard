@@ -1,3 +1,4 @@
+import type { RuntimeJson } from "@dreamboard-games/sdk";
 import {
   createBrowserGameplayRuntime,
   mountGameplayUI,
@@ -18,8 +19,9 @@ async function main() {
     revision: string;
     playerIds: string[];
     seed: number;
+    options: Record<string, RuntimeJson>;
   };
-  const storageKey = `dreamboard:local:${project.revision}:${project.seed}:${project.playerIds.join(",")}`;
+  const storageKey = `dreamboard:local:${project.revision}:${project.seed}:${project.playerIds.join(",")}:${JSON.stringify(project.options)}`;
   const previous = localStorage.getItem(storageKey);
   const runtime = createBrowserGameplayRuntime({
     reducerSource: project.reducerSource,
@@ -27,6 +29,7 @@ async function main() {
       table: {},
       playerIds: project.playerIds,
       rngSeed: project.seed,
+      options: project.options,
     },
     restored: previous ? (JSON.parse(previous) as SavedGame) : undefined,
     persist: async (game) => {
@@ -62,6 +65,24 @@ async function main() {
   };
   document.querySelector<HTMLButtonElement>("#reset")!.onclick = () => {
     void ui.reset().catch(report);
+  };
+  const restore = document.querySelector<HTMLButtonElement>("#restore")!;
+  restore.disabled = localStorage.getItem(`${storageKey}:checkpoint`) === null;
+  document.querySelector<HTMLButtonElement>("#checkpoint")!.onclick = () => {
+    void ui
+      .checkpoint()
+      .then((checkpoint) => {
+        localStorage.setItem(
+          `${storageKey}:checkpoint`,
+          JSON.stringify(checkpoint),
+        );
+        restore.disabled = false;
+      })
+      .catch(report);
+  };
+  restore.onclick = () => {
+    const checkpoint = localStorage.getItem(`${storageKey}:checkpoint`);
+    if (checkpoint) void ui.restore(JSON.parse(checkpoint)).catch(report);
   };
   addEventListener(
     "pagehide",

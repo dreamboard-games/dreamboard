@@ -14,7 +14,7 @@ Repository browser tests also prove operation serialization, persistence before 
 Author scenarios from normal setup for:
 
 - opening projections and action availability
-- representative turns, rounds, prompts, or response windows
+- representative turns, rounds, committed steps, or actor-targeted response windows
 - important rule branches and complete game outcomes
 - player-count and seat-order differences
 - deterministic seeded behavior
@@ -24,3 +24,9 @@ Author scenarios from normal setup for:
 Use pure unit tests for isolated algorithms such as scoring or graph
 connectivity. Use scenarios for reducer integration. Do not hydrate state or
 introduce a test-only setup path to shorten a game arc.
+
+## Headless testing sources
+
+Import `localSource`, `scenarioSource`, `createTestSource`, and scenario authoring helpers from `@dreamboard-games/sdk/testing`. `localSource(game, { players, seed, options, as })` uses the production reducer and materializer. Use its `inspect`, bounded `explore`, and typed explicit-actor `apply` methods to examine real rule behavior. Hosted and static sources do not expose `apply`.
+
+Save `source.checkpoint()` as JSON and restore it with `source.restore(checkpoint)`; restoration validates state without replaying commands. Check pending prefixes, final-step rollback, RNG cursor, endings and seat privacy. `createTestSource(snapshot)` controls frames and acknowledgements for UI tests without transport fields in authored fixtures.

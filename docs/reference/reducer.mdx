@@ -32,7 +32,7 @@ const game = createGame({
 });
 ```
 
-Use `game.phase("play")` for helpers bound to that phase and `game.assemble(...)` to combine initial state, phases, and views into the exported definition. Types come from the authored values. Do not materialize or commit a parallel generated manifest contract.
+Use `game.phase("play")` for helpers bound to that phase and `game.assemble(...)` to combine initial state, phases, and one seat view into the exported definition. Types come from the authored values. Do not materialize or commit a parallel generated manifest contract.
 
 `compileManifest(manifest)` exposes literal identities, ID schemas, defaults, table schema, static boards, records, and initial-table construction when tooling needs those explicitly. The SDK owns this translation; a host must not create a second manifest compiler.
 
@@ -56,15 +56,15 @@ For a counter game, reject incrementing beyond the limit; on acceptance, update 
 
 The UI renders the reducer's available interactions. Do not duplicate legality rules in React. The reducer still validates submitted inputs, including stale or manually forged ones.
 
-## Randomness and effects
+## Transactions and randomness
 
-Use the SDK's runtime-owned randomness and effects. Do not call `Math.random`, read wall-clock time, or perform network requests inside rules. Store progression in session state rather than a module variable. Identical seed, initial state, and accepted inputs must produce the same result.
+Mutate through `tx`, then return normally to accept or return `tx.reject(code)`, `tx.transition(phaseName)`, or `tx.endGame(outcome)`. Use `tx.roll`, `tx.shuffle`, `tx.deal`, and the callback's seeded `random` helpers. Do not call `Math.random`, read wall-clock time, or perform network requests inside rules. Store progression in session state rather than a module variable. Identical seed, initial state, and accepted inputs must produce the same result.
 
 Each browser operation loads a fresh reducer module in a worker. A timeout terminates that worker. Module globals cannot act as persistent game state.
 
 ## Views and boards
 
-Define shared and player views from authoritative state. Shared views contain information every player may see; player views add only that seat's visible data. Project board topology through the SDK's static board support and dynamic state through the normal player projection.
+Define one `view: game.view(({ state, playerId }) => ({ ... }))` from authoritative state for the requested seat. Include public information and only that player's visible private data. Project board topology through the SDK's static board support and dynamic state through the normal player projection.
 
 Keep UI layout decisions in React. Reducer views should describe game facts and available choices, rather than pixels or component trees.
 
@@ -80,8 +80,12 @@ Keep UI layout decisions in React. Reducer views should describe game facts and 
 | `project({state,playerIds})` | Produce seat projections                                 |
 | `boardStatic()`              | Return static board projection or null                   |
 
-Use `ReducerWire` and published SDK schemas from `@dreamboard-games/sdk/reducer-contract` at runtime boundaries. Full state is serializable and is persisted by the trusted host before a new projection is published. Author code must not depend on a specific backend or browser host.
+Use `ReducerWire` and published SDK schemas from `@dreamboard-games/sdk/reducer` at runtime boundaries. Full state is serializable and is persisted by the trusted host before a new projection is published. Author code must not depend on a specific backend or browser host.
 
 ## Verification
 
 Run project TypeScript and Vitest checks through `pnpm check`. Test setup, accepted and rejected inputs, turn changes, hidden information, seeded randomness, and endings. Then run `pnpm dev`, switch seats, and repeat a complete game after reset.
+
+Initialization options belong to `createGame({ options: z.strictObject({ ... }), ... })`. They are validated JSON values persisted in runtime state. Initialize components in phase entry callbacks; setup profiles and instruction/effect arrays are removed.
+
+Independent inputs use `inputs`; dependent choices use `phase.steps().input(...)`. Rules with `available` control eligibility before exposing inputs. Final `validate` rules run when complete values are submitted. Every accepted step is a committed state change. Phase entry clears pending selections; rejection preserves the accepted prefix and rolls back new mutations and RNG draws. Use an interaction's `actor` for recipient-only responses.

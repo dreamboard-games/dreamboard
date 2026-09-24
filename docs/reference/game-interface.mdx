@@ -3,20 +3,38 @@ title: "Game interface"
 description: "Build a typed UI from player projections and reducer interactions."
 ---
 
-Export the React game UI from `ui/App.tsx`. The offline host wraps it in the SDK's `PluginRuntime` and mounts it in an opaque iframe separate from reducer execution. Import runtime primitives from `@dreamboard-games/sdk/runtime` and visual components from `@dreamboard-games/sdk/ui`.
+The host bundles your authored `ui/index.tsx` entry in an opaque iframe, separate from reducer execution. Create an `iframeSource()` at this entry and pass it to a typed React provider. The hosted UI imports the game definition only as a type.
 
-## Infer the UI contract
+```tsx
+import { createRoot } from "react-dom/client";
+import { iframeSource } from "@dreamboard-games/sdk";
+import { createGameHook } from "@dreamboard-games/sdk/react";
+import type game from "../app/game";
 
-With the SDK's no-generated-source authoring release, create a normal authored module such as `ui/game-ui.ts`:
-
-```ts
-import { createGameUi } from "@dreamboard-games/sdk/runtime/workspace-contract";
-import game from "../app/game";
-
-export const { UI, uiContract } = createGameUi(game);
+const { GameProvider, useGame } = createGameHook<typeof game>()({
+  coverage: { "play.increment": Counter },
+});
+function Counter() {
+  const view = useGame((game) => game.view);
+  const increment = useGame((game) => game.interactions.get("play.increment"));
+  return (
+    <main>
+      <p>Count: {view?.count}</p>
+      {increment && <button {...increment.getSubmitProps()}>Increment</button>}
+    </main>
+  );
+}
+const source = iframeSource();
+createRoot(document.getElementById("root")!).render(
+  <GameProvider source={source} onError={(error) => console.error(error)}>
+    <Counter />
+  </GameProvider>,
+);
 ```
 
-Use the returned typed UI helpers in components. `GameUiManifestOf<typeof game>`, `GameUiRootStateOf<typeof game>`, and `GameUiHandSurfaceOf<typeof game>` infer types from the same definition. There is no generated `shared/generated/ui-contract` module or special source alias to keep in sync.
+Install React, React DOM and `@tanstack/react-store@0.11.1` alongside the matching published SDK. The SDK's root is framework-free; `/react` is the optional adapter. Each provider owns one source lifetime. Use an app-owned accessible alert for `onError` in a finished UI.
+
+Style native controls yourself or install source-owned registry components into the project. The SDK has no component stylesheet or styled UI facade. Features such as `handFeature` and `boardFeature` extend the same headless instance.
 
 ## Render the selected perspective
 
@@ -34,7 +52,7 @@ Keep controls readable on touch screens. Group related choices, show the active 
 
 ## Boards and components
 
-Use SDK board, card, hand, zone, and interaction primitives where they fit the game. Compose them with ordinary React components and CSS for the game's layout. Board identity comes from the manifest, while occupancy and legal targets come from projection data.
+Use the headless board, card, hand, zone, and interaction objects where they fit the game. Compose them with ordinary React components and CSS for the game's layout. Board identity comes from the manifest, while occupancy and legal targets come from projection data.
 
 Choose one clear interaction for each visible control. Preserve keyboard operation and descriptive labels, including for icon-only buttons. Let content determine layout at narrow widths; do not assume desktop-sized boards or hover interactions.
 
@@ -47,3 +65,7 @@ Refresh the local page after source edits. After loading, gameplay and seat swit
 ## Browser proof
 
 Test loading, a complete accepted action, rejection feedback, seat switching, reset, and the ending. Verify narrow and wide layouts and inspect the real iframe. A unit test of a React component does not prove the SDK message bridge or worker isolation.
+
+## Committed steps
+
+`interaction.getInputs()` contains only the current step. Render server-selected prefix values from `getStep().selected` separately. Submit a new intent for each step, including an explicit nullable final choice. Never replay earlier values or fill future defaults eagerly. `interaction.cancel()` sends the authoritative cancel command; resetting local draft inputs alone does not cancel saved selections. A rejected final step retains the accepted prefix.
