@@ -1,4 +1,7 @@
-import { validateInstalledProof } from "./release-candidate-validation.ts";
+import {
+  validateInstalledProof,
+  verifyPublishedIntegrity,
+} from "./release-candidate-validation.ts";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -78,6 +81,5 @@ for (const entry of unpublished) {
   );
 }
 for (const entry of receipt.packages) {
-  if (registryIntegrity(entry.name, entry.version) !== entry.integrity)
-    throw new Error(`Published integrity mismatch: ${entry.name}`);
+  await verifyPublishedIntegrity(entry, registryIntegrity);
 }

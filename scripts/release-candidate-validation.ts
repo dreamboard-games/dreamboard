@@ -84,3 +84,23 @@ export function validateInstalledProof(
       "Installed browser proof must cover these exact candidate tarballs and source",
     );
 }
+
+/** npm can accept a publication before its version metadata becomes readable. */
+export async function verifyPublishedIntegrity(
+  entry: CandidatePackage,
+  readIntegrity: (name: string, version: string) => string | null,
+): Promise<void> {
+  for (let attempt = 0; attempt < 31; attempt++) {
+    const integrity = readIntegrity(entry.name, entry.version);
+    if (integrity === entry.integrity) return;
+    if (integrity !== null)
+      throw new Error(
+        `Published integrity mismatch: ${entry.name}@${entry.version}`,
+      );
+    if (attempt < 30)
+      await new Promise<void>((resolve) => setTimeout(resolve, 10_000));
+  }
+  throw new Error(
+    `Published version did not become visible within 5 minutes: ${entry.name}@${entry.version}`,
+  );
+}
