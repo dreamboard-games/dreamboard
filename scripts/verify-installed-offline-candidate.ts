@@ -129,7 +129,7 @@ try {
         checks: [
           "installed launcher",
           "compiled fixture",
-          "SDK stylesheet and Tailwind",
+          "authored stylesheet and Tailwind",
           "offline SDK submission",
           "seat switch",
           "reset",
