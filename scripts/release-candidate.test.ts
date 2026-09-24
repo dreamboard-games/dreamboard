@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import {
+  type PackageManifest,
   hostPackage,
   runtimePackage,
   validateCandidateCohort,
@@ -26,9 +27,17 @@ function candidate() {
     sdkVersion: "0.5.0-alpha.3",
     packages,
   };
-  const manifests = packages.map((entry) => ({
+  const manifests: PackageManifest[] = packages.map((entry) => ({
     name: entry.name,
     version: entry.version,
+    repository: {
+      type: "git",
+      url: "https://github.com/dreamboard-games/dreamboard.git",
+      directory:
+        entry.name === runtimePackage
+          ? "packages/browser-gameplay-runtime"
+          : "packages/dev-host",
+    },
     dependencies: {
       "@dreamboard-games/sdk": receipt.sdkVersion,
       ...(entry.name === hostPackage
@@ -71,3 +80,17 @@ test("publication proof must bind exact tarballs and both browsers", () => {
     validateInstalledProof(receipt, { ...proof, browsers: ["chromium"] }),
   ).toThrow(/exact candidate/);
 });
+
+for (const index of [0, 1]) {
+  test.each(["missing", "url", "directory", "type"] as const)(
+    `rejects %s provenance repository metadata for package ${index}`,
+    (field) => {
+      const { receipt, manifests } = candidate();
+      if (field === "missing") delete manifests[index]!.repository;
+      else manifests[index]!.repository![field] = "incorrect";
+      expect(() => validateCandidateCohort(receipt, manifests)).toThrow(
+        /provenance repository metadata/,
+      );
+    },
+  );
+}

@@ -14,6 +14,7 @@ export interface PackageManifest {
   name: string;
   version: string;
   dependencies: Record<string, string>;
+  repository?: { type?: string; url?: string; directory?: string };
 }
 export const runtimePackage = "@dreamboard-games/browser-gameplay-runtime";
 export const hostPackage = "@dreamboard-games/dev-host";
@@ -42,6 +43,16 @@ export function validateCandidateCohort(
     const manifest = manifests[index]!;
     if (manifest.name !== entry.name || manifest.version !== entry.version)
       throw new Error("Package identity mismatch");
+    const directory = index === 0 ? "browser-gameplay-runtime" : "dev-host";
+    if (
+      manifest.repository?.type !== "git" ||
+      manifest.repository.url !==
+        "https://github.com/dreamboard-games/dreamboard.git" ||
+      manifest.repository.directory !== `packages/${directory}`
+    )
+      throw new Error(
+        `Invalid provenance repository metadata for ${entry.name}`,
+      );
     if (manifest.dependencies["@dreamboard-games/sdk"] !== receipt.sdkVersion)
       throw new Error("SDK dependency does not match candidate receipt");
     if (JSON.stringify(manifest).includes("workspace:"))
