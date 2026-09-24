@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
 import { build } from "esbuild";
+import postcss from "postcss";
+import tailwindcss from "@tailwindcss/postcss";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -53,6 +55,23 @@ export default {...bundle,initialize(input){return bundle.initialize({...input,t
     : "";
   const ui = await build({
     ...common,
+    plugins: [
+      {
+        name: "project-tailwind",
+        setup(builder) {
+          builder.onLoad({ filter: /\.css$/ }, async (args) => {
+            const result = await postcss([
+              tailwindcss({ base: projectRoot }),
+            ]).process(await readFile(args.path, "utf8"), { from: args.path });
+            return {
+              contents: result.css,
+              loader: "css",
+              resolveDir: path.dirname(args.path),
+            };
+          });
+        },
+      },
+    ],
     format: "iife",
     outfile: "plugin.js",
     jsx: "automatic",
@@ -62,6 +81,7 @@ export default {...bundle,initialize(input){return bundle.initialize({...input,t
       contents: `
 import {createElement} from 'react';import {createRoot} from 'react-dom/client';
 import {PluginRuntime} from '@dreamboard-games/sdk/runtime';
+import '@dreamboard-games/sdk/ui/plugin-styles.css';
 import App from './ui/App.tsx';${style}
 createRoot(document.getElementById('root')).render(createElement(PluginRuntime,null,createElement(App)));
 `,

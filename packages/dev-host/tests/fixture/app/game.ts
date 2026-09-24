@@ -120,23 +120,21 @@ export default game.assemble({
   },
   initialPhase: "play",
   phases: {
-    play: game
-      .phase("play")
-      .define({
-        kind: "player",
-        initialState: () => ({}),
-        actor: ({ q }) => q.player.order()[0],
-        interactions: {
-          increment: {
-            inputs: {},
-            reduce: ({ state, accept }) =>
-              accept({
-                ...state,
-                publicState: { count: state.publicState.count + 1 },
-              }),
-          },
+    play: game.phase("play").define({
+      kind: "player",
+      initialState: () => ({}),
+      actor: ({ q }) => q.player.order()[0],
+      interactions: {
+        increment: {
+          inputs: {},
+          reduce: ({ state, accept }) =>
+            accept({
+              ...state,
+              publicState: { count: state.publicState.count + 1 },
+            }),
         },
-      }),
+      },
+    }),
   },
   views: {
     shared: { project: ({ state }) => ({ count: state.publicState.count }) },

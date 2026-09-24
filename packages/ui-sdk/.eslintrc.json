@@ -1,6 +1,0 @@
-{
-  "extends": ["@dreamboard/eslint-config/base.js"],
-  "parserOptions": {
-    "project": "./tsconfig.json"
-  }
-}
