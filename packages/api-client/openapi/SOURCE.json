@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "internal",
-  "sourceRevision": "15cc8888a50eca5baabb5ad23290fe68dc5d41b6",
+  "sourceRevision": "fd855e7a93d25c50d9739bab2486a4a27c7f2aa6",
   "sourceWorktreeStatus": "clean",
-  "privateBundleSha256": "sha256:16e32eaeda1bb616feb3e89724250f03bd0b971b74018f40596ab564c3060857",
-  "routePolicySha256": "sha256:d66c1e653493f867eeff7cde0d2dace4a439e0551b6b6dc0348020048c8f0cb6",
-  "clientAllowlistSha256": "sha256:83660026ba8ebd91435a8c5ad0e1559e5799a3b0eb91fd2a165d34f8c9b45e18",
-  "publicOpenApiSha256": "sha256:6ed8978b6530dd188b9f308450ee0b958c0864090bbfa1329c3ea76df9000125",
-  "operationCount": 68,
+  "privateBundleSha256": "sha256:1586df27fd434b5110345ae2472b0c460beda803d4f4b09222e73066165ec6a9",
+  "routePolicySha256": "sha256:54d9f9c687c8f86653a2d88f71dcc87766add68ae09c2b42c09366e5bac2b1b8",
+  "clientAllowlistSha256": "sha256:f60a712a66c578917d9369d73566a99ccf9481fb77f2136595975c92dad0a17e",
+  "publicOpenApiSha256": "sha256:e8a680ce28f2bc0dadb38b25c477991756423ba59b3456e270c66079f9036b85",
+  "operationCount": 52,
   "publicClientRoutes": [
     {
       "method": "GET",
@@ -66,16 +66,6 @@
     },
     {
       "method": "GET",
-      "path": "/api/demo/sessions/{sessionId}/event-batches",
-      "operationId": "getDemoSessionLobbyEventBatch"
-    },
-    {
-      "method": "POST",
-      "path": "/api/demo/sessions/{sessionId}/players/{playerId}/gameplay-capability",
-      "operationId": "createDemoGameplayCapability"
-    },
-    {
-      "method": "GET",
       "path": "/api/demo/sessions/{sessionId}/snapshot",
       "operationId": "getDemoSessionSnapshot"
     },
@@ -86,13 +76,13 @@
     },
     {
       "method": "GET",
-      "path": "/api/demo/sessions/code/{shortCode}",
-      "operationId": "getDemoSessionByShortCode"
+      "path": "/api/demo/sessions/{sessionId}/ui-bundle",
+      "operationId": "getDemoSessionUiBundle"
     },
     {
       "method": "GET",
-      "path": "/api/demo/ui-bundles/fetch",
-      "operationId": "fetchDemoUiBundle"
+      "path": "/api/demo/sessions/code/{shortCode}",
+      "operationId": "getDemoSessionByShortCode"
     },
     {
       "method": "POST",
@@ -103,11 +93,6 @@
       "method": "GET",
       "path": "/api/jobs/{jobId}",
       "operationId": "getJob"
-    },
-    {
-      "method": "GET",
-      "path": "/api/jobs/{jobId}/event-batches",
-      "operationId": "getJobEventBatch"
     },
     {
       "method": "GET",
@@ -135,14 +120,14 @@
       "operationId": "ensureProject"
     },
     {
-      "method": "POST",
-      "path": "/api/projects/{projectId}/builds",
-      "operationId": "ensureProjectBuild"
+      "method": "GET",
+      "path": "/api/projects/{projectId}/builds/{buildJobId}",
+      "operationId": "getProjectCommitBuild"
     },
     {
       "method": "GET",
-      "path": "/api/projects/{projectId}/builds/{buildRecipeDigest}",
-      "operationId": "getProjectBuild"
+      "path": "/api/projects/{projectId}/builds/{buildJobId}/sources",
+      "operationId": "getProjectCommitBuildSources"
     },
     {
       "method": "GET",
@@ -153,6 +138,11 @@
       "method": "GET",
       "path": "/api/projects/{projectId}/compiled-results/{compiledResultId}",
       "operationId": "getProjectCompiledResult"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/{projectId}/compiled-results/{compiledResultId}/playable",
+      "operationId": "getProjectPlayableRevision"
     },
     {
       "method": "GET",
@@ -173,51 +163,6 @@
       "method": "GET",
       "path": "/api/projects/{projectId}/jobs/active",
       "operationId": "getProjectActiveJob"
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/{projectId}/preview/image",
-      "operationId": "fetchProjectPreviewImage"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/projects/{projectId}/preview/initial-projection",
-      "operationId": "uploadProjectInitialProjection"
-    },
-    {
-      "method": "POST",
-      "path": "/api/projects/{projectId}/preview/screenshot",
-      "operationId": "queueProjectPreviewScreenshot"
-    },
-    {
-      "method": "POST",
-      "path": "/api/projects/{projectId}/previews",
-      "operationId": "createProjectPreview"
-    },
-    {
-      "method": "POST",
-      "path": "/api/projects/{projectId}/releases",
-      "operationId": "publishProjectRelease"
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/{projectId}/releases/current",
-      "operationId": "getCurrentProjectRelease"
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/{projectId}/repository",
-      "operationId": "getProjectRepository"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/projects/{projectId}/repository",
-      "operationId": "ensureProjectRepository"
-    },
-    {
-      "method": "POST",
-      "path": "/api/projects/{projectId}/repository/reconcile",
-      "operationId": "retryProjectRepositoryReconciliation"
     },
     {
       "method": "POST",
@@ -241,11 +186,6 @@
     },
     {
       "method": "POST",
-      "path": "/api/projects/{projectId}/sessions/from-reducer-snapshot",
-      "operationId": "createProjectSessionFromReducerSnapshot"
-    },
-    {
-      "method": "POST",
       "path": "/api/projects/{projectId}/source-blobs/upload-sessions",
       "operationId": "createProjectSourceBlobUploadSession"
     },
@@ -253,11 +193,6 @@
       "method": "GET",
       "path": "/api/projects/{projectId}/sources",
       "operationId": "getProjectSources"
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/{projectId}/status/{commitOid}",
-      "operationId": "getProjectCommitStatus"
     },
     {
       "method": "GET",
@@ -276,23 +211,8 @@
     },
     {
       "method": "POST",
-      "path": "/api/runs/{jobId}/accept",
-      "operationId": "acceptGameRun"
-    },
-    {
-      "method": "POST",
       "path": "/api/runs/{jobId}/cancel",
       "operationId": "cancelGameRun"
-    },
-    {
-      "method": "GET",
-      "path": "/api/sessions/{sessionId}/event-batches",
-      "operationId": "getSessionLobbyEventBatch"
-    },
-    {
-      "method": "POST",
-      "path": "/api/sessions/{sessionId}/players/{playerId}/gameplay-capability",
-      "operationId": "createGameplayCapability"
     },
     {
       "method": "POST",
