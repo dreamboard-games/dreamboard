@@ -1,44 +1,99 @@
-Export the React game UI from `ui/App.tsx`. The offline host wraps it in the SDK's `PluginRuntime` and mounts it in an opaque iframe separate from reducer execution. Import runtime primitives from `@dreamboard-games/sdk/runtime` and visual components from `@dreamboard-games/sdk/ui`.
+# Headless interface
 
-## Infer the UI contract
+The offline host compiles your authored `ui/index.tsx`. Hosted modules import the
+assembled game only as a type. This binding works with the counter in
+[first game](building-your-first-game.md).
 
-With the SDK's no-generated-source authoring release, create a normal authored module such as `ui/game-ui.ts`:
+`ui/game.tsx`:
 
-```ts
-import { createGameUi } from "@dreamboard-games/sdk/runtime/workspace-contract";
-import game from "../app/game";
+```tsx
+import type { ReactElement } from "react";
+import { createGameHook } from "@dreamboard-games/sdk/react";
+import type definition from "../app/game";
 
-export const { UI, uiContract } = createGameUi(game);
+export const { GameProvider, useGame, Subscribe } = createGameHook<
+  typeof definition
+>()({
+  coverage: { "play.increment": Counter },
+});
+export function Counter(): ReactElement | null {
+  const view = useGame((game) => game.view);
+  const increment = useGame((game) => game.interactions.get("play.increment"));
+  if (!view) return <p>Connecting…</p>;
+  return (
+    <main>
+      <h1>Counter</h1>
+      <output>{view.count}</output>
+      {increment && <button {...increment.getSubmitProps()}>Add one</button>}
+    </main>
+  );
+}
 ```
 
-Use the returned typed UI helpers in components. `GameUiManifestOf<typeof game>`, `GameUiRootStateOf<typeof game>`, and `GameUiHandSurfaceOf<typeof game>` infer types from the same definition. There is no generated `shared/generated/ui-contract` module or special source alias to keep in sync.
+`ui/App.tsx`:
 
-## Render the selected perspective
+```tsx
+import type { GameSource } from "@dreamboard-games/sdk";
+import { GameProvider, Counter } from "./game";
+export function App({ source }: { source: GameSource }) {
+  return (
+    <GameProvider source={source}>
+      <Counter />
+    </GameProvider>
+  );
+}
+```
 
-Display game facts from the current player's projection: scores, visible cards, board state, active players, and available interactions. Keep presentation state such as an open drawer in React; keep rule state in the reducer.
+`ui/index.tsx`:
 
-Do not expect access to the complete game state, other players' private projections, browser credentials, or host storage. The host remounts the UI when the user switches seats, clearing component state from the previous perspective.
+```tsx
+import { createRoot } from "react-dom/client";
+import { iframeSource } from "@dreamboard-games/sdk";
+import { App } from "./App";
+createRoot(document.getElementById("root")!).render(
+  <App source={iframeSource()} />,
+);
+```
 
-For a card table, distinguish shared zones, the current hand, opponents' visible card counts, and the discard pile. Never synthesize hidden card faces from the manifest or infer authority from a local UI toggle.
+GameProvider owns source disposal. Bind the hook without a source; each mounted
+provider receives its own source. A separate local scenario entry may pass
+`await localSource(definition, options)` or `await scenarioSource(...)` to App.
+Only that local entry imports the executable definition and `/testing`.
 
-## Submit interactions
+## Objects and selections
 
-Use SDK interaction descriptors and typed inputs. Render the provided availability and validation feedback. The host submits the selected player's input and rejects stale gameplay bases; the reducer decides whether it is legal.
+`useGame()` returns the stable instance; selector form subscribes to immutable
+snapshots. Select scalars or stable branches. `phase`, `turn`, `me`, `players`,
+`interactions`, `inputs`, `zones`, `cards` and `events.recent` describe the selected
+seat. `turn.currentPlayerId` is null when zero or multiple players are active;
+`turn.isMine` is active membership. `me.getCanAct()` checks available legal actions.
 
-Keep controls readable on touch screens. Group related choices, show the active player clearly, and give pending submissions visible feedback. Avoid a second local reducer or optimistic rule implementation that can diverge from the authoritative projection.
+Use canonical field/target/submit props for native controls. Local input values
+can be unfinished; readiness and disabled props reflect canonical constraints.
+For ordered interactions, render only current inputs, display saved step.selected
+separately, and require a new intent for the next step. reset clears a local draft;
+cancel clears the server prefix, including when the current domain is blocked.
+Programmatic submit/cancel returns accepted:false for rejection: inspect the
+result, not just exceptions. Show errors using current onError or application UI.
 
-## Boards and components
+A successful ACK may precede its frame. Let the source request barrier manage
+submitting and exact-revision draft clearing; never advance steps from an ACK
+alone. Source/seat replacement invalidates old handlers and selections.
 
-Use SDK board, card, hand, zone, and interaction primitives where they fit the game. Compose them with ordinary React components and CSS for the game's layout. Board identity comes from the manifest, while occupancy and legal targets come from projection data.
+## Features, styling and privacy
 
-Choose one clear interaction for each visible control. Preserve keyboard operation and descriptive labels, including for icon-only buttons. Let content determine layout at narrow widths; do not assume desktop-sized boards or hover interactions.
+Enable optional handFeature/boardFeature/dragFeature/panZoomFeature in the hook's
+features callback. Disabled APIs are absent from types. Static boards come from
+canonical materialized frame.view.boards; arbitrary authored view fields cannot
+replace that reserved authority. Occupancy is ordinary selected-seat view data.
 
-## Offline assets
+Components/styles are application-owned or copied from the source registry.
+Workspace-bound items import `useGame` through the configured `@game` alias.
+Keep keyboard semantics, touch hit areas and accessible labels. Animation is
+optional app behavior. Native wheel zoom needs a non-passive listener, and SVG
+pointer coordinates must be converted through the screen CTM.
 
-The local dev host embeds images and fonts imported from project files. The cloud compiler currently accepts UTF-8 source files only, so binary image/font imports must be embedded as data URLs for cloud builds. Authored UI has a restrictive Content Security Policy: remote network calls, remote images, and external scripts cannot be used. The product may provide cached media through the trusted host's asset mapping; reducer state remains unchanged.
-
-Refresh the local page after source edits. After loading, gameplay and seat switching continue without a network connection. Reloading the dev host page requires the local server.
-
-## Browser proof
-
-Test loading, a complete accepted action, rejection feedback, seat switching, reset, and the ending. Verify narrow and wide layouts and inspect the real iframe. A unit test of a React component does not prove the SDK message bridge or worker isolation.
+Never infer hidden card faces from manifest IDs or forward full checkpoints to
+the UI. Card view is null when hidden. Opponents' counts are not permission to read
+their cards. The host uses a separate opaque UI iframe from reducer execution.
+The latest public event batch is not a private-message channel or replay stream.

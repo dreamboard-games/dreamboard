@@ -1,6 +1,9 @@
-A Dreamboard game is a TypeScript project with `manifest.ts`, `app/game.ts`, and `ui/App.tsx`. The manifest describes the components and setup; the game implements rules; the UI renders a player's projection.
+# Quickstart
 
-Install a matching published SDK and `@dreamboard-games/dev-host` release in the project. Use normal project scripts:
+Install the matching published SDK and dev-host cohort declared by the project.
+React UIs also need `react`, `react-dom` and the SDK's exact optional renderer peer
+`@tanstack/react-store@0.11.1`. Reducer authoring uses Zod. Preserve existing pinned
+versions; do not guess a prerelease or repin as part of ordinary game edits.
 
 ```json
 {
@@ -11,8 +14,21 @@ Install a matching published SDK and `@dreamboard-games/dev-host` release in the
 }
 ```
 
-Run `pnpm check`, then `pnpm dev --players 2 --seed 1`. Open the local URL. No account, backend, or remote project is required. Refresh after editing source to rebuild.
+Keep these ownership boundaries:
 
-Use the player selector to inspect each seat. Reset starts the same seed again. Browser storage resumes the same source revision, seed, and player count. Authored UI receives only the selected player's projection.
+- `manifest.ts`: players, cards, zones and inline static board data.
+- `app/game.ts`: bound model, phases, transactions and one selected-seat view.
+- `app/index.ts`: default `createReducerBundle(game)` export.
+- `ui/game.tsx`: typed React hook using a type-only game import.
+- `ui/App.tsx`: ordinary components accepting a source.
+- `ui/index.tsx`: mounts the authored UI with `iframeSource()`.
+- Optional separate local entry: imports game and `/testing` to create a local or
+  scenario source; keep it outside the hosted UI import graph.
 
-Imported images and fonts are embedded. Remote URLs and network requests are blocked in authored code. Once loaded, a game continues playing without a network connection; reloading the page still requires the local development server.
+Run `pnpm check`, then `pnpm dev --players 2 --seed 1`. Use the displayed local URL.
+Switch seats and verify privacy, reset, save/restore and terminal behavior.
+Refresh after changes so the host compiles the new revision. Imported local
+images/fonts are embedded; authored frames cannot make remote network requests.
+
+See [first game](building-your-first-game.md) for a complete small authoring
+example and [interface](game-interface.md) for the actual React entries.

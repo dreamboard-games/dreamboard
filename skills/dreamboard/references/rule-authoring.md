@@ -14,7 +14,7 @@ Use `rule.md` for:
 
 ## Recommended structure
 
-Use the same section order for every `rule.md`.
+Use the following structure where it fits the game; preserve the user’s intended scope.
 
 ### `Overview`
 
@@ -41,7 +41,7 @@ Describe the initial state in ordered steps.
 - how players are seated
 - which player acts first
 - which components start in which locations
-- any setup options or setup-profile differences
+- JSON initialization options and their rule effects
 
 ### `Gameplay`
 

@@ -1,598 +1,76 @@
-The default export of `manifest.ts` defines the stable structure of your game: player counts, card
-sets, zones, boards, pieces, dice, resources, and setup metadata.
+# Manifest authoring
 
-Boards describe positions, connections, and structural sites. Randomized setup
-contents still belong in reducer setup code. In a Catan-style game, the
-manifest should define stable hex spaces such as `cell-01`, `cell-02`, and
-`cell-03`, while the reducer shuffles terrain pieces and number tokens onto
-those spaces at runtime.
+The authored manifest is a normal TypeScript module. Use the installed
+`defineTopologyManifest` helper to retain literal identities:
 
-## Top-level shape
-
-```json
-{
-  "players": { "...": "..." },
-  "cardSets": [{ "...": "..." }],
-  "zones": [{ "...": "..." }],
-  "boardTemplates": [{ "...": "..." }],
-  "boards": [{ "...": "..." }],
-  "pieceTypes": [{ "...": "..." }],
-  "pieceSeeds": [{ "...": "..." }],
-  "dieTypes": [{ "...": "..." }],
-  "dieSeeds": [{ "...": "..." }],
-  "resources": [{ "...": "..." }],
-  "setupOptions": [{ "...": "..." }],
-  "setupProfiles": [{ "...": "..." }]
-}
+```ts
+import { defineTopologyManifest } from "@dreamboard-games/sdk/reducer";
+export default defineTopologyManifest({
+  players: { minPlayers: 2, maxPlayers: 2 },
+  cardSets: [],
+  zones: [],
+  boards: [],
+});
 ```
 
-| Field            | Required | Notes                                                   |
-| ---------------- | -------- | ------------------------------------------------------- |
-| `players`        | Yes      | Supported player counts                                 |
-| `cardSets`       | Yes      | Manual or preset card catalogs                          |
-| `zones`          | No       | Shared and per-player containers; defaults to `[]`      |
-| `boardTemplates` | No       | Reusable board topology; defaults to `[]`               |
-| `boards`         | No       | Shared and per-player board instances; defaults to `[]` |
-| `pieceTypes`     | No       | Piece type definitions; defaults to `[]`                |
-| `pieceSeeds`     | No       | Seeded pieces; defaults to `[]`                         |
-| `dieTypes`       | No       | Die type definitions; defaults to `[]`                  |
-| `dieSeeds`       | No       | Seeded dice; defaults to `[]`                           |
-| `resources`      | No       | Resource types; defaults to `[]`                        |
-| `setupOptions`   | No       | Setup axes; defaults to `[]`                            |
-| `setupProfiles`  | No       | Setup profiles; defaults to `[]`                        |
+Pass it to createGame, or call compileManifest when tooling needs explicit ID
+schemas, table schema, initial table construction and static geometry. Do not
+hand-build a second compiler or commit generated identity contracts. Consult the
+installed declaration for each component shape rather than copying an obsolete
+schema table from a tutorial.
 
-Top-level keys outside this schema are rejected when the manifest is loaded.
+## Cards and zones
 
-## Shared schema types
+Manual card sets declare id/name, cardSchema, defaultHome and cards. Each card
+has type/name/count and properties matching its schema. Explicit cardType, when
+authored, is the runtime family identity; preserve literal property variants.
+References to homes and allowedCardSetIds must name actual authored components.
 
-### `PropertySchema`
+Zones declare id/name, scope (`shared` or `perPlayer`) and visibility (`public`,
+`ownerOnly` or `hidden`) as appropriate. Shared means one table-wide container;
+perPlayer materializes a container for each seat. Scope does not grant visibility.
+Hidden zones must not expose card IDs/properties through projection. UI code uses
+canonical projected zone/card objects rather than rebuilding hidden contents from
+the manifest.
 
-Use `PropertySchema` inside card schemas and board, space, relation, container,
-edge, vertex, piece, or die field schemas.
+## Inline board geometry
 
-| Field         | Required | Notes                                                                                                                                                                                              |
-| ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `type`        | Yes      | One of `string`, `integer`, `number`, `boolean`, `zoneId`, `cardId`, `playerId`, `boardId`, `edgeId`, `vertexId`, `spaceId`, `pieceId`, `dieId`, `resourceId`, `array`, `object`, `record`, `enum` |
-| `description` | No       | Short help text                                                                                                                                                                                    |
-| `optional`    | No       | When `true`, the authored field may be omitted                                                                                                                                                     |
-| `nullable`    | No       | When `true`, the authored field may be `null`                                                                                                                                                      |
-| `items`       | No       | Required when `type` is `array`                                                                                                                                                                    |
-| `properties`  | No       | Required when `type` is `object`                                                                                                                                                                   |
-| `values`      | No       | Required when `type` is `record`                                                                                                                                                                   |
-| `enums`       | No       | Required when `type` is `enum`                                                                                                                                                                     |
-
-### `ObjectSchema`
-
-`ObjectSchema` is a map of property names to `PropertySchema`. Properties are
-required unless their schema sets `optional: true`.
-
-```json
-{
-  "properties": {
-    "cost": { "type": "integer" },
-    "terrain": {
-      "type": "enum",
-      "enums": ["forest", "hill", "field"]
-    }
-  }
-}
-```
-
-`properties` and `fields` values in `manifest.ts` are stored as authored JSON
-values. Keep those values consistent with the schema you declare.
-
-### `ComponentHomeSpec`
-
-Use `home` on cards, piece seeds, and die seeds to place authored inventory.
-
-| `type`      | Extra fields                | Meaning                                            |
-| ----------- | --------------------------- | -------------------------------------------------- |
-| `detached`  | None                        | Start unattached                                   |
-| `zone`      | `zoneId`                    | Place into a zone                                  |
-| `space`     | `boardId`, `spaceId`        | Place onto a board space or hex space              |
-| `container` | `boardId`, `containerId`    | Place into a board container                       |
-| `edge`      | `boardId`, `ref`            | Place onto a hex edge identified by two spaces     |
-| `vertex`    | `boardId`, `ref`            | Place onto a hex vertex identified by three spaces |
-| `slot`      | `hostComponentId`, `slotId` | Place into a component-owned slot                  |
-
-### `ComponentVisibilitySpec`
-
-| Field       | Required | Notes                                                                       |
-| ----------- | -------- | --------------------------------------------------------------------------- |
-| `faceUp`    | No       | Defaults to `true`                                                          |
-| `visibleTo` | No       | Player IDs that can see the component; omitted means visible to all players |
-
-## `players`
-
-### `PlayersDefinition`
-
-| Field            | Required | Notes                    |
-| ---------------- | -------- | ------------------------ |
-| `minPlayers`     | Yes      | Integer from `1` to `10` |
-| `maxPlayers`     | Yes      | Integer from `1` to `10` |
-| `optimalPlayers` | No       | Recommended player count |
-
-## `cardSets`
-
-`cardSets` define the cards that exist. `defaultHome` or per-card `home` places
-authored inventory into zones.
-
-### `CardSetDefinition`
-
-| Variant          | Required fields                                    | Notes                 |
-| ---------------- | -------------------------------------------------- | --------------------- |
-| `type: "manual"` | `id`, `name`, `cardSchema`, `cards`, `defaultHome` | Define your own cards |
-| `type: "preset"` | `id`, `name`, `defaultHome`                        | Use a built-in set    |
-
-Current supported preset ID: `standard_52_deck`.
-
-### `BoardCard`
-
-| Field        | Required | Notes                                          |
-| ------------ | -------- | ---------------------------------------------- |
-| `type`       | Yes      | Card type and single-copy runtime ID seed      |
-| `name`       | Yes      | Display name                                   |
-| `count`      | Yes      | Integer `>= 1`                                 |
-| `properties` | Yes      | JSON-valued property map matching `cardSchema` |
-| `imageUrl`   | No       | Image URL                                      |
-| `text`       | No       | Card text                                      |
-| `cardType`   | No       | Category or subtype                            |
-| `home`       | No       | `ComponentHomeSpec`                            |
-| `visibility` | No       | `ComponentVisibilitySpec`                      |
-
-```json
-{
-  "cardSets": [
+```ts
+import { defineTopologyManifest, hexagon } from "@dreamboard-games/sdk/reducer";
+export default defineTopologyManifest({
+  players: { minPlayers: 2, maxPlayers: 2 },
+  cardSets: [],
+  zones: [],
+  boards: [
     {
-      "type": "manual",
-      "id": "project-cards",
-      "name": "Project cards",
-      "defaultHome": {
-        "type": "zone",
-        "zoneId": "project-deck"
-      },
-      "cardSchema": {
-        "properties": {
-          "cost": { "type": "integer" },
-          "tag": {
-            "type": "enum",
-            "enums": ["building", "science", "space"]
-          }
-        }
-      },
-      "cards": [
-        {
-          "type": "power-plant",
-          "name": "Power Plant",
-          "count": 1,
-          "properties": {
-            "cost": 11,
-            "tag": "building"
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-## `zones`
-
-Use `zones` for shared piles, per-player hands, pools, bags, and other table-level containers.
-`allowedCardSetIds` controls destination compatibility. `defaultHome` and
-per-card `home` control initial placement. Use reducer setup for dynamic
-distribution and shuffle.
-
-| Field               | Required | Notes                                                    |
-| ------------------- | -------- | -------------------------------------------------------- |
-| `id`                | Yes      | Pattern: `^[a-zA-Z][a-zA-Z0-9_-]*$`                      |
-| `name`              | Yes      | Display name                                             |
-| `scope`             | Yes      | `shared` or `perPlayer`                                  |
-| `allowedCardSetIds` | No       | Allowed card sets; enforced for card movement            |
-| `visibility`        | No       | `ownerOnly`, `public`, or `hidden`; defaults to `public` |
-
-```json
-{
-  "zones": [
-    {
-      "id": "project-deck",
-      "name": "Project deck",
-      "scope": "shared",
-      "allowedCardSetIds": ["project-cards"],
-      "visibility": "hidden"
+      id: "island",
+      name: "Island",
+      layout: "hex",
+      scope: "shared",
+      orientation: "pointy",
+      shape: hexagon({ radius: 2 }),
+      exclude: [{ q: 2, r: 0 }],
+      spaces: { "0,0": { id: "capital", typeId: "city" } },
     },
-    {
-      "id": "project-discard",
-      "name": "Project discard",
-      "scope": "shared",
-      "allowedCardSetIds": ["project-cards"],
-      "visibility": "public"
-    },
-    {
-      "id": "project-hand",
-      "name": "Project hand",
-      "scope": "perPlayer",
-      "allowedCardSetIds": ["project-cards"],
-      "visibility": "ownerOnly"
-    }
-  ]
-}
-```
-
-## `boardTemplates` and `boards`
-
-Use templates when multiple boards share the same topology. Use boards for authored board instances that exist at runtime.
-
-`layout` is the engine-level discriminator. `typeId` is the reducer-facing
-category. For example, a Monopoly board would usually be `layout: "generic"`
-with `typeId: "track"`.
-
-### `BoardTemplateSpec`
-
-| Variant | Required fields                   | Notes                                                     |
-| ------- | --------------------------------- | --------------------------------------------------------- |
-| Generic | `id`, `name`, `layout: "generic"` | Optional `typeId` for authored board category             |
-| Hex     | `id`, `name`, `layout: "hex"`     | Optional `typeId`; `orientation` defaults to `pointy-top` |
-
-Generic templates can include `boardFieldsSchema`, `spaceFieldsSchema`,
-`relationFieldsSchema`, `containerFieldsSchema`, and `spaces`, `relations`,
-`containers`. Those arrays default to `[]`.
-
-Hex templates can include `boardFieldsSchema`, `spaceFieldsSchema`,
-`edgeFieldsSchema`, `vertexFieldsSchema`, and `spaces`, `edges`, `vertices`.
-Those arrays default to `[]`.
-
-```json
-{
-  "boardTemplates": [
-    {
-      "id": "catan-island",
-      "name": "Catan island",
-      "layout": "hex",
-      "orientation": "pointy-top",
-      "spaces": [
-        { "id": "cell-01", "q": 0, "r": 0, "typeId": "land" },
-        { "id": "cell-02", "q": 1, "r": 0, "typeId": "land" },
-        { "id": "cell-03", "q": 0, "r": 1, "typeId": "land" }
-      ],
-      "edges": [
-        {
-          "ref": { "spaces": ["cell-01", "cell-02"] },
-          "typeId": "harbor"
-        }
-      ],
-      "vertices": [
-        {
-          "ref": { "spaces": ["cell-01", "cell-02", "cell-03"] },
-          "typeId": "settlement-site"
-        }
-      ]
-    }
   ],
-  "boards": [
-    {
-      "id": "main-island",
-      "name": "Main island",
-      "layout": "hex",
-      "scope": "shared",
-      "templateId": "catan-island"
-    }
-  ]
-}
+});
 ```
 
-### `BoardSpec`
+Hex shapes, orientation and exclusions produce canonical space/edge/vertex
+identities and incidence. Attach metadata through the canonical authoring
+references; do not maintain a competing adjacency map or invent boundary IDs.
+Square and generic boards also use inline data: there is no template identity or
+merging path. Generic boards remain data-only unless the app supplies a layout.
 
-| Field        | Required | Notes                                             |
-| ------------ | -------- | ------------------------------------------------- |
-| `id`         | Yes      | Pattern: `^[a-zA-Z][a-zA-Z0-9_-]*$`               |
-| `name`       | Yes      | Display name                                      |
-| `layout`     | Yes      | `generic` or `hex`                                |
-| `typeId`     | No       | Authored board category used by reducer/UI code   |
-| `scope`      | Yes      | `shared` or `perPlayer`                           |
-| `templateId` | No       | Clone a template before applying inline additions |
-| `fields`     | No       | JSON-valued board field map                       |
+The manifest owns static topology and component defaults. Reducers own mutable
+occupancy, resource balances, turn data and rules. The canonical host materializer
+joins static boards into frame.view.boards; the authored seat view must not use
+that reserved own key.
 
-Generic boards can add `boardFieldsSchema`, `spaceFieldsSchema`,
-`relationFieldsSchema`, `containerFieldsSchema`, plus `spaces`, `relations`,
-and `containers`. Those arrays default to `[]`.
+## Initialization options
 
-Hex boards can add `orientation`, `boardFieldsSchema`, `spaceFieldsSchema`,
-`edgeFieldsSchema`, `vertexFieldsSchema`, plus `spaces`, `edges`, and
-`vertices`. Those arrays default to `[]`.
-
-### `BoardSpaceSpec`
-
-| Field    | Required | Notes                                           |
-| -------- | -------- | ----------------------------------------------- |
-| `id`     | Yes      | Board-local space ID                            |
-| `name`   | No       | Display label                                   |
-| `typeId` | No       | Authored space category used by reducer/UI code |
-| `fields` | No       | JSON-valued field map                           |
-
-### `BoardRelationSpec`
-
-| Field         | Required | Notes                                          |
-| ------------- | -------- | ---------------------------------------------- |
-| `typeId`      | Yes      | Relation category such as `adjacent` or `next` |
-| `fromSpaceId` | Yes      | Source space                                   |
-| `toSpaceId`   | Yes      | Target space                                   |
-| `id`          | No       | Stable relation ID                             |
-| `directed`    | No       | Defaults to `false`                            |
-| `fields`      | No       | JSON-valued field map                          |
-
-### `BoardContainerSpec`
-
-| Field               | Required | Notes                                                            |
-| ------------------- | -------- | ---------------------------------------------------------------- |
-| `id`                | Yes      | Board-local container ID                                         |
-| `name`              | Yes      | Display name                                                     |
-| `host`              | Yes      | `{ "type": "board" }` or `{ "type": "space", "spaceId": "..." }` |
-| `allowedCardSetIds` | No       | Allowed card sets                                                |
-| `fields`            | No       | JSON-valued field map                                            |
-
-Board containers are for attached holding areas such as market rows, discard
-trays, or board-level displays. Board spaces are topology nodes in the board
-graph such as squares, hexes, map locations, or action spots.
-
-### `HexSpaceSpec`, `HexEdgeSpec`, and `HexVertexSpec`
-
-| Type            | Required fields | Notes                                                                                                |
-| --------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
-| `HexSpaceSpec`  | `id`, `q`, `r`  | Optional `typeId`, `label`, `fields`                                                                 |
-| `HexEdgeSpec`   | `ref`           | `ref.spaces` must contain exactly 2 adjacent space IDs; optional `typeId`, `label`, `tags`, `fields` |
-| `HexVertexSpec` | `ref`           | `ref.spaces` must contain exactly 3 touching space IDs; optional `typeId`, `label`, `tags`, `fields` |
-
-Use hex spaces for stable board positions. Use edges and vertices for
-structural sites such as roads, borders, settlements, checkpoints, or other
-game-specific metadata.
-
-For a single real-game example that also lines up with `PieceSeedSpec` and `DieSeedSpec`, a Monopoly-style `track` board is the best fit.
-
-```json
-{
-  "boards": [
-    {
-      "id": "main-board",
-      "name": "Monopoly board",
-      "layout": "generic",
-      "typeId": "track",
-      "scope": "shared",
-      "spaces": [
-        { "id": "go", "name": "GO", "typeId": "corner" },
-        {
-          "id": "mediterranean-avenue",
-          "name": "Mediterranean Avenue",
-          "typeId": "property"
-        },
-        {
-          "id": "income-tax",
-          "name": "Income Tax",
-          "typeId": "tax"
-        }
-      ],
-      "relations": [
-        {
-          "typeId": "next",
-          "fromSpaceId": "go",
-          "toSpaceId": "mediterranean-avenue",
-          "directed": true
-        },
-        {
-          "typeId": "next",
-          "fromSpaceId": "mediterranean-avenue",
-          "toSpaceId": "income-tax",
-          "directed": true
-        }
-      ]
-    }
-  ]
-}
-```
-
-## `pieceTypes`, `pieceSeeds`, `dieTypes`, and `dieSeeds`
-
-### `PieceTypeSpec` and `DieTypeSpec`
-
-| Type            | Core fields  | Notes                                                     |
-| --------------- | ------------ | --------------------------------------------------------- |
-| `PieceTypeSpec` | `id`, `name` | Optional `fieldsSchema`                                   |
-| `DieTypeSpec`   | `id`, `name` | Optional `sides` defaults to `6`; optional `fieldsSchema` |
-
-### `PieceSeedSpec` and `DieSeedSpec`
-
-| Field        | Required | Notes                                                |
-| ------------ | -------- | ---------------------------------------------------- |
-| `typeId`     | Yes      | Piece type or die type ID                            |
-| `id`         | No       | Runtime ID seed; falls back to `typeId` when omitted |
-| `name`       | No       | Display label                                        |
-| `count`      | No       | Integer `>= 1`; defaults to `1`                      |
-| `ownerId`    | No       | Player ID such as `player-1`                         |
-| `home`       | No       | `ComponentHomeSpec`                                  |
-| `visibility` | No       | `ComponentVisibilitySpec`                            |
-| `fields`     | No       | JSON-valued field map                                |
-
-```json
-{
-  "pieceTypes": [
-    {
-      "id": "player-token",
-      "name": "Player token"
-    }
-  ],
-  "pieceSeeds": [
-    {
-      "id": "top-hat",
-      "name": "Top Hat",
-      "typeId": "player-token",
-      "ownerId": "player-1",
-      "home": {
-        "type": "space",
-        "boardId": "main-board",
-        "spaceId": "go"
-      }
-    },
-    {
-      "id": "dog",
-      "name": "Dog",
-      "typeId": "player-token",
-      "ownerId": "player-2",
-      "home": {
-        "type": "space",
-        "boardId": "main-board",
-        "spaceId": "go"
-      }
-    }
-  ],
-  "dieTypes": [
-    {
-      "id": "standard-d6",
-      "name": "Standard d6",
-      "sides": 6
-    }
-  ],
-  "dieSeeds": [
-    {
-      "id": "die-a",
-      "name": "Die A",
-      "typeId": "standard-d6"
-    },
-    {
-      "id": "die-b",
-      "name": "Die B",
-      "typeId": "standard-d6"
-    }
-  ]
-}
-```
-
-## `resources`, `setupOptions`, and `setupProfiles`
-
-### `ResourceDefinition`
-
-| Field  | Required | Notes                              |
-| ------ | -------- | ---------------------------------- |
-| `id`   | Yes      | Pattern: `^[a-zA-Z][a-zA-Z0-9_]*$` |
-| `name` | Yes      | Display name                       |
-
-```json
-{
-  "resources": [
-    { "id": "megacredits", "name": "MegaCredits" },
-    { "id": "steel", "name": "Steel" },
-    { "id": "plants", "name": "Plants" }
-  ]
-}
-```
-
-### `SetupOptionSpec`
-
-| Field         | Required | Notes                                              |
-| ------------- | -------- | -------------------------------------------------- |
-| `id`          | Yes      | Stable option ID                                   |
-| `name`        | Yes      | Display name                                       |
-| `description` | No       | Help text                                          |
-| `choices`     | No       | Array of `SetupOptionChoiceSpec`; defaults to `[]` |
-
-### `SetupOptionChoiceSpec`
-
-| Field         | Required | Notes            |
-| ------------- | -------- | ---------------- |
-| `id`          | Yes      | Stable choice ID |
-| `label`       | Yes      | Display label    |
-| `description` | No       | Help text        |
-
-### `SetupProfileSpec`
-
-| Field          | Required | Notes                                          |
-| -------------- | -------- | ---------------------------------------------- |
-| `id`           | Yes      | Stable profile ID                              |
-| `name`         | Yes      | Display name                                   |
-| `description`  | No       | Help text                                      |
-| `optionValues` | No       | Map from setup option ID to selected choice ID |
-
-`setupOptions` and `setupProfiles.optionValues` are metadata for UI and future
-interactive setup composition. The runtime still selects setup by
-`setupProfileId`, and actual setup execution stays in reducer-owned
-`app/setup-profiles.ts`.
-
-```json
-{
-  "setupOptions": [
-    {
-      "id": "map",
-      "name": "Map",
-      "choices": [
-        { "id": "tharsis", "label": "Tharsis" },
-        { "id": "hellas", "label": "Hellas" },
-        { "id": "elysium", "label": "Elysium" }
-      ]
-    },
-    {
-      "id": "starting-corporations",
-      "name": "Starting corporations",
-      "choices": [
-        { "id": "beginner", "label": "Beginner corporation" },
-        { "id": "draft", "label": "Draft corporations" }
-      ]
-    },
-    {
-      "id": "expansion",
-      "name": "Expansion",
-      "choices": [
-        { "id": "base", "label": "Base game" },
-        { "id": "prelude", "label": "Prelude" }
-      ]
-    }
-  ],
-  "setupProfiles": [
-    {
-      "id": "terraforming-mars-standard",
-      "name": "Terraforming Mars standard setup",
-      "optionValues": {
-        "map": "tharsis",
-        "starting-corporations": "draft",
-        "expansion": "prelude"
-      }
-    }
-  ]
-}
-```
-
-## Derived behavior
-
-- Player IDs are generated as `player-1` through `player-{maxPlayers}`.
-- Optional top-level arrays default to `[]`.
-- `ZoneSpec.visibility` defaults to `public`.
-- `BoardRelationSpec.directed` defaults to `false`.
-- `HexBoardTemplateSpec.orientation` defaults to `pointy-top`.
-- `ComponentVisibilitySpec.faceUp` defaults to `true`.
-- `PieceSeedSpec.count` and `DieSeedSpec.count` default to `1`.
-- `DieTypeSpec.sides` defaults to `6`.
-- `SetupOptionSpec.choices` defaults to `[]`.
-- A manual card with `count > 1` expands to runtime card IDs like `{type}-1`,
-  `{type}-2`, and so on. A single-copy card keeps `type` as its runtime ID.
-- A piece or die seed with `count > 1` expands to runtime IDs like `{id}-1`,
-  `{id}-2`, or `{typeId}-1`, `{typeId}-2` when `id` is omitted.
-- A board with `scope: "perPlayer"` expands to runtime board IDs like
-  `{boardId}:player-1`.
-- Home references use authored board base IDs. Per-player boards resolve to the
-  matching runtime board for the owning player.
-- For hex boards, authored `spaces` are the stable topology positions. Runtime
-  `edgeId` and `vertexId` values are derived from those spaces. Authors attach
-  metadata by referencing `ref.spaces`, not by writing edge or vertex IDs
-  directly.
-- Preset card sets are materialized into authored cards before code generation.
-  The current supported preset is `standard_52_deck`.
-- `setupProfiles.optionValues` must reference declared setup options and
-  declared choice IDs.
-- Dreamboard generates literal unions and Zod schemas for authored categories
-  such as `BoardLayout`, `BoardTypeId`, `SpaceTypeId`, `RelationTypeId`,
-  `EdgeTypeId`, and `VertexTypeId`.
-- Dreamboard generates typed runtime ID literals, authored category unions, Zod
-  schemas, and lookup helpers from the manifest for players, cards, zones,
-  boards, resources, setup options, setup profiles, and schema-backed fields.
-
-If you are deciding between one shared zone and one copy per player, use this
-rule: `scope: "shared"` means exactly one table-wide container, and
-`scope: "perPlayer"` means Dreamboard materializes one container per player.
+Lobby options belong to the createGame options Zod schema, not manifest setup
+profiles. Values enter initialize as JSON, are validated and persisted, and are
+available to state and phase initializers. Shuffle/deal and other setup mutations
+happen in ordinary phase entry. Keep options JSON-native; do not introduce a
+second profile selector or execution DSL.
