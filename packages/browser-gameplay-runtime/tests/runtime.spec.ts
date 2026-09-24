@@ -281,3 +281,339 @@ test("shared UI bridge renders only a seat and submits offline interactions", as
     await page.evaluate(() => (window as any).oldSeatFrames),
   ).not.toContain("bob");
 });
+
+async function mountRetryGame(
+  page: import("@playwright/test").Page,
+  failNotification = false,
+) {
+  await page.evaluate(
+    async ({ source, failNotification }) => {
+      const module = (window as any).runtimeModule;
+      const host = window as any;
+      host.persisted = [];
+      host.errors = [];
+      host.dropNextResult = false;
+      const send = module.PluginBridge.prototype.sendSubmitResult;
+      module.PluginBridge.prototype.sendSubmitResult = function (result: any) {
+        if (host.dropNextResult) {
+          host.dropNextResult = false;
+          return null;
+        }
+        return send.call(this, result);
+      };
+      const runtime = module.createBrowserGameplayRuntime({
+        reducerSource: source,
+        initialize: { table: {}, playerIds: ["alice", "bob"] },
+        persist: async (value: any) => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          host.persisted.push(value.state.domain.publicState.count);
+        },
+      });
+      host.gameRuntime = runtime;
+      const initialSnapshot = await runtime.start();
+      const html = `<script>
+      let host, sequence = 0;
+      window.framesSeen = []; window.results = [];
+      window.submit = command => parent.postMessage({...host,sequence:++sequence,payload:command}, '*');
+      addEventListener('message', event => {
+        if(event.source !== parent) return;
+        const payload = event.data.payload;
+        if(payload.type === 'runtime.init') {
+          host=event.data;
+          parent.postMessage({...host,sequence:++sequence,payload:{type:'runtime.ready'}}, '*');
+        }
+        if(payload.type === 'gameplay.frame') { window.frame=payload.frame; window.framesSeen.push(payload.frame); }
+        if(payload.type === 'interaction.result') window.results.push(payload);
+      });
+    </script>`;
+      host.ui = module.mountGameplayUI({
+        container: document.body,
+        html,
+        runtime,
+        initialSnapshot,
+        sessionId: "retry-test",
+        players: [
+          { playerId: "alice", displayName: "Alice" },
+          { playerId: "bob", displayName: "Bob" },
+        ],
+        onSnapshot: (snapshot: any) => {
+          if (failNotification && snapshot.projection.sharedView.count > 0)
+            throw new Error("Notification failed");
+        },
+        onError: (error: unknown) => host.errors.push(String(error)),
+      });
+    },
+    {
+      source: source.replace(
+        "view:state.domain.privateState[id]",
+        "view:{...state.domain.publicState,...state.domain.privateState[id]},availableInteractionRefs:[],zones:{}",
+      ),
+      failNotification,
+    },
+  );
+  const ui = page.frameLocator('iframe[title="Game"]');
+  await expect
+    .poll(() =>
+      ui
+        .locator("body")
+        .evaluate(() => (window as any).frame?.basis.perspectivePlayerId),
+    )
+    .toBe("alice");
+  return ui;
+}
+
+test("lost ACK and queued exact retries reuse the commit, while changed requests and stale new commands reject", async ({
+  page,
+}) => {
+  const ui = await mountRetryGame(page);
+  const command = await ui.locator("body").evaluate(() => ({
+    type: "interaction.submit",
+    clientActionId: "first",
+    basis: (window as any).frame.basis,
+    interactionId: "increment",
+    params: { a: 1, b: 2 },
+  }));
+  await page.evaluate(() => {
+    (window as any).dropNextResult = true;
+  });
+  await ui.locator("body").evaluate((_body, command) => {
+    (window as any).submit(command);
+    (window as any).submit({ ...command, params: { b: 2, a: 1 } });
+  }, command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(1);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).results[0].accepted),
+  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([0, 1]);
+  // Retry the original basis after a later commit: return the recorded result
+  // alongside the latest frame, never the old result's private snapshot.
+  await ui.locator("body").evaluate(() =>
+    (window as any).submit({
+      type: "interaction.submit",
+      clientActionId: "second",
+      basis: (window as any).frame.basis,
+      interactionId: "increment",
+      params: {},
+    }),
+  );
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(2);
+  await ui
+    .locator("body")
+    .evaluate((_body, command) => (window as any).submit(command), command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(3);
+  expect(
+    await ui.locator("body").evaluate(() => (window as any).frame.view.count),
+  ).toBe(2);
+  for (const changed of [
+    { ...command, params: { a: 9 } },
+    { ...command, interactionId: "other" },
+    { ...command, basis: { ...command.basis, version: 999 } },
+    { ...command, clientActionId: "stale-new" },
+  ])
+    await ui
+      .locator("body")
+      .evaluate((_body, value) => (window as any).submit(value), changed);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(7);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() =>
+        (window as any).results.slice(3).map((r: any) => r.accepted),
+      ),
+  ).toEqual([false, false, false, false]);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([
+    0, 1, 2,
+  ]);
+});
+
+test("committed result survives snapshot callback failure and seat changes preserve privacy and identity", async ({
+  page,
+}) => {
+  const ui = await mountRetryGame(page, true);
+  const command = await ui.locator("body").evaluate(() => ({
+    type: "interaction.submit",
+    clientActionId: "same-id",
+    basis: (window as any).frame.basis,
+    interactionId: "increment",
+    params: {},
+  }));
+  await ui
+    .locator("body")
+    .evaluate((_body, command) => (window as any).submit(command), command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(1);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).results[0].accepted),
+  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).errors)).toContain(
+    "Error: Notification failed",
+  );
+  await page.evaluate(() => (window as any).ui.selectSeat("bob"));
+  await expect
+    .poll(() =>
+      ui
+        .locator("body")
+        .evaluate(() => (window as any).frame?.basis.perspectivePlayerId),
+    )
+    .toBe("bob");
+  await ui.locator("body").evaluate((_body, command) => {
+    (window as any).submit(command);
+    (window as any).submit({ ...command, basis: (window as any).frame.basis });
+  }, command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(2);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).results.map((r: any) => r.accepted)),
+  ).toEqual([false, false]);
+  const frames = await ui
+    .locator("body")
+    .evaluate(() => JSON.stringify((window as any).framesSeen));
+  expect(frames).toContain('"secret":"B"');
+  expect(frames).not.toContain('"secret":"A"');
+  await page.evaluate(() => (window as any).ui.selectSeat("alice"));
+  await expect
+    .poll(() =>
+      ui
+        .locator("body")
+        .evaluate(() => (window as any).frame?.basis.perspectivePlayerId),
+    )
+    .toBe("alice");
+  await ui
+    .locator("body")
+    .evaluate((_body, command) => (window as any).submit(command), command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(1);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).results[0].accepted),
+  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([0, 1]);
+});
+
+test("a command queued behind a seat switch cannot act for or notify the new seat; reset clears retry history", async ({
+  page,
+}) => {
+  const ui = await mountRetryGame(page);
+  const command = await ui.locator("body").evaluate(() => ({
+    type: "interaction.submit",
+    clientActionId: "reusable-after-reset",
+    basis: (window as any).frame.basis,
+    interactionId: "increment",
+    params: {},
+  }));
+  await ui
+    .locator("body")
+    .evaluate((_body, command) => (window as any).submit(command), command);
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(1);
+  await page.evaluate(() => {
+    const host = window as any;
+    const original = host.gameRuntime.selectSeat;
+    host.gameRuntime.selectSeat = async (seat: string) => {
+      await new Promise<void>((resolve) => {
+        host.releaseSeat = resolve;
+      });
+      return original(seat);
+    };
+    host.switched = host.ui.selectSeat("bob");
+  });
+  await expect
+    .poll(() => page.evaluate(() => typeof (window as any).releaseSeat))
+    .toBe("function");
+  // A barrier on the parent's message event confirms delivery before releasing
+  // the queued seat switch, without timing assumptions about iframe IPC.
+  await page.evaluate(() => {
+    (window as any).delivered = new Promise<void>((resolve) => {
+      window.addEventListener("message", function listener(event) {
+        if (event.data?.payload?.clientActionId !== "reusable-after-reset")
+          return;
+        window.removeEventListener("message", listener);
+        resolve();
+      });
+    });
+  });
+  await ui
+    .locator("body")
+    .evaluate((_body, command) => (window as any).submit(command), command);
+  await page.evaluate(async () => {
+    const host = window as any;
+    await host.delivered;
+    host.releaseSeat();
+    await host.switched;
+  });
+  await expect
+    .poll(() =>
+      ui
+        .locator("body")
+        .evaluate(() => (window as any).frame?.basis.perspectivePlayerId),
+    )
+    .toBe("bob");
+  expect(
+    await ui.locator("body").evaluate(() => (window as any).results),
+  ).toEqual([]);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([0, 1]);
+  await page.evaluate(() => (window as any).ui.reset());
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).frame?.view.count),
+    )
+    .toBe(0);
+  await ui
+    .locator("body")
+    .evaluate(
+      (_body, command) =>
+        (window as any).submit({
+          ...command,
+          basis: (window as any).frame.basis,
+        }),
+      command,
+    );
+  await expect
+    .poll(() =>
+      ui.locator("body").evaluate(() => (window as any).results.length),
+    )
+    .toBe(1);
+  expect(
+    await ui
+      .locator("body")
+      .evaluate(() => (window as any).results[0].accepted),
+  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).persisted)).toEqual([
+    0, 1, 0, 1,
+  ]);
+});

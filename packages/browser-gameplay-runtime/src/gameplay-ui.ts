@@ -1,5 +1,8 @@
 import {
   materializePluginGameplayFrame,
+  encodeCanonicalPluginRuntimeJson,
+  type SubmitInteractionCommand,
+  type InteractionResult,
   type PluginGameplayFrame,
   type PluginPlayerSummary,
 } from "@dreamboard-games/sdk/plugin-runtime-contract";
@@ -28,6 +31,72 @@ export function mountGameplayUI(options: GameplayUIOptions) {
   let disposed = false;
   let stopHandshake = () => {};
   let tail: Promise<unknown> = Promise.resolve();
+  // This mount owns one source/session. Seat remounts retain command identity;
+  // reset starts a new session history. The serial queue also orders retries.
+  const commands = new Map<
+    string,
+    { identity: string; result?: InteractionResult }
+  >();
+  function reportError(error: unknown) {
+    try {
+      options.onError?.(error);
+    } catch {
+      /* Reporting cannot undo a commit. */
+    }
+  }
+  function notify(run: () => unknown) {
+    try {
+      run();
+    } catch (error) {
+      reportError(error);
+    }
+  }
+  async function submit(
+    command: SubmitInteractionCommand,
+  ): Promise<InteractionResult> {
+    const identity = encodeCanonicalPluginRuntimeJson(command);
+    const recorded = commands.get(command.clientActionId);
+    if (recorded) {
+      if (
+        recorded.identity !== identity ||
+        command.basis.perspectivePlayerId !== snapshot.playerId
+      )
+        throw new Error(
+          "Command ID was already used for a different request or seat",
+        );
+      if (recorded.result) return recorded.result;
+    }
+    commands.set(command.clientActionId, { identity });
+    if (
+      encodeCanonicalPluginRuntimeJson(command.basis) !==
+      encodeCanonicalPluginRuntimeJson(frame.basis)
+    )
+      throw new Error("The view changed; try again");
+    const dispatched = await options.runtime.dispatch({
+      kind: "interaction",
+      playerId: snapshot.playerId,
+      interactionId: command.interactionId,
+      params: command.params,
+    });
+    const result: InteractionResult =
+      dispatched.kind === "accept"
+        ? {
+            type: "interaction.result",
+            clientActionId: command.clientActionId,
+            accepted: true,
+          }
+        : {
+            type: "interaction.result",
+            clientActionId: command.clientActionId,
+            accepted: false,
+            errorCode: dispatched.errorCode,
+            message: dispatched.message,
+          };
+    // Dispatch has persisted the commit. Record it before presentation callbacks.
+    commands.set(command.clientActionId, { identity, result });
+    if (dispatched.kind === "accept") updateSnapshot(dispatched.snapshot);
+    return result;
+  }
   function queue<T>(run: () => Promise<T>): Promise<T> {
     const result = tail.then(() => {
       if (disposed) throw new Error("Game UI disposed");
@@ -69,7 +138,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
         ),
       };
     }
-    options.onSnapshot?.(next);
+    notify(() => options.onSnapshot?.(next));
   }
   function mount() {
     iframe = document.createElement("iframe");
@@ -94,54 +163,37 @@ export function mountGameplayUI(options: GameplayUIOptions) {
       options.onError?.(new Error(message.message)),
     );
     bridge.onPluginMessage("interaction.submit", (command) => {
-      const requester = bridge;
+      const requester = mountedBridge;
       void queue(async () => {
+        // A command queued by a retired seat/source must never receive or mutate
+        // the newly selected seat, including through a cached result.
+        if (requester !== bridge) return;
+        let result: InteractionResult;
         try {
-          if (
-            command.basis.version !== frame.basis.version ||
-            command.basis.actionSetVersion !== frame.basis.actionSetVersion ||
-            command.basis.perspectivePlayerId !== snapshot.playerId
-          )
-            throw new Error("The view changed; try again");
-          const result = await options.runtime.dispatch({
-            kind: "interaction",
-            playerId: snapshot.playerId,
-            interactionId: command.interactionId,
-            params: command.params,
-          });
-          if (result.kind === "accept") {
-            updateSnapshot(result.snapshot);
-            if (!disposed) bridge.sendGameplayFrame(frame);
-            requester.sendSubmitResult({
-              type: "interaction.result",
-              clientActionId: command.clientActionId,
-              accepted: true,
-            });
-          } else
-            requester.sendSubmitResult({
-              type: "interaction.result",
-              clientActionId: command.clientActionId,
-              accepted: false,
-              errorCode: result.errorCode,
-              message: result.message,
-            });
+          result = await submit(command);
         } catch (error) {
-          requester.sendSubmitResult({
+          result = {
             type: "interaction.result",
             clientActionId: command.clientActionId,
             accepted: false,
             errorCode: "local_execution_failed",
             message: String(error),
-          });
-          options.onError?.(error);
+          };
+          reportError(error);
         }
-      }).catch((error) => options.onError?.(error));
+        if (!disposed && requester === bridge) {
+          notify(() => requester.sendGameplayFrame(frame));
+          notify(() => requester.sendSubmitResult(result));
+        }
+      }).catch(reportError);
     });
     iframe.onload = () => {
       const sendInit = () => {
         if (++attempts > 40) {
           stopHandshake();
-          options.onError?.(new Error("Game UI did not initialize within 10 seconds"));
+          options.onError?.(
+            new Error("Game UI did not initialize within 10 seconds"),
+          );
           return;
         }
         mountedBridge.sendInit({
@@ -171,6 +223,7 @@ export function mountGameplayUI(options: GameplayUIOptions) {
     reset: () =>
       queue(async () => {
         const next = await options.runtime.reset();
+        commands.clear();
         if (!disposed) {
           stopHandshake();
           bridge.disconnect();
